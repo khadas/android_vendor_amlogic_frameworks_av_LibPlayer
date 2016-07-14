@@ -690,9 +690,16 @@ static void get_ts_program_info(play_para_t *p_para)
     }
 }
 
+static int sub_support(int codec_id)
+{
+    if (codec_id == CODEC_ID_DVB_TELETEXT)
+        return 0;
+    return 1;
+}
+
 static void get_stream_info(play_para_t *p_para)
 {
-    unsigned int i, k, j;
+   unsigned int i, k, j;
     AVFormatContext *pFormat = p_para->pFormatCtx;
     AVStream *pStream;
     AVCodecContext *pCodec;
@@ -894,6 +901,9 @@ static void get_stream_info(play_para_t *p_para)
                     continue;
                 }
             }
+            // sub support check
+            if (sub_support(pCodec->codec_id) == 0)
+                continue;
             p_para->sstream_num ++;
             if (temp_sidx == -1) {
                 temp_sidx = i;
