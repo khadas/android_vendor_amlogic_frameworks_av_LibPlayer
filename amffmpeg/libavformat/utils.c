@@ -3599,6 +3599,7 @@ static int try_decode_frame(AVStream *st, AVPacket *avpkt)
         // no sps in es data but extradata, parse bit_depth from extradata.
         if (st->codec->extradata_size > 0) {
             int header_len = 0;
+            int dsize = st->codec->extradata_size;
             bsize = st->codec->extradata_size + 100;
             buffer = (uint8_t *)av_malloc(bsize);
             memset(buffer, 0x00, bsize);
@@ -3608,20 +3609,40 @@ static int try_decode_frame(AVStream *st, AVPacket *avpkt)
             } else {
                 char nal_start_code[] = {0x0, 0x0, 0x0, 0x1};
                 int i, j, num_arrays, nal_len_size, nalsize;
+                if (dsize < 23) {
+                    //av_log(NULL, AV_LOG_INFO, "size too short\n");
+                    av_free(buffer);
+                    return 0;
+                }
                 p += 21;
                 nal_len_size = *(p++) & 3 + 1;
                 num_arrays   = *(p++);
-                for (i = 0; i < num_arrays; i++) {
+                dsize -= 23;
+                for (i = 0; i < num_arrays; i++)
+                {
+                    if (dsize < 3) {
+                        //av_log(NULL, AV_LOG_INFO, "size too short\n");
+                        av_free(buffer);
+                        return 0;
+                    }
                     int type = *(p++) & 0x3f;
                     int cnt  = (*p << 8) | (*(p + 1));
                     p += 2;
-                    for (j = 0; j < cnt; j++) {
+                    dsize -= 3;
+                    for (j = 0; j < cnt; j++)
+                    {
                         nalsize = (*p << 8) | (*(p + 1));
                         memcpy(&(buffer[header_len]), nal_start_code, 4);
                         header_len += 4;
+                        if (dsize < nalsize) {
+                            //av_log(NULL, AV_LOG_INFO, "size too short\n");
+                            av_free(buffer);
+                            return 0;
+                        }
                         memcpy(&(buffer[header_len]), p + 2, nalsize);
                         header_len += nalsize;
                         p += (nalsize + 2);
+                        dsize -= nalsize;
                     }
                 }
             }
@@ -4231,7 +4252,8 @@ int av_find_stream_info(AVFormatContext *ic)
         }
         if (st->parser && st->parser->parser->split && !st->codec->extradata) {
             int i = st->parser->parser->split(st->codec, pkt->data, pkt->size);
-            if (i) {
+            if (i && (i <= pkt->size))
+            {
                 st->codec->extradata_size = i;
                 st->codec->extradata = av_malloc(st->codec->extradata_size + FF_INPUT_BUFFER_PADDING_SIZE);
                 memcpy(st->codec->extradata, pkt->data, st->codec->extradata_size);

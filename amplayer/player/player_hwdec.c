@@ -386,7 +386,6 @@ static int h264_add_header(unsigned char *buf, int size,  am_packet_t *pkt)
         header_len += nalsize;
         p += (nalsize + 2);
     }
-
     cnt = *(p++); //Number of pps
     // printf("number of pps :%d\n", cnt);
     for (tmpi = 0; tmpi < cnt; tmpi++) {
@@ -478,13 +477,28 @@ static int hevc_add_header(unsigned char *buf, int size,  am_packet_t *pkt)
          * is finalized. When finalized, configurationVersion will be 1 and we
          * can recognize hvcC by checking if extradata[0]==1 or not. */
         int i, j, num_arrays, nal_len_size;
+        if (size < 21) {
+            //av_log(NULL, AV_LOG_INFO, "[%s:%d]:%d\n", __FUNCTION__, __LINE__,size);
+            return PLAYER_FAILED;
+        }
         p += 21;  // skip 21 bytes
+        size -= 21;
+        if (size < 2) {
+            //av_log(NULL, AV_LOG_INFO, "[%s:%d]:%d\n", __FUNCTION__, __LINE__,size);
+            return PLAYER_FAILED;
+        }
         nal_len_size = *(p++) & 3 + 1;
         num_arrays   = *(p++);
+        size -= 2;
         for (i = 0; i < num_arrays; i++) {
+            if (size < 3) {
+                //av_log(NULL, AV_LOG_INFO, "[%s:%d]:%d\n", __FUNCTION__, __LINE__,size);
+                return PLAYER_FAILED;
+            }
             int type = *(p++) & 0x3f;
             int cnt  = (*p << 8) | (*(p + 1));
             p += 2;
+            size -= 3;
             log_print("hvcC, nal type=%d, count=%d \n", type, cnt);
 
             for (j = 0; j < cnt; j++) {
@@ -492,9 +506,14 @@ static int hevc_add_header(unsigned char *buf, int size,  am_packet_t *pkt)
                 nalsize = (*p << 8) | (*(p + 1));
                 MEMCPY(&(buffer[header_len]), nal_start_code, 4);
                 header_len += 4;
+                if (size < (nalsize + 2)) {
+                    //av_log(NULL, AV_LOG_INFO, "[%s:%d]:%d\n", __FUNCTION__, __LINE__,size);
+                    return PLAYER_FAILED;
+                }
                 MEMCPY(&(buffer[header_len]), p + 2, nalsize);
                 header_len += nalsize;
                 p += (nalsize + 2);
+                size -= (nalsize + 2);
             }
         }
         if (header_len >= HDR_BUF_SIZE) {
