@@ -335,7 +335,7 @@ int url_lpread(URLContext *s,unsigned char * buf,int size)
 			    rlen=url_lpfillbuffer(s,lp->block_read_size);
 			if(rlen<=0)
 				{
-				lp_unlock(&lp->mutex);
+				//lp_unlock(&lp->mutex);
 				return ((size-len)>0)?(size-len):rlen;
 				}
 			lp_lock(&lp->mutex);
