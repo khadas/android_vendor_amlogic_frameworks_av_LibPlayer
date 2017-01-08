@@ -1095,7 +1095,7 @@ static void check_avbuf_end(play_para_t *p_para, struct buf_status *vbuf, struct
 
 static void check_force_end(play_para_t *p_para, struct buf_status *vbuf, struct buf_status *abuf)
 {
-    int check_flag = 0;
+    int video_endflag = 1, audio_endflag = 1;
     int result = 0;
     int has_video = p_para->vstream_info.has_video;
     int has_audio = p_para->astream_info.has_audio;
@@ -1107,12 +1107,14 @@ static void check_force_end(play_para_t *p_para, struct buf_status *vbuf, struct
     int abuf_datalen = abuf->data_len;
 
     if (has_video) {
+        video_endflag = 0;
         result = vbuf_level < 0.04;
     } else {
         result = 1;
     }
     if (has_audio) {
         result = result && (abuf_level < 0.04);
+        audio_endflag = 0;
     }
     //log_print("[%s:%d]result=%d abuf_level=%f\n", __FUNCTION__, __LINE__, result,abuf_level);
     if (has_audio && audio_fmt == AFORMAT_WMAPRO) {
@@ -1121,16 +1123,29 @@ static void check_force_end(play_para_t *p_para, struct buf_status *vbuf, struct
     //log_print("[%s:%d]end=%d result=%d afmt=%d\n", __FUNCTION__, __LINE__, p_para->playctrl_info.end_flag, result, audio_fmt);
     if (!p_para->playctrl_info.end_flag && result) {
         //log_print("v:%d vlen=0x%x a:%d alen=0x%x count=%d, vrp 0x%x, arp 0x%x\n",
-        //    p_para->vstream_info.has_video,vbuf->data_len, p_para->astream_info.has_audio,abuf->data_len,p_para->check_end.end_count,vbuf->read_pointer,abuf->read_pointer);
+        //p_para->vstream_info.has_video,vbuf->data_len, p_para->astream_info.has_audio,abuf->data_len,p_para->check_end.end_count,vbuf->read_pointer,abuf->read_pointer);
         if (has_video) {
             if (p_para->vbuffer.rp_is_changed) {
                 p_para->check_end.end_count = CHECK_END_COUNT;
             } else {    //video buffer rp not move
-                check_flag = 1;
+                video_endflag = 1;
                 log_print("[%s]vrp not move,vrp=vbufrp=0x%x,vlevel=%.03f cnt=%d\n", __FUNCTION__, vbuf->read_pointer, vbuf_level, p_para->check_end.end_count);
+            }
+            if (video_endflag) {
+                int vpts = codec_get_vpts(get_video_codec(p_para));
+                /*if video pts is changed,
+                we think not finished playing video.
+                just wait vpts notchanged.
+                */
+                if (vpts != p_para->vbuffer.latest_pts) {
+                    p_para->check_end.end_count = CHECK_END_COUNT;
+                    p_para->vbuffer.latest_pts = vpts;
+                    video_endflag = 0;
+                }
             }
         }
         if (has_audio) {
+            audio_endflag = 0;
             if (audio_fmt == AFORMAT_AMR ||
                 audio_fmt == AFORMAT_PCM_S16LE ||
                 audio_fmt == AFORMAT_APE  ||
@@ -1154,33 +1169,15 @@ static void check_force_end(play_para_t *p_para, struct buf_status *vbuf, struct
             if (p_para->abuffer.rp_is_changed) {
                 p_para->check_end.end_count = CHECK_END_COUNT;
             } else {
-                check_flag = 1;
+                audio_endflag = 1;
                 log_print("[%s]arp not move,arp=abufrp=0x%x alevel=%.03f cnt=%d\n", __FUNCTION__, abuf->read_pointer, p_para->state.audio_bufferlevel, p_para->check_end.end_count);
             }
         }
 
-        if (check_flag) {
-            int dec_unit = 1;
-            float total_level = (p_para->state.video_bufferlevel + p_para->state.audio_bufferlevel) + 0.000001;
-            while (total_level * dec_unit < 0.02 && dec_unit < 9) {
-                dec_unit *= 2;
-            }
+        if (audio_endflag && video_endflag) {
+            int dec_unit = CHECK_END_COUNT / 2  - 1;/*all end, wait 200ms ,100ms(100ms update.) * 2*/
             p_para->check_end.end_count -= dec_unit;
-            if (!p_para->playctrl_info.reset_flag) {
-                player_thread_wait(p_para, 100 * 1000); //100ms
-            }
-            if (has_video && p_para->check_end.end_count <= 0) {
-                int vpts = codec_get_vpts(get_video_codec(p_para));
-                /*if video pts is changed,
-                we think not finished playing video.
-                just wait vpts notchanged.
-                */
-                if (vpts != p_para->vbuffer.latest_pts) {
-                    p_para->check_end.end_count += CHECK_END_COUNT;
-                    p_para->vbuffer.latest_pts = vpts;
-                    return ;
-                }
-            }
+
             if (p_para->check_end.end_count <= 0) {
                 if (!p_para->playctrl_info.video_end_flag) {
                     p_para->playctrl_info.video_end_flag = 1;
@@ -1205,6 +1202,9 @@ static void check_force_end(play_para_t *p_para, struct buf_status *vbuf, struct
                         log_print("[%s]force end, black=%d\n", __FUNCTION__, p_para->playctrl_info.black_out);
                     }
                 }
+            }
+            if (!p_para->playctrl_info.end_flag && !p_para->playctrl_info.reset_flag) {
+                player_thread_wait(p_para, 50 * 1000); //50ms.
             }
         }
     }
