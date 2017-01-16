@@ -290,6 +290,7 @@ static int curl_fetch_start_local_run(CFContext * h)
         return ret;
     }
     ret = pthread_create(&h->pid, NULL, curl_fetch_thread_run, h);
+    pthread_setname_np(h->pid, "Curl_Downloader");
     return ret;
 }
 
@@ -347,7 +348,9 @@ int curl_fetch_read(CFContext * h, char * buf, int size)
     if (avail) {
         size = CURLMIN(avail, size);
         curl_fifo_generic_read(h->cwh_h->cfifo, buf, size, NULL);
-        pthread_cond_signal(&h->cwh_h->pthread_cond);
+        if (curl_fifo_space(h->cwh_h->cfifo) > 16384) {
+            pthread_cond_signal(&h->cwh_h->pthread_cond);
+        }
         pthread_mutex_unlock(&h->cwh_h->fifo_mutex);
         return size;
     } else if (h->thread_quited) {
