@@ -30,6 +30,8 @@ THD_MediaSource::THD_MediaSource(void *read_buffer)
     bytes_readed_sum_pre=0;
     bytes_readed_sum=0;
     mSyncMain = false;
+    mMeta->setInt32(kKeyChannelCount, 2);
+    mMeta->setInt32(kKeySampleRate, 48000);
 }
 
 THD_MediaSource::~THD_MediaSource() 
