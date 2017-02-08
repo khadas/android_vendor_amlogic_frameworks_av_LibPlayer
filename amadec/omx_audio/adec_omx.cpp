@@ -128,6 +128,10 @@ AmlOMXCodec::~AmlOMXCodec()
 
 status_t AmlOMXCodec::read(unsigned char *buf,unsigned *size,int *exit)
 {
+    if (m_codec == NULL) {
+        LOGE("m_codec==NULL  %s %d failed!\n",__FUNCTION__,__LINE__);
+        return !OK;
+    }
     MediaBuffer *srcBuffer;
     status_t status;
     m_OMXMediaSource->Set_pStop_ReadBuf_Flag(exit);
@@ -167,6 +171,10 @@ status_t AmlOMXCodec::read(unsigned char *buf,unsigned *size,int *exit)
 status_t AmlOMXCodec::start(aml_audio_dec_t *audec)
 {
     LOGI("[%s %d] \n",__FUNCTION__,__LINE__);
+    if (m_codec == NULL) {
+        LOGE("m_codec==NULL  %s %d failed!\n",__FUNCTION__,__LINE__);
+        return !OK;
+    }
     status_t status = m_codec->start();
     if(omx_codec_type==OMX_ENABLE_CODEC_AC3 ||omx_codec_type==OMX_ENABLE_CODEC_EAC3  \
     || omx_codec_type==OMX_ENABLE_CODEC_DTSHD || omx_codec_type== OMX_ENABLE_CODEC_TRUEHD){
