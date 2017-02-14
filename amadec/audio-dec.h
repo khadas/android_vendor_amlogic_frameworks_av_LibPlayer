@@ -37,7 +37,7 @@ ADEC_BEGIN_DECLS
 //for ffmpeg audio decode
 #define AMSTREAM_IOC_MAGIC  'S'
 #define AMSTREAM_IOC_APTS_LOOKUP    _IOR(AMSTREAM_IOC_MAGIC, 0x81, int)
-#define GET_FIRST_APTS_FLAG         _IOR(AMSTREAM_IOC_MAGIC, 0x82, long)
+#define GET_FIRST_APTS_FLAG         _IOR(AMSTREAM_IOC_MAGIC, 0x82, int)
 
 //-----------------------------------------------
 //copy from file: "../amcodec/include/amports/amstream.h"
