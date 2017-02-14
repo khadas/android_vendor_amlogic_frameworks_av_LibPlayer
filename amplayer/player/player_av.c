@@ -2773,7 +2773,7 @@ int set_header_info(play_para_t *para)
             return PLAYER_SUCCESS;
         }
 
-        if (pkt->type == CODEC_VIDEO) {
+        if (pkt->type == CODEC_VIDEO && !para->playctrl_info.raw_mode) {
             if (((para->vstream_info.video_format == VFORMAT_H264) || (para->vstream_info.video_format == VFORMAT_H264MVC) || (para->vstream_info.video_format == VFORMAT_H264_4K2K)) &&
                 (para->file_type != STREAM_FILE)) {
                 if (para->file_type == AVI_FILE) {
