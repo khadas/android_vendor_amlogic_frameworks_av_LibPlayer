@@ -981,7 +981,6 @@ static void stop_decode_thread(aml_audio_dec_t *audec)
     ret = amthreadpool_pthread_join(audec->sn_getpackage_threadid, NULL);
     adec_print("[%s]get package thread exit success\n", __FUNCTION__);
 
-    audec->exit_decode_thread = 0;
     audec->sn_threadid = -1;
     audec->sn_getpackage_threadid = -1;
 }
