@@ -2848,6 +2848,10 @@ static int64_t check_last_blk_valid(AVFormatContext *ic)
     int64_t ret = -1;
     if (ic->file_size <= 0 || !ic->pb || ic->pb->is_streamed || ic->pb->is_slowmedia)
         return ic->file_size;
+    if (!strncmp(ic->filename, "bluray:", strlen("bluray:"))) {
+            av_log(ic, AV_LOG_ERROR, "ignore check blk for bluray!\n");
+            return 0;
+    }
     buf1 = av_mallocz(CHECK_FULL_ZERO_SIZE);
     if (!buf1)
         return AVERROR(ENOMEM);
