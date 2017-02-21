@@ -136,7 +136,7 @@ struct aml_audio_dec {
     int droppcm_flag;               // drop pcm flag, if switch audio (1)
     int no_first_apts;              // if can't get the first apts (1), default (0)
     int apts_start_flag;
-    uint32_t first_apts;
+    uint64_t first_apts;
     int StageFrightCodecEnableType;
     int64_t pcm_bytes_readed;
     int64_t raw_bytes_readed;
