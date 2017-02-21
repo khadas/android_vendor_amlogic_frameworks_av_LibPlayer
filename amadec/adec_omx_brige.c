@@ -274,7 +274,7 @@ void stop_decode_thread_omx(aml_audio_dec_t *audec)
 {
     audec->exit_decode_thread = 1;
     int ret = amthreadpool_pthread_join(audec->sn_threadid, NULL);
-    audec->exit_decode_thread = 0;
+    //audec->exit_decode_thread = 0;
     audec->sn_threadid = -1;
     audec->sn_getpackage_threadid = -1;
 }
