@@ -48,6 +48,13 @@
 #define IPV6_DROP_MEMBERSHIP IPV6_LEAVE_GROUP
 #endif
 
+#define IPPROTO_IPV6 41
+#define IPV6_MULTICAST_HOPS 18
+
+
+#define UDP_TX_BUF_SIZE 32768
+#define UDP_MAX_PKT_SIZE 524288
+
 typedef struct {
     int udp_fd;
     int ttl;
@@ -66,16 +73,13 @@ typedef struct {
 #if HAVE_PTHREADS
     pthread_t circular_buffer_thread;
     pthread_mutex_t pthread_mutex;
+    pthread_cond_t cond;
     int request_exit;
 #endif
+    uint8_t tmp[UDP_MAX_PKT_SIZE];
 } UDPContext;
 
-#define IPPROTO_IPV6 41
-#define IPV6_MULTICAST_HOPS 18
 
-
-#define UDP_TX_BUF_SIZE 32768
-#define UDP_MAX_PKT_SIZE 65536
 
 static int udp_set_multicast_ttl(int sockfd, int mcastTTL,
                                  struct sockaddr *addr)
@@ -337,7 +341,7 @@ static void *circular_buffer_task( void *_URLContext)
 	if (s->request_exit || url_interrupt_cb()) {
             s->circular_buffer_error = EINTR;
             av_log(h, AV_LOG_INFO, "[%s:%d]Eixt\n",__FUNCTION__,__LINE__);
-            return NULL;
+            goto end;
         }
 
         FD_ZERO(&rfds);
@@ -357,25 +361,8 @@ static void *circular_buffer_task( void *_URLContext)
         if (!(ret > 0 && FD_ISSET(s->udp_fd, &rfds)))
             continue;
 
-        /* How much do we have left to the end of the buffer */
-        /* Whats the minimum we can read so that we dont comletely fill the buffer */
-        left = av_fifo_space(s->fifo);
-        left = FFMIN(left, s->fifo->end - s->fifo->wptr);
 
-        /* No Space left, error, what do we do now */
-        if( !left) {
-            pthread_mutex_lock(&s->pthread_mutex);
-            int size = av_fifo_size(s->fifo);
-            if (size >0) {
-                size = FFMIN( size>>1, 188*7*1024);
-                av_fifo_generic_read(s->fifo, NULL, size, NULL); //droped head data.
-		av_log(h, AV_LOG_INFO, "circular_buffer fulled droped data %d,datalen=%d,space=%d\n",size,av_fifo_size(s->fifo),av_fifo_space(s->fifo));
-            }
-            pthread_mutex_unlock(&s->pthread_mutex);
-            continue;
-        }
-
-        len = recv(s->udp_fd, s->fifo->wptr, left, 0);
+        len = recv(s->udp_fd, s->tmp, sizeof(s->tmp), 0);
         if (len <= 0) {
             if (ff_neterrno() != AVERROR(EAGAIN) && ff_neterrno() != AVERROR(EINTR)) {
                 s->circular_buffer_error = EIO;
@@ -384,13 +371,19 @@ static void *circular_buffer_task( void *_URLContext)
             amthreadpool_thread_usleep(10);
             continue;
         }
-        
-        s->fifo->wptr += len;
-        if (s->fifo->wptr >= s->fifo->end)
-            s->fifo->wptr = s->fifo->buffer;
-        s->fifo->wndx += len;
-    }
 
+        if (av_fifo_space(s->fifo) < len) {
+            av_log(h, AV_LOG_ERROR, "Circular buffer overrun. "
+                        "To avoid, increase fifo_size URL option. "
+                        "To survive in such case, use overrun_nonfatal option\n");
+            continue;
+        }
+
+        av_fifo_generic_write(s->fifo, s->tmp, len, NULL);
+        pthread_cond_signal(&s->cond);
+    }
+end:
+    pthread_cond_signal(&s->cond);
     av_log(h, AV_LOG_INFO, "[%s:%d]Task end!!!\n",__FUNCTION__,__LINE__);
     return NULL;
 }
@@ -519,6 +512,7 @@ static int udp_open(URLContext *h, const char *uri, int flags)
         /* set udp recv buffer size to the largest possible udp packet size to
          * avoid losing data on OSes that set this too low by default. */
         tmp = s->buffer_size;
+
         if (setsockopt(udp_fd, SOL_SOCKET, SO_RCVBUF, &tmp, sizeof(tmp)) < 0) {
             av_log(h, AV_LOG_WARNING, "setsockopt(SO_RECVBUF): %s\n", strerror(errno));
         }
@@ -536,19 +530,34 @@ static int udp_open(URLContext *h, const char *uri, int flags)
 #if HAVE_PTHREADS	
     s->circular_buffer_thread = 0;
     if (!is_output && s->circular_buffer_size) {
+        int ret;
+
         /* start the task going */
         s->fifo = av_fifo_alloc(s->circular_buffer_size);
-        pthread_mutex_init(&s->pthread_mutex, NULL);
-	s->request_exit = 0;
+        ret = pthread_mutex_init(&s->pthread_mutex, NULL);
+        if (ret != 0) {
+            av_log(h, AV_LOG_ERROR, "pthread_mutex_init failed : %s\n", strerror(ret));
+            goto fail;
+        }
+        ret = pthread_cond_init(&s->cond, NULL);
+        if (ret != 0) {
+            av_log(h, AV_LOG_ERROR, "pthread_cond_init failed : %s\n", strerror(ret));
+            goto cond_fail;
+        }
+        s->request_exit = 0;
         av_log(h, AV_LOG_INFO, "[%s:%d]start the udp circular receive\n",__FUNCTION__,__LINE__);
         if (amthreadpool_pthread_create_name(&s->circular_buffer_thread, NULL, circular_buffer_task, h,"ffmpeg_udp")) {
             av_log(h, AV_LOG_ERROR, "pthread_create failed\n");
-            goto fail;
+            goto thread_fail;
         }
     }
 #endif
     h->is_slowmedia = 1;
     return 0;
+thread_fail:
+    pthread_cond_destroy(&s->cond);
+cond_fail:
+    pthread_mutex_destroy(&s->pthread_mutex);
  fail:
     if (udp_fd >= 0)
         closesocket(udp_fd);
@@ -561,7 +570,7 @@ static int udp_read(URLContext *h, uint8_t *buf, int size)
 {
     UDPContext *s = h->priv_data;
     int ret;
-    int avail;
+    int avail, nonblock = h->flags & AVIO_FLAG_NONBLOCK;
     fd_set rfds;
     struct timeval tv;
     
@@ -576,18 +585,18 @@ static int udp_read(URLContext *h, uint8_t *buf, int size)
                 av_fifo_generic_read(s->fifo, buf, size, NULL);
                 pthread_mutex_unlock(&s->pthread_mutex);        
                 return size;
-            }
-            else {
-                FD_ZERO(&rfds);
-                FD_SET(s->udp_fd, &rfds);
-                tv.tv_sec = 1;
-                tv.tv_usec = 0;
-                ret = select(s->udp_fd + 1, &rfds, NULL, NULL, &tv);
-                if (ret<0){
+            } else if(nonblock) {
+                pthread_mutex_unlock(&s->pthread_mutex);
+                return AVERROR(EAGAIN);
+            } else {
+                int64_t t = av_gettime() + 100000;
+                struct timespec tv = { .tv_sec  =  t / 1000000,
+                                       .tv_nsec = (t % 1000000) * 1000 };
+                if (pthread_cond_timedwait(&s->cond, &s->pthread_mutex, &tv) < 0) {
                     pthread_mutex_unlock(&s->pthread_mutex);
-                    av_log(h, AV_LOG_INFO, "[%s:%d]select failed ret=%d\n",__FUNCTION__,ret);
-                    return ret;
-                 }
+                    return AVERROR(errno == ETIMEDOUT ? EAGAIN : errno);
+                }
+                nonblock = 1;
             }
             pthread_mutex_unlock(&s->pthread_mutex);
             if (url_interrupt_cb()) {
@@ -638,6 +647,7 @@ static int udp_close(URLContext *h)
     closesocket(s->udp_fd);
     av_fifo_free(s->fifo);
     pthread_mutex_destroy(&s->pthread_mutex);
+    pthread_cond_destroy(&s->cond);
     av_free(s);
     return 0;
 }
