@@ -149,8 +149,8 @@ struct aml_audio_dec {
 
     buffer_stream_t *g_bst;
     buffer_stream_t *g_bst_raw;
-    int sn_threadid;
-    int sn_getpackage_threadid;
+    pthread_t sn_threadid;//same as the def: 'pthread_t thread_pid;'
+    pthread_t sn_getpackage_threadid;//same as the def: 'pthread_t thread_pid;'
     int exit_decode_thread;
     int exit_decode_thread_success;
     unsigned long decode_offset;
