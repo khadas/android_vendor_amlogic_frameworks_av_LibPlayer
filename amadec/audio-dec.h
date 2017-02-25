@@ -122,6 +122,7 @@ struct aml_audio_dec {
     float pre_gain; //gain scope[-12dB,12dB]
     int pre_gain_enable;
     uint pre_mute;
+    int64_t refresh_pts_readytime_ms;
     //codec_para_t *pcodec;
     hw_command_t soundtrack;
     audio_out_operations_t aout_ops;

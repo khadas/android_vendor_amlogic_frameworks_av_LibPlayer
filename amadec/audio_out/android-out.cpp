@@ -1433,7 +1433,11 @@ extern "C" unsigned long android_latency(struct aml_audio_dec* audec)
         int delay_us, t_us;
         AudioTimestamp timestamp;
         s  = track->getTimestamp(timestamp);
-        if (s != NO_ERROR) {
+        if (s != NO_ERROR || timestamp.mPosition < 1) {
+           /*
+           timestamp.mPosition <= 0 we think audio not have start.
+           the latency is not accurate
+           */
             return 0;
         } else {
             struct timespec timenow;
