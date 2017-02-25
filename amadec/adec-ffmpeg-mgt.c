@@ -131,6 +131,13 @@ int package_list_free(aml_audio_dec_t * audec)
     lp_unlock(&(audec->pack_list.tslock));
     return 0;
 }
+static int64_t gettime_ms(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (int64_t)tv.tv_sec * 1000 + tv.tv_usec/1000;
+}
+
 
 int package_list_init(aml_audio_dec_t * audec)
 {
@@ -858,6 +865,8 @@ static void resume_adec(aml_audio_dec_t *audec)
     audio_out_operations_t *aout_ops = &audec->aout_ops;
     if (audec->state == PAUSED) {
         audec->state = ACTIVE;
+        audec->refresh_pts_readytime_ms = gettime_ms() +
+            am_getconfig_int_def("media.amadec.wait_fresh_ms", 200);
         aout_ops->resume(audec);
         adec_pts_resume();
     }

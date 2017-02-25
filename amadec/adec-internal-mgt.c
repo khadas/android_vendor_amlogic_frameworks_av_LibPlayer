@@ -31,6 +31,15 @@
 extern int RegisterDecode(aml_audio_dec_t *audec, int type);
 extern void get_output_func(struct aml_audio_dec* audec);
 
+static int64_t gettime_ms(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (int64_t)tv.tv_sec * 1000 + tv.tv_usec/1000;
+}
+
+
+
 static int set_tsync_enable(int enable)
 {
 
@@ -225,6 +234,8 @@ static void resume_adec(aml_audio_dec_t *audec)
 
     if (audec->state == PAUSED) {
         audec->state = ACTIVE;
+        audec->refresh_pts_readytime_ms = gettime_ms() +
+            am_getconfig_int_def("media.amadec.wait_fresh_ms", 200);
         aout_ops->resume(audec);
         adec_pts_resume();
     }
@@ -729,6 +740,7 @@ int audiodec_init(aml_audio_dec_t *audec)
     audec->pre_gain = 1.0;
     audec->pre_mute = 0;
     audec->VersionNum = -1;
+    audec->refresh_pts_readytime_ms = 0;
     if (am_getconfig_bool("media.libplayer.wfd"))  {
         wfd = 1;
     }

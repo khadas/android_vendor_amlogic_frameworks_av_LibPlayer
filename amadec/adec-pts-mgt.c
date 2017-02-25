@@ -723,6 +723,12 @@ int adec_refresh_pts(aml_audio_dec_t *audec)
             pts = re_getpts;
         }
     }
+    if (audec->refresh_pts_readytime_ms > 0) {
+        /*pts_readytime not reached ,wait and delay reset apts.*/
+        if (audec->refresh_pts_readytime_ms > gettime()/1000)
+        return 0;
+        audec->refresh_pts_readytime_ms = 0;
+    }
 #if 0
     if (audec->apts_reset_scr_delay_ms > 0) {
         unsigned long vpts = 0;
