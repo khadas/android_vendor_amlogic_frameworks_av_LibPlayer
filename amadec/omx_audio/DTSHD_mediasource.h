@@ -9,8 +9,8 @@
 
 namespace android
 {
-
-#define AML_DCA_INPUT_DATA_LEN_PTIME               (40*1024)
+//for dtsexpress stream,sometimes vbuf is full and abuf has not 40k and cause block about 5s.
+#define AML_DCA_INPUT_DATA_LEN_PTIME               (10*1024)
 #define AML_DCA_OMX_DECODER_NUMBUF    2
 #define AML_DCA_SW_CORE_16M          0x7ffe8001
 #define AML_DCA_SW_CORE_14M          0x1fffe800
@@ -34,6 +34,7 @@ public:
 
     int  GetReadedBytes();
     int GetSampleRate();
+    virtual int SetSampleRate(int samplerate);
     int GetChNum();
     int* Get_pStop_ReadBuf_Flag();
     int Set_pStop_ReadBuf_Flag(int *pStop);

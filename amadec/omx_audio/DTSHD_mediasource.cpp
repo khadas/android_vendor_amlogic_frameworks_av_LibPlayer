@@ -129,6 +129,11 @@ int Dtshd_MediaSource::GetChNum()
 {
     return ChNum;
 }
+int Dtshd_MediaSource::SetSampleRate(int samplerate)
+{
+    sample_rate = samplerate;
+    return OK ;
+}
 
 int* Dtshd_MediaSource::Get_pStop_ReadBuf_Flag()
 {
@@ -274,16 +279,30 @@ status_t Dtshd_MediaSource::read(MediaBuffer **out, const ReadOptions *options)
          }
          memcpy((unsigned char*)(buffer->data()),FirFraBuf+FirFraBuf_Offset,byte_readed);
          FirFraBuf_Offset+=byte_readed;
-     }
+            if (MediaSourceRead_buffer((unsigned char*)(buffer->data())+byte_readed,frame_size-byte_readed) != (frame_size-byte_readed))
+         {
+           buffer->release();
+           buffer = NULL;
+           return ERROR_END_OF_STREAM;
+         }
 
-     if (MediaSourceRead_buffer((unsigned char*)(buffer->data())+byte_readed,frame_size-byte_readed) != (frame_size-byte_readed))
-     {
-         buffer->release();
-         buffer = NULL;
-         return ERROR_END_OF_STREAM;
-     }
+         buffer->set_range(0,frame_size);
+     }else{
+         //for dtshd coceless high samplerate stream ,framesize got maybe inaccurate  and causes frozen issues
+         //some coceless stream framesize about 100 bytes and need push scores of frames to decoder and paser out
+         //one real dts frame,so change the framesize to 10k.
+         if (sample_rate == 96000)
+             frame_size = AML_DCA_INPUT_DATA_LEN_PTIME;
+         if (MediaSourceRead_buffer((unsigned char*)(buffer->data()), frame_size) !=  frame_size)
+         {
+           buffer->release();
+           buffer = NULL;
+           return ERROR_END_OF_STREAM;
+         }
 
-     buffer->set_range(0,frame_size);
+         buffer->set_range(0,frame_size);
+    }
+
      buffer->meta_data()->setInt64(kKeyTime, mCurrentTimeUs);
      buffer->meta_data()->setInt32(kKeyIsSyncFrame, 1);
      *out = buffer;

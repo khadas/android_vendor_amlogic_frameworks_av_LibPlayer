@@ -383,6 +383,7 @@ int arm_omx_codec_get_FS(aml_audio_dec_t *audec)
               output_format->findInt32(android::kKeyDtsPcmSampsInFrmMaxFs,&audec->DTSHDPCM_SamsInFrmAtMaxSR);
           }
           arm_omx_codec->unlocked();
+          arm_omx_codec->m_OMXMediaSource->SetSampleRate(sampleRate);
           return sampleRate;
       }else{
           arm_omx_codec->unlocked();
