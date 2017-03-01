@@ -19,6 +19,9 @@ public:
 
     virtual int  GetReadedBytes() = 0;
     virtual int GetSampleRate() = 0;
+    virtual int SetSampleRate(int sample_rate){
+        return 0;
+    };
     virtual int GetChNum() = 0;
     virtual int GetChNumOriginal() {
         return 0;
