@@ -329,6 +329,7 @@ static int curl_fetch_waitthreadquit(CFContext * h, int microseconds)
         }
     }
     pthread_mutex_unlock(&h->quit_mutex);
+    pthread_join(h->pid, NULL);
     return 0;
 }
 
