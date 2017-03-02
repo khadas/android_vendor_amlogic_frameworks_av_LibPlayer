@@ -371,7 +371,7 @@ unsigned long  armdec_get_pts(dsp_operations_t *dsp_ops)
 
 unsigned long  armdec_get_pcrscr(dsp_operations_t *dsp_ops)
 {
-    unsigned long val;
+    unsigned int val;
     if (dsp_ops->dsp_file_fd < 0) {
         adec_print("read error!! audiodsp have not opened\n");
         return -1;

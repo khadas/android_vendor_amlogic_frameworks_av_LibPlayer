@@ -159,7 +159,7 @@ struct aml_audio_dec {
 	int use_get_out_posion;
     int nDecodeErrCount;
     int fd_uio;
-    int last_valid_pts;
+    uint64_t last_valid_pts;
     int out_len_after_last_valid_pts;
     int64_t last_out_postion;
     int64_t last_get_postion_time_us;
