@@ -83,6 +83,10 @@ static void vcodec_info_init(play_para_t *p_para, codec_para_t *v_codec)
         if ((vinfo->video_format == VFORMAT_H264) && p_para->playctrl_info.no_error_recovery) {
             v_codec->am_sysinfo.param = (void *)(NO_ERROR_RECOVERY | (unsigned long)v_codec->am_sysinfo.param);
         }
+
+        if ((vinfo->video_format == VFORMAT_H264) || (vinfo->video_format == VFORMAT_HEVC)) {
+            v_codec->dv_enable = !!p_para->playctrl_info.dolby_vision_enable;
+        }
     } else if ((vinfo->video_format == VFORMAT_VC1) && (p_para->file_type == AVI_FILE)) {
         v_codec->am_sysinfo.param = (void *)EXTERNAL_PTS;
     } else {

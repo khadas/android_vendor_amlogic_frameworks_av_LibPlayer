@@ -127,5 +127,7 @@ typedef enum {
 #define CODEC_TAG_FVFW      (0x57465646)
 #define CODEC_TAG_VC_1      (0x312d4356)
 #define CODEC_TAG_vc_1      (0x312d6376)
+#define CODEC_TAG_DVHE      (0x65687664)
+#define CODEC_TAG_DOVI      (0x49564f44)
 
 #endif /* VFORMAT_H */

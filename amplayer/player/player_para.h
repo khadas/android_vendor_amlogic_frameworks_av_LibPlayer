@@ -25,6 +25,7 @@ typedef struct {
     int             has_video;
     vformat_t       video_format;
     signed short    video_index;
+    signed short    video_index_DV;
     unsigned short  video_pid;
     unsigned int    video_width;
     unsigned int    video_height;
@@ -150,6 +151,7 @@ typedef  struct {
     int last_f_step;
     int trick_wait_flag;
     int duration_url;         //duration parsed from url, ms
+    int dolby_vision_enable;/*dolby_vision enabed*/
 } p_ctrl_info_t;
 
 int player_dec_init(struct play_para *p_para);

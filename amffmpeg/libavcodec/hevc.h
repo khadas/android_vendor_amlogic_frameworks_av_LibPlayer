@@ -107,6 +107,8 @@ enum NALUnitType {
     NAL_FD_NUT      = 38,
     NAL_SEI_PREFIX  = 39,
     NAL_SEI_SUFFIX  = 40,
+
+	NAL_SEI_DV_META = 62,
 };
 
 enum RPSType {

@@ -119,7 +119,8 @@ enum {
     NAL_14,
     NAL_15,
     NAL_AUXILIARY_SLICE=19,
-    NAL_20=20
+    NAL_20=20,
+    NAL_264_DV = 0x1c, /*0x7c & 0x1f*/
 };
 
 /**
@@ -584,6 +585,7 @@ typedef struct H264Context{
     int initial_cpb_removal_delay[32]; ///< Initial timestamps for CPBs
 
     int width, height; //add by zz
+    int has_dolby_vision_meta;
 }H264Context;
 
 

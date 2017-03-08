@@ -42,6 +42,10 @@
 #define CODEC_SUB_READ_DEVICE       "/dev/amstream_sub_read"
 #define CODEC_AUDIO_UTILS_DEVICE    "/dev/amaudio_utils"
 #define CODEC_VIDEO_HEVC_DEVICE     "/dev/amstream_hevc"
+#define CODEC_VIDEO_DVAVC_DEVICE    "/dev/amstream_dves_avc"
+#define CODEC_VIDEO_DVHEVC_DEVICE   "/dev/amstream_dves_hevc"
+
+
 
 CODEC_HANDLE codec_h_open(const char *port_addr, int flags);
 int codec_h_close(CODEC_HANDLE h);

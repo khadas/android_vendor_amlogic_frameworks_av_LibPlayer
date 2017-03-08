@@ -306,9 +306,15 @@ static inline int codec_video_es_init(codec_para_t *pcodec)
     flags |= pcodec->noblock ? O_NONBLOCK : 0;
 
     if (pcodec->video_type == VFORMAT_HEVC || pcodec->video_type == VFORMAT_VP9) {
-        handle = codec_h_open(CODEC_VIDEO_HEVC_DEVICE, flags);
+        if (pcodec->dv_enable && pcodec->video_type == VFORMAT_HEVC)
+            handle = codec_h_open(CODEC_VIDEO_DVHEVC_DEVICE, flags);
+        else
+            handle = codec_h_open(CODEC_VIDEO_HEVC_DEVICE, flags);
     } else {
-        handle = codec_h_open(CODEC_VIDEO_ES_DEVICE, flags);
+        if (pcodec->video_type == VFORMAT_H264 && pcodec->dv_enable)
+            handle = codec_h_open(CODEC_VIDEO_DVAVC_DEVICE, flags);
+        else
+            handle = codec_h_open(CODEC_VIDEO_ES_DEVICE, flags);
     }
     if (handle < 0) {
         codec_r = system_error_to_codec_error(handle);
