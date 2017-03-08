@@ -78,6 +78,9 @@ unsigned int has_sub:
     1;                          ///< stream has subtitle(1) or not(0)
 unsigned int noblock:
     1;                          ///< codec device is NONBLOCK(1) or not(0)
+unsigned int dv_enable:
+	1;							///< videois dv data.
+
     int video_type;             ///< stream video type(H264, VC1...)
     int audio_type;             ///< stream audio type(PCM, WMA...)
     int sub_type;               ///< stream subtitle type(TXT, SSA...)

@@ -723,7 +723,7 @@ static void get_stream_info(play_para_t *p_para)
     int tsaudiopid = -1;
     int tssubtitlepid = -1;
     int tsvproginx = -1;
-
+    p_para->vstream_info.video_index_DV = -1;
     p_para->first_index = pFormat->first_index;
 
     /* caculate the stream numbers */
@@ -804,6 +804,14 @@ static void get_stream_info(play_para_t *p_para)
                         } else {
                             temp_vidx = i;
                         }
+                    }
+                }
+                if (p_para->vstream_num > 1 && temp_vidx != i) {
+                    /*have two video track, choosed the better,*/
+                    if (pStream->codec->codec_tag == CODEC_TAG_DVHE ||
+                        pStream->codec->codec_tag == CODEC_TAG_DOVI) {
+                        log_print("get another dv track:%d\n", i);
+                        p_para->vstream_info.video_index_DV = i;
                     }
                 }
             }
@@ -1078,7 +1086,28 @@ static void get_stream_info(play_para_t *p_para)
             }
 
         }
-
+        if (!unsupported_video && am_getconfig_bool_def("ro.platform.support.dolbyvision", 0)) {
+            if ((p_para->vstream_info.video_format == VFORMAT_HEVC) ||
+            (p_para->vstream_info.video_format == VFORMAT_H264)) {
+                AVStream *stream = p_para->pFormatCtx->streams[video_index];
+                if (stream && stream->codec &&
+                  (stream->codec->has_dolby_vision_meta ||
+                  stream->codec->codec_tag == CODEC_TAG_DVHE ||
+                  stream->codec->codec_tag == CODEC_TAG_DOVI)) {
+                    p_para->playctrl_info.dolby_vision_enable = 1;
+                    log_error("Enabled DV for DV stream!\n");
+                    if (p_para->vstream_info.video_index_DV == video_index)
+                    p_para->vstream_info.video_index_DV = -1;
+                } else if(p_para->vstream_info.video_index_DV > 0) {
+                    log_error("Enabled DV on have another DV stream!\n");
+                    p_para->playctrl_info.dolby_vision_enable = 1;
+                }
+            }
+        } else {
+            /*clear dv flags.*/
+            p_para->playctrl_info.dolby_vision_enable = 0;
+            p_para->vstream_info.video_index_DV = -1;
+        }
         if (unsupported_video) {
             log_error("[%s]can't support exceeding video profile\n", __FUNCTION__);
             set_player_error_no(p_para, PLAYER_UNSUPPORT_VIDEO);

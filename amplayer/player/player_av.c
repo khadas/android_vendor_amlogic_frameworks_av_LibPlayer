@@ -395,6 +395,11 @@ vdec_type_t video_codec_type_convert(unsigned int id)
         log_print("VIDEO_TYPE_H264\n");
         dec_type = VIDEO_DEC_FORMAT_H264;
         break;
+    case CODEC_TAG_DVHE:
+        case CODEC_TAG_DOVI:
+        log_print("video type dolby vision.\n");
+        dec_type = VIDEO_DEC_FORMAT_HEVC;
+        break;
 
     case CODEC_TAG_HEVC:
     case CODEC_TAG_hev1:
@@ -402,7 +407,6 @@ vdec_type_t video_codec_type_convert(unsigned int id)
         log_print("VIDEO_TYPE_HEVC\n");
         dec_type = VIDEO_DEC_FORMAT_HEVC;
         break;
-
     case CODEC_ID_HEVC:
         log_print("[video_codec_type_convert]VIDEO_DEC_FORMAT_HEVC(0x%x)\n", id);
         dec_type = VIDEO_DEC_FORMAT_HEVC;
@@ -1037,7 +1041,6 @@ static int non_raw_read(play_para_t *para)
         int ret;
         static int reach_end = 0;
         ret = av_read_frame(para->pFormatCtx, pkt->avpkt);
-
         if (ret < 0) {
 
             if (AVERROR(EAGAIN) != ret) {
@@ -1151,7 +1154,16 @@ static int non_raw_read(play_para_t *para)
         }
 
         if (para->stream_type == STREAM_ES && !para->playctrl_info.read_end_flag) {
-            if (has_video && video_idx == pkt->avpkt->stream_index) {
+			int DV_packet = 0;
+			if (has_video && (para->vstream_info.video_index_DV >= 0) &&
+				para->playctrl_info.dolby_vision_enable &&
+				(video_idx != pkt->avpkt->stream_index) &&
+				(para->vstream_info.video_index_DV == pkt->avpkt->stream_index)) {
+				/*is seprate dv packet,need send all to driver.*/
+				DV_packet = 1;
+			}
+            if (has_video && (video_idx == pkt->avpkt->stream_index
+				|| DV_packet)) {
                 if (para->playctrl_info.audio_switch_vmatch) {
                     if (compare_pkt(pkt->avpkt, &pkt->bak_avpkt) == 0) {
                         av_free_packet(pkt->avpkt);

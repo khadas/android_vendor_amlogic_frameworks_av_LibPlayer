@@ -149,6 +149,7 @@ static inline int parse_nal_units(AVCodecParserContext *s,
             break;
 
         init_get_bits(&h->s.gb, ptr, 8*dst_length);
+
         switch(h->nal_unit_type) {
         case NAL_SPS:
             if (avctx->width > 0 && avctx->height > 0) {
@@ -163,6 +164,13 @@ static inline int parse_nal_units(AVCodecParserContext *s,
             break;
         case NAL_SEI:
             ff_h264_decode_sei(h);
+            break;
+        case NAL_264_DV:
+            /*00 00 00 01 7c 01 19  08
+            nal type = 0x7c & 0x1f;
+            any conflict?
+            */
+            avctx->has_dolby_vision_meta = 1;
             break;
         case NAL_IDR_SLICE:
             s->key_frame = 1;

@@ -3017,6 +3017,7 @@ typedef struct AVCodecContext {
     int bit_depth;
     // need filter long term ref pic for hevc
     int long_term_ref_pic;
+    int has_dolby_vision_meta;
 } AVCodecContext;
 
 int  av_codec_get_seek_preroll(const AVCodecContext *avctx);
@@ -4076,6 +4077,9 @@ typedef struct AVCodecParserContext {
 #define PARSER_FLAG_ONCE                      0x0002
 /// Set if the parser has a valid file offset
 #define PARSER_FLAG_FETCHED_OFFSET            0x0004
+
+/*for dolby vision flag*/
+#define PARSER_FLAG_HAS_DV_META               0x1000
 
     int64_t offset;      ///< byte offset from starting packet start
     int64_t cur_frame_end[AV_PARSER_PTS_NB];

@@ -36,6 +36,7 @@ const AVCodecTag ff_mp4_obj_type[] = {
     { CODEC_ID_MOV_TEXT  , 0x08 },
     { CODEC_ID_MPEG4     , 0x20 },
     { CODEC_ID_H264      , 0x21 },
+    { CODEC_ID_HEVC      , 0x23 },
     { CODEC_ID_AAC       , 0x40 },
     { CODEC_ID_MP4ALS    , 0x40 }, /* 14496-3 ALS */
     { CODEC_ID_MPEG2VIDEO, 0x61 }, /* MPEG2 Main */
@@ -146,6 +147,8 @@ const AVCodecTag codec_movvideo_tags[] = {
      /* maybe need change */
     { CODEC_ID_HEVC, MKTAG('h', 'v', 'c', '1') }, /* HEVC/H.265 which indicates parameter sets shall not be in ES */
     { CODEC_ID_HEVC, MKTAG('h', 'e', 'v', '1') }, /* HEVC/H.265 which indicates parameter sets may be in ES */
+    { CODEC_ID_HEVC, MKTAG('d', 'v', 'h', 'e') }, /* HEVC Dobly vision  ES */
+    { CODEC_ID_HEVC, MKTAG('D', 'O', 'V', 'I') }, /* HEVC Dobly vision  ES */
 
     { CODEC_ID_MPEG1VIDEO, MKTAG('m', '1', 'v', '1') }, /* Apple MPEG-1 Camcorder */
     { CODEC_ID_MPEG1VIDEO, MKTAG('m', 'p', 'e', 'g') }, /* MPEG */
