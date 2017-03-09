@@ -215,7 +215,8 @@ int set_subtitle_subtype(int subtype)
 
 int av_get_subtitle_curr()
 {
-    return get_sysfs_int("/sys/class/subtitle/curr");
+    //return get_sysfs_int("/sys/class/subtitle/curr");
+    return amsysfs_get_sysfs_int("/sys/class/subtitle/curr");
 }
 
 int set_subtitle_startpts(int pts)
