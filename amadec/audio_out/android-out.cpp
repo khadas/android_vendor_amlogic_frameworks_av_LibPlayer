@@ -737,20 +737,17 @@ extern "C" int android_init_raw(struct aml_audio_dec* audec)
         aformat = AUDIO_FORMAT_TRUEHD;
 
     if(audec->format == ACODEC_FMT_TRUEHD){
-        amsysfs_set_sysfs_int("/sys/class/audiodsp/digital_codec",7);
         audec->codec_type=16;
     }
 
     int dgraw = amsysfs_get_sysfs_int("/sys/class/audiodsp/digital_raw");
-    if(dgraw == 1){
+    if (dgraw == 1 ) {
         if((audec->format == ACODEC_FMT_AC3) ||
            (audec->format == ACODEC_FMT_EAC3)){
-            /* if spdif pass through,force to DD otuput */
+            /*if spdif pass through,force to DD otuput */
             aformat = AUDIO_FORMAT_AC3;
-            amsysfs_set_sysfs_int("/sys/class/audiodsp/digital_codec",2);
             audec->codec_type=1;
         }else if(audec->format==ACODEC_FMT_DTS){
-            amsysfs_set_sysfs_int("/sys/class/audiodsp/digital_codec",3);
             if(audec->samplerate==88200 || audec->samplerate==96000){
                audec->codec_type=0.50;
                SampleRate=audec->samplerate/2;
@@ -758,19 +755,16 @@ extern "C" int android_init_raw(struct aml_audio_dec* audec)
                audec->codec_type=0.25;
                SampleRate=audec->samplerate/4;
             }else if(audec->samplerate==352800 || audec->samplerate==384000){
-               amsysfs_set_sysfs_int("/sys/class/audiodsp/digital_codec",0);
                adec_print("[%s %d]NOTE:Current FS/%d was support! ",__FUNCTION__,__LINE__,audec->samplerate);
                return 0;
             }else{//audec->samplerate<=48000
                audec->codec_type=1;
             }
         }
-    }else if(dgraw == 2){
+    }else if(dgraw == 2 ){
         if(audec->format == ACODEC_FMT_AC3){
-            amsysfs_set_sysfs_int("/sys/class/audiodsp/digital_codec",2);
             audec->codec_type=1;
         }else if(audec->format == ACODEC_FMT_EAC3){
-            amsysfs_set_sysfs_int("/sys/class/audiodsp/digital_codec",4);
             audec->codec_type=4;
         }else if(audec->format==ACODEC_FMT_DTS &&(audec->VersionNum!=DTSETC_DECODE_VERSION_M6_M8 ||audec->DTSHDIEC958_PktType==DTSHD_IEC958_PKTTYPE_CORE)){
             if(audec->samplerate==88200 || audec->samplerate==96000){
@@ -780,22 +774,18 @@ extern "C" int android_init_raw(struct aml_audio_dec* audec)
                audec->codec_type=0.25;
                SampleRate=SampleRate/4;
             }else if(audec->samplerate==352800 || audec->samplerate==384000){
-               amsysfs_set_sysfs_int("/sys/class/audiodsp/digital_codec",0);
                adec_print("[%s %d]NOTE:Current FS/%d was support! ",__FUNCTION__,__LINE__,audec->samplerate);
                return 0;
             }else{//audec->samplerate<=48000
                audec->codec_type=1;
             }
-            amsysfs_set_sysfs_int("/sys/class/audiodsp/digital_codec",3);
         }else if(audec->format==ACODEC_FMT_DTS && audec->VersionNum==DTSETC_DECODE_VERSION_M6_M8){
             int unvalidpara=0;
             if(audec->DTSHDIEC958_PktType==DTSHD_IEC958_PKTTYPE_SINGLEI2S){
                 if(audec->DTSHDIEC958_FS==48000||audec->DTSHDIEC958_FS==44100)
                 {
-                    amsysfs_set_sysfs_int("/sys/class/audiodsp/digital_codec",3);
                     SampleRate=audec->DTSHDIEC958_FS;
                 }else if(audec->DTSHDIEC958_FS==192000||audec->DTSHDIEC958_FS==176400){// clock need Mutiple 4
-                    amsysfs_set_sysfs_int("/sys/class/audiodsp/digital_codec",5);
                     SampleRate=audec->DTSHDIEC958_FS/4;
                     #if ANDROID_PLATFORM_SDK_VERSION >= 21//android 5.0
                     aformat = (audio_format_t)AUDIO_FORMAT_DTS_HD;
@@ -808,7 +798,6 @@ extern "C" int android_init_raw(struct aml_audio_dec* audec)
                 if(audec->DTSHDIEC958_FS==192000||audec->DTSHDIEC958_FS==384000 || audec->DTSHDIEC958_FS==768000 ||
                    audec->DTSHDIEC958_FS==176400||audec->DTSHDIEC958_FS==352800 || audec->DTSHDIEC958_FS==705600)
                 {
-                    amsysfs_set_sysfs_int("/sys/class/audiodsp/digital_codec",8);
                     SampleRate=audec->DTSHDIEC958_FS/4;
                     #if ANDROID_PLATFORM_SDK_VERSION >= 21//android 5.0
                     aformat = (audio_format_t)AUDIO_FORMAT_DTS_MASTER;
@@ -1007,7 +996,6 @@ extern "C" int android_init(struct aml_audio_dec* audec)
         if (audec->format == ACODEC_FMT_DTS && audec->samplerate>48000 && !user_raw_enable)
         {
             adec_print("set digital_codec to AUDIO_FORMAT_DTS_PCM_88K_96K");
-            amsysfs_set_sysfs_int("/sys/class/audiodsp/digital_codec",9);
         }
     }
     if( audec->channels == 8 ||
@@ -1032,7 +1020,6 @@ extern "C" int android_init(struct aml_audio_dec* audec)
             ChMask=AUDIO_CHANNEL_OUT_7POINT1;
             Flag=AUDIO_OUTPUT_FLAG_DEEP_BUFFER;
             aformat=AUDIO_FORMAT_PCM_16_BIT;
-            amsysfs_set_sysfs_int("/sys/class/audiodsp/digital_codec",6);
         }else{
             adec_print("create HD-PCM(Fs/%d>48000)Direct Ouputtrack\n",audec->samplerate);
             ChMask=AUDIO_CHANNEL_OUT_STEREO;
@@ -1122,7 +1109,6 @@ extern "C" int android_init(struct aml_audio_dec* audec)
 #endif
           if(audec->channels == 8){
              property_set(DOLBY_SYSTEM_CHANNEL,"false");
-             amsysfs_set_sysfs_int("/sys/class/audiodsp/digital_codec",0);
           }
           return -1;
 
@@ -1352,12 +1338,7 @@ extern "C" int android_stop_raw(struct aml_audio_dec* audec)
 #else
     mpAudioTrack_raw.clear();
 #endif
-    if((audec->format==ACODEC_FMT_DTS) ||
-       (audec->format == ACODEC_FMT_AC3) ||
-       (audec->format == ACODEC_FMT_EAC3) ||
-       (audec->format == ACODEC_FMT_TRUEHD)){
-         amsysfs_set_sysfs_int("/sys/class/audiodsp/digital_codec",0);
-    }
+
     out_ops->private_data_raw= NULL;
     return 0;
 }
@@ -1383,7 +1364,6 @@ extern "C" int android_stop(struct aml_audio_dec* audec)
     adec_print("android out stop");
     if(audec->channels == 8){
         property_set(DOLBY_SYSTEM_CHANNEL,"false");
-        amsysfs_set_sysfs_int("/sys/class/audiodsp/digital_codec",0);
     }
     if (track == 0){
         adec_print("No track instance!\n");
