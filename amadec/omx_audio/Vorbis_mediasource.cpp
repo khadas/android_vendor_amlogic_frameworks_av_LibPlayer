@@ -209,12 +209,16 @@ re_read:
             return err;
         }
     }
-    if (MediaSourceRead_buffer((unsigned char*)(buffer->data()), pkt_size) < pkt_size) {
+    //mediasource should wait abuf data util player finish it
+    while (MediaSourceRead_buffer((unsigned char*)(buffer->data()), pkt_size) < pkt_size && (*pStop_ReadBuf_Flag == 0)) {
         ALOGW("WARNING: fpread_buffer readbytes failed [%s %d]!\n", __FUNCTION__, __LINE__);
+    }
+    if (*pStop_ReadBuf_Flag == 1) {
         buffer->release();
         buffer = NULL;
         return ERROR_END_OF_STREAM;
     }
+
     if (insert_byte > 0) {
         buffer->set_range(0, pkt_size + insert_byte);
         memcpy((unsigned char*)(buffer->data()) + pkt_size, &numPageSamples, sizeof(numPageSamples));
