@@ -182,6 +182,13 @@ static int stream_es_init(play_para_t *p_para)
 
         vcodec_info_init(p_para, v_codec);
 
+        if (p_para->pFormatCtx->flags & AVFMT_FLAG_DRMLEVEL1 ||
+                p_para->pFormatCtx->flags & AVFMT_FLAG_PR_TVP ||
+                (p_para->pFormatCtx->pb &&
+                (p_para->pFormatCtx->pb->isprtvp & AVFMT_FLAG_PR_TVP))) {
+            log_print("TVP set drmmode 1\n");
+            v_codec->drmmode = 1;
+        }
         ret = codec_init(v_codec);
         if (ret != CODEC_ERROR_NONE) {
             if (ret != CODEC_OPEN_HANDLE_FAILED) {

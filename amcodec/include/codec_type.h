@@ -101,6 +101,7 @@ unsigned int noblock:
     char *sub_filename;
     int associate_dec_supported;//support associate or not
     int mixing_level;
+    unsigned int drmmode;
 } codec_para_t;
 
 typedef struct {
