@@ -274,6 +274,7 @@ int ffmpeg_parse_file_type(play_para_t *am_p, player_file_type_t *type)
         int wmv1_flag = 0;
         int wmv2_flag = 0;
         int rm_flag = 0;
+        int avs_flag = 0;
 
         type->fmt_string = pFCtx->iformat->name;
         if (!strcmp(type->fmt_string, "matroska,webm")) {
@@ -356,6 +357,13 @@ int ffmpeg_parse_file_type(play_para_t *am_p, player_file_type_t *type)
                     }
                 }
 
+                if (st->codec->codec_id == CODEC_ID_CAVS) {
+                    if (avs_flag == 0) {
+                        avs_flag = 1;
+                        sprintf(vpx_string, "%s", "avs");
+                    }
+                }
+
                 type->video_tracks++;
             } else if (st->codec->codec_type == CODEC_TYPE_AUDIO) {
                 type->audio_tracks++;
@@ -404,7 +412,7 @@ int ffmpeg_parse_file_type(play_para_t *am_p, player_file_type_t *type)
         }
         //-----------------------------------------------------
         // special process for webm/vpx, flv/vp6, hevc/h.265
-        if (matroska_flag || flv_flag || vpx_flag || hevc_flag || wmv2_flag || rm_flag || wmv1_flag) {
+        if (matroska_flag || flv_flag || vpx_flag || hevc_flag || wmv2_flag || rm_flag || wmv1_flag || avs_flag) {
             int length = 0;
 
             memset(format_string, 0, sizeof(format_string));
@@ -415,7 +423,7 @@ int ffmpeg_parse_file_type(play_para_t *am_p, player_file_type_t *type)
                 length = sprintf(format_string, "%s", type->fmt_string);
             }
 
-            if (vpx_flag == 1 || hevc_flag == 1 || wmv2_flag == 1 || rm_flag == 1 || wmv1_flag == 1) {
+            if (vpx_flag == 1 || hevc_flag == 1 || wmv2_flag == 1 || rm_flag == 1 || wmv1_flag == 1 || avs_flag == 1) {
                 sprintf(&format_string[length], ",%s", vpx_string);
                 memset(vpx_string, 0, sizeof(vpx_string));
             }
