@@ -280,7 +280,7 @@ DDP_MediaSource::DDP_MediaSource(void *read_buffer)
     ChNumOriginal=0;
 }
 
-DDP_MediaSource::~DDP_MediaSource() 
+DDP_MediaSource::~DDP_MediaSource()
 {
     ALOGI("%s %d \n",__FUNCTION__,__LINE__);
     if (mStarted) {
@@ -490,12 +490,12 @@ status_t DDP_MediaSource::read(MediaBuffer **out, const ReadOptions *options)
                 break;
             }else{
                 ALOGI("=====next frame sync word error %x,resync\n",head);
-                memcpy((char*)(frame.rawbuf),(char *)(frame.rawbuf+1), frame.len-1);
+                memmove((char*)(frame.rawbuf),(char *)(frame.rawbuf+1), frame.len-1);
                 frame.len -= 1;
                 readdiff ++;
             }
         }else{
-            memcpy((char*)(frame.rawbuf),(char *)(frame.rawbuf+1), frame.len-1);
+            memmove((char*)(frame.rawbuf),(char *)(frame.rawbuf+1), frame.len-1);
             frame.len -= 1;
             readdiff ++;
         }
@@ -509,7 +509,7 @@ status_t DDP_MediaSource::read(MediaBuffer **out, const ReadOptions *options)
     }
 
     memcpy((unsigned char*)(buffer->data()), (unsigned char*)frame.rawbuf, frame_size);
-    memcpy((unsigned char*)frame.rawbuf, (unsigned char*)(frame.rawbuf+frame_size), frame.len - frame_size);
+    memmove((unsigned char*)frame.rawbuf, (unsigned char*)(frame.rawbuf+frame_size), frame.len - frame_size);
     frame.len -= frame_size;
     buffer->set_range(0, frame_size);
     buffer->meta_data()->setInt64(kKeyTime, mCurrentTimeUs);
