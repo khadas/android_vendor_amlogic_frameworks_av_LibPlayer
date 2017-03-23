@@ -66,9 +66,8 @@ extern "C" {
     int set_subtitle_enable(int num);
     int set_subtitle_curr(int num);
     int check_file_same(char *filename2);
-    int set_auto_refresh_rate(int enable);
-    int get_auto_refresh_rate();
-    int reset_auto_refresh_rate();
+    int get_video_seek_flag();
+    int set_video_seek_flag(int enable);
     //player sysfs API channel
     int set_amutils_enable(int isOn);
     int set_amutils_cmd(const char* cmd);

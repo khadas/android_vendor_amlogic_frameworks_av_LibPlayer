@@ -1642,7 +1642,7 @@ write_packet:
             if (get_player_state(player) != PLAYER_SEARCHING
                 && player->playctrl_info.switch_ts_program_flag == 0
                 && player->playctrl_info.streaming_track_switch_flag == 0) {
-                set_auto_refresh_rate(0);
+                set_video_seek_flag(1);
                 set_player_state(player, PLAYER_SEARCHING);
                 if (player->stream_type == STREAM_PS)
                     player->need_reset_sub_flag = 1;
@@ -1687,7 +1687,7 @@ write_packet:
                 if (player->playctrl_info.f_step == 0) {
                     // set_black_policy(player->playctrl_info.black_out);
                 }
-                resume_auto_refresh_rate();
+                set_video_seek_flag(0);
             }
 
             if (player->playctrl_info.reset_flag) {
@@ -1724,7 +1724,7 @@ release:
     set_sysfs_int("/sys/class/tsync/vpause_flag", 0);
 
 release0:
-    resume_auto_refresh_rate();
+    set_video_seek_flag(0);
     player_mate_release(player);
     log_print("\npid[%d]player_thread release0 begin...(sta:0x%x)\n", player->player_id, get_player_state(player));
 

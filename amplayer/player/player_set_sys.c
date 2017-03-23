@@ -94,19 +94,14 @@ int get_black_policy()
     return get_sysfs_int("/sys/class/video/blackout_policy") & 1;
 }
 
-int set_auto_refresh_rate(int enable)
+int get_video_seek_flag()
 {
-    return set_sysfs_int("/sys/class/tv/policy_fr_auto_switch", enable);
+    return get_sysfs_int("/sys/class/video/video_seek_flag") & 1;
 }
 
-int get_auto_refresh_rate()
+int set_video_seek_flag(int enable)
 {
-    return get_sysfs_int("/sys/class/tv/policy_fr_auto_switch");
-}
-
-int reset_auto_refresh_rate()
-{
-    return set_sysfs_int("/sys/class/tv/policy_fr_auto_switch", 3);
+    return set_sysfs_int("/sys/class/video/video_seek_flag", enable);
 }
 
 int check_audiodsp_fatal_err()

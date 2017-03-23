@@ -65,7 +65,6 @@ int     player_register_update_callback(callback_t *cb, update_state_fun_t up_fn
 char *player_status2str(player_status status);
 char *player_value2str(char *key, int value);
 int     player_cache_system_init(int enable, const char*dir, int max_size, int block_size);
-int     resume_auto_refresh_rate();
 //control interface
 int     player_loop(int pid);
 int     player_noloop(int pid);
