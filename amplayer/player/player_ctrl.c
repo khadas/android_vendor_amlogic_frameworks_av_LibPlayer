@@ -44,8 +44,6 @@
 extern codec_para_t *get_subtitle_codec(play_para_t *player);
 extern void print_version_info();
 
-int auto_refresh_rate_enable = 0;
-
 static pthread_mutex_t player_stop_mutex;
 static pthread_mutex_t player_exit_mutex;
 /* --------------------------------------------------------------------------*/
@@ -69,7 +67,7 @@ static pthread_mutex_t player_exit_mutex;
 
 int player_init(void)
 {
-    reset_auto_refresh_rate();
+    set_video_seek_flag(0);
     print_version_info();
     update_loglevel_setting();
     /*register all formats and codecs*/
@@ -131,7 +129,6 @@ int player_start(play_control_t *ctrl_p, unsigned long  priv)
     } else if (!check_file_same(ctrl_p->file_name)) {
         set_black_policy(1);
     }
-    auto_refresh_rate_enable = get_auto_refresh_rate();
     pid = player_request_pid();
     if (pid < 0) {
         return PLAYER_NOT_VALID_PID;
@@ -1981,11 +1978,6 @@ int player_closeCodec(int pid)
     }
     codec_pause(player_para);
     return codec_close(player_para);
-}
-
-int resume_auto_refresh_rate()
-{
-    return set_auto_refresh_rate(auto_refresh_rate_enable);
 }
 
 /* --------------------------------------------------------------------------*/
