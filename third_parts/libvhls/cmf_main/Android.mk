@@ -1,6 +1,6 @@
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
-
+include $(TOP)/hardware/amlogic/media/media_base_config.mk
 LOCAL_ARM_MODE := arm
 LOCAL_MODULE_TAGS := optional
 
@@ -11,7 +11,7 @@ LOCAL_C_INCLUDES := \
     $(LOCAL_PATH)/../hls_main \
     $(LOCAL_PATH)/../common \
     $(LOCAL_PATH)/../include \
-    $(LOCAL_PATH)/../../../amavutils/include \
+    $(AMAVUTILS_PATH)/include \
     $(LOCAL_PATH)/../../../amffmpeg
 
 ifeq ($(TARGET_ARCH),arm)

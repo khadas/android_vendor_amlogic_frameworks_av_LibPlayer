@@ -1,6 +1,8 @@
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
+include $(TOP)/hardware/amlogic/media/media_base_config.mk
+
 LOCAL_ARM_MODE := arm
 LOCAL_MODULE_TAGS := optional
 
@@ -13,7 +15,7 @@ LOCAL_SRC_FILES := \
 	hls_rand.c
 
 LOCAL_C_INCLUDES := \
-    $(LOCAL_PATH)/../../../amavutils/include \
+    $(AMAVUTILS_PATH)/include \
     $(LOCAL_PATH)/
 
 

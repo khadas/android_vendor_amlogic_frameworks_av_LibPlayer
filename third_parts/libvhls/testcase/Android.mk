@@ -1,6 +1,7 @@
 #by peter
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
+include $(TOP)/hardware/amlogic/media/media_base_config.mk
 LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_TAGS := tests
 LOCAL_ARM_MODE := arm
@@ -11,7 +12,7 @@ LOCAL_C_INCLUDES := \
         $(LOCAL_PATH)/../hls_main \
         $(LOCAL_PATH)/../downloader \
         $(LOCAL_PATH)/../include \
-        $(LOCAL_PATH)/../../../amavutils/include \
+		$(AMAVUTILS_PATH)/include\
         $(LOCAL_PATH)/../../../amffmpeg
 
 LOCAL_MODULE := m3uparser_test
@@ -34,7 +35,7 @@ LOCAL_C_INCLUDES := \
         $(LOCAL_PATH)/../common \
         $(LOCAL_PATH)/../include \
         $(LOCAL_PATH)/../hls_main \
-        $(LOCAL_PATH)/../../../amavutils/include \
+        $(AMAVUTILS_PATH)/include \
         $(LOCAL_PATH)/../../../amffmpeg
 
 LOCAL_MODULE := hls_merge_tool

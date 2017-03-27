@@ -3938,10 +3938,6 @@ void player_switch_sub(play_para_t *para)
     int subnum = para->sstream_num;
     int index;
 
-    int untimed_text = am_getconfig_bool_def("sys.timedtext.disable", 1);
-
-    log_print("player_switch_sub,sub_id=%d,index=%d,untimed_text=%d\n",
-              para->playctrl_info.switch_sub_id, sinfo->sub_index, untimed_text);
 
     if (para->scodec) {
         pcodec = para->scodec;
@@ -3990,11 +3986,6 @@ void player_switch_sub(play_para_t *para)
     }
 
     //log_print("--%s--pstream->index=%d---\n",__FUNCTION__,pstream->index);
-
-    if (!untimed_text) {
-        /* close subtitle */
-        codec_close_subtitle(pcodec);
-    }
 
     if (pstream->codec->codec_id == CODEC_ID_DVD_SUBTITLE) {
         set_subtitle_subtype(0);
@@ -4079,9 +4070,6 @@ void player_switch_sub(play_para_t *para)
             amthreadpool_thread_usleep(1000);
         }
 
-        if (!untimed_text) {
-            codec_resume_subtitle(pcodec, para->sstream_info.has_sub);
-        }
 
         return;
     } else {
@@ -4115,9 +4103,6 @@ void player_switch_sub(play_para_t *para)
         pre_header_feeding(para);
     }
 
-    if (!untimed_text) {
-        codec_resume_subtitle(pcodec, para->sstream_info.has_sub);
-    }
 
     return;
 }

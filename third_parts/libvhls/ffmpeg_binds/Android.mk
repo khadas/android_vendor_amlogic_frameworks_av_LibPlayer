@@ -1,6 +1,8 @@
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
+include $(TOP)/hardware/amlogic/media/media_base_config.mk
+
 LOCAL_ARM_MODE := arm
 LOCAL_PRELINK_MODULE := false
 
@@ -13,7 +15,7 @@ LOCAL_SRC_FILES := $(notdir $(wildcard $(LOCAL_PATH)/*.c))
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/../include \
         $(LOCAL_PATH)/../hls_main \
         $(LOCAL_PATH)/../common \
-        $(LOCAL_PATH)/../../../amavutils/include \
+        $(AMAVUTILS_PATH)/include \
         $(LOCAL_PATH)/../../../amffmpeg
 
 LOCAL_MODULE_TAGS := optional

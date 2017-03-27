@@ -1,19 +1,20 @@
 LOCAL_PATH := $(call my-dir)
 
+include $(TOP)/hardware/amlogic/media/media_base_config.mk
+
 include $(CLEAR_VARS)
 LOCAL_MODULE    := kplayer
 LOCAL_MODULE_TAGS := samples
+
 LOCAL_SRC_FILES := kplayer.c
 LOCAL_ARM_MODE := arm
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/../amplayer/player/include \
-    $(LOCAL_PATH)/../amcodec/include \
-    $(LOCAL_PATH)/../amadec/include \
-    $(LOCAL_PATH)/../amffmpeg \
+    $(AMCODEC_NEED_INCLUDE)\
+	$(LOCAL_PATH)/../amffmpeg \
     $(JNI_H_INCLUDE) \
-    $(LOCAL_PATH)/../streamsource \
 
-LOCAL_STATIC_LIBRARIES := libamplayer libamplayer libamcodec libavformat librtmp libavcodec libavutil libamadec libamavutils  libiconv
-LOCAL_SHARED_LIBRARIES += libutils libmedia libbinder libz libdl libcutils libssl libcrypto libamsubdec
+LOCAL_SHARED_LIBRARIES += libutils libmedia libbinder libz libdl libcutils libssl libcrypto
+LOCAL_SHARED_LIBRARIES += libamcodec libamavutils libiconv libamplayer
 
 LOCAL_SHARED_LIBRARIES += libbinder 
 
@@ -33,14 +34,12 @@ LOCAL_MODULE_TAGS := samples
 LOCAL_SRC_FILES := simple_player.c
 LOCAL_ARM_MODE := arm
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/../amplayer/player/include \
-    $(LOCAL_PATH)/../amcodec/include \
-    $(LOCAL_PATH)/../amadec/include \
+	$(AMCODEC_NEED_INCLUDE)\
     $(LOCAL_PATH)/../amffmpeg \
     $(JNI_H_INCLUDE) 
 
-LOCAL_STATIC_LIBRARIES := libamplayer libamplayer libamcodec libavformat librtmp libavcodec libavutil libamadec libamavutils libiconv
-LOCAL_SHARED_LIBRARIES += libutils libmedia libbinder libz libdl libcutils libssl libcrypto libamsubdec
-
+LOCAL_SHARED_LIBRARIES += libutils libmedia libbinder libz libdl libcutils libssl libcrypto
+LOCAL_SHARED_LIBRARIES += libamcodec libamavutils libiconv libamplayer
 LOCAL_SHARED_LIBRARIES += libbinder 
 
 
@@ -58,14 +57,12 @@ LOCAL_MODULE_TAGS := samples
 LOCAL_SRC_FILES := esplayer.c
 LOCAL_ARM_MODE := arm
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/../amplayer/player/include \
-    $(LOCAL_PATH)/../amcodec/include \
-    $(LOCAL_PATH)/../amadec/include \
+	$(AMCODEC_NEED_INCLUDE)\
     $(LOCAL_PATH)/../amffmpeg \
     $(JNI_H_INCLUDE)
 
-LOCAL_STATIC_LIBRARIES := libamplayer libamplayer libamcodec libavformat librtmp libavcodec libavutil libamadec libamavutils
-LOCAL_SHARED_LIBRARIES += libutils libmedia libbinder libz libdl libcutils libssl libcrypto libamsubdec
-
+LOCAL_SHARED_LIBRARIES += libutils libmedia libbinder libz libdl libcutils libssl libcrypto
+LOCAL_SHARED_LIBRARIES += libamcodec libamavutils libiconv libamplayer
 LOCAL_SHARED_LIBRARIES += libbinder
 
 ifneq (0, $(shell expr $(PLATFORM_VERSION) \>= 5.0))
@@ -83,11 +80,11 @@ LOCAL_MODULE_TAGS := samples
 LOCAL_SRC_FILES := amvideocaptest.c
 LOCAL_ARM_MODE := arm
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/../amplayer/player/include \
-    $(LOCAL_PATH)/../amavutils/include \
+    $(AMCODEC_NEED_INCLUDE)\
     $(JNI_H_INCLUDE)
 
 LOCAL_STATIC_LIBRARIES := libavutil libamadec libamavutils
-LOCAL_SHARED_LIBRARIES += libutils libmedia libbinder libz libdl libcutils libssl libcrypto libamsubdec
+LOCAL_SHARED_LIBRARIES += libutils libmedia libbinder libz libdl libcutils libssl libcrypto
 
 LOCAL_SHARED_LIBRARIES += libbinder 
 

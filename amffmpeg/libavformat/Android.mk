@@ -1,11 +1,12 @@
 LOCAL_PATH := $(call my-dir)
+include $(TOP)/hardware/amlogic/media/media_base_config.mk
 include $(CLEAR_VARS)
 include $(LOCAL_PATH)/../common.mk
 LOCAL_SRC_FILES := $(FFFILES)
 LOCAL_C_INCLUDES :=		\
 	$(LOCAL_PATH)		\
 	$(LOCAL_PATH)/..	\
-	$(LOCAL_PATH)/../../amavutils/include/	\
+	$(AMAVUTILS_PATH)/include/	\
 	$(LOCAL_PATH)/../../third_parts/rtmpdump	\
 	external/zlib
 LOCAL_CFLAGS += $(FFCFLAGS)
@@ -18,7 +19,7 @@ LOCAL_SRC_FILES := $(FFFILES)
 LOCAL_C_INCLUDES :=		\
 	$(LOCAL_PATH)		\
 	$(LOCAL_PATH)/..	\
-	$(LOCAL_PATH)/../../amavutils/include/	\
+	$(AMAVUTILS_PATH)/include/	\
 	$(LOCAL_PATH)/../../third_parts/rtmpdump	\
 	external/zlib
 LOCAL_CFLAGS += $(FFCFLAGS)

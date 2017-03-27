@@ -3,6 +3,9 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 
+include $(TOP)/hardware/amlogic/media/media_base_config.mk
+
+
 ifneq ($(BOARD_VOUT_USES_FREESCALE),false)
 LOCAL_CFLAGS += -DENABLE_FREE_SCALE
 endif
@@ -42,12 +45,9 @@ ifeq ($(TARGET_ARCH),arm)
 LOCAL_LDFLAGS := -Wl,--no-warn-shared-textrel
 endif
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/include \
-	$(LOCAL_PATH)/../../amcodec/include \
-	$(LOCAL_PATH)/../../amcodec \
+	$(AMCODEC_NEED_INCLUDE)\
 	$(LOCAL_PATH)/../common\
-	$(LOCAL_PATH)/../../amadec/include \
 	$(LOCAL_PATH)/../../amffmpeg\
-	$(LOCAL_PATH)/../../amavutils/include \
 	$(LOCAL_PATH)/../../third_parts/libiconv-1.12/include
 
 LOCAL_MODULE := libamplayer
@@ -80,11 +80,9 @@ LOCAL_SRC_FILES := $(notdir $(wildcard $(LOCAL_PATH)/*.c))
 LOCAL_SRC_FILES +=system/android.c system/systemsetting.c
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/include \
-        $(LOCAL_PATH)/../../amcodec/include \
-        $(LOCAL_PATH)/../../amadec/include \
 	$(LOCAL_PATH)/../common\
+	$(AMCODEC_NEED_INCLUDE)\
         $(LOCAL_PATH)/../../amffmpeg\
-        $(LOCAL_PATH)/../../amavutils/include \
 		$(LOCAL_PATH)/../../third_parts/libiconv-1.12/include
 
 LOCAL_CFLAGS+=-DHAVE_VERSION_INFO
@@ -100,8 +98,9 @@ FFCFLAGS += -fPIC
 ifeq ($(TARGET_ARCH),arm)
 LOCAL_LDFLAGS := -Wl,--no-warn-shared-textrel
 endif
-LOCAL_STATIC_LIBRARIES := libamcodec libavformat librtmp libswscale libavcodec libavutil libamadec libiconv
-LOCAL_SHARED_LIBRARIES += libutils libmedia libz libbinder libdl libcutils libc libamavutils libssl libcrypto libamsubdec
+LOCAL_STATIC_LIBRARIES := libavformat librtmp libswscale libavcodec libavutil
+LOCAL_SHARED_LIBRARIES := libamcodec  libamadec libiconv
+LOCAL_SHARED_LIBRARIES += libutils libmedia libz libbinder libdl libcutils libc libamavutils libssl libcrypto
 
 LOCAL_MODULE := libamplayer
 LOCAL_MODULE_TAGS := optional
