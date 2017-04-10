@@ -276,6 +276,7 @@ int ffmpeg_parse_file_type(play_para_t *am_p, player_file_type_t *type)
         int rm_flag = 0;
         int avs_flag = 0;
         int dra_flag = 0;
+        int truehd_flag = 0;
 
         type->fmt_string = pFCtx->iformat->name;
         if (!strcmp(type->fmt_string, "matroska,webm")) {
@@ -368,10 +369,16 @@ int ffmpeg_parse_file_type(play_para_t *am_p, player_file_type_t *type)
 
                 type->video_tracks++;
             } else if (st->codec->codec_type == CODEC_TYPE_AUDIO) {
-                    if (st->codec->codec_id == CODEC_ID_DRA) {
+                if (st->codec->codec_id == CODEC_ID_DRA) {
                     if (dra_flag == 0) {
                         dra_flag = 1;
                         sprintf(vpx_string, "%s", "dra");
+                    }
+                }
+                if (st->codec->codec_id == CODEC_ID_TRUEHD) {
+                    if (truehd_flag == 0) {
+                        truehd_flag = 1;
+                        sprintf(vpx_string, "%s", "truehd");
                     }
                 }
                 type->audio_tracks++;
@@ -420,7 +427,7 @@ int ffmpeg_parse_file_type(play_para_t *am_p, player_file_type_t *type)
         }
         //-----------------------------------------------------
         // special process for webm/vpx, flv/vp6, hevc/h.265
-        if (matroska_flag || flv_flag || vpx_flag || hevc_flag || wmv2_flag || rm_flag || wmv1_flag || avs_flag || dra_flag) {
+        if (matroska_flag || flv_flag || vpx_flag || hevc_flag || wmv2_flag || rm_flag || wmv1_flag || avs_flag || dra_flag || truehd_flag) {
             int length = 0;
 
             memset(format_string, 0, sizeof(format_string));
@@ -431,7 +438,7 @@ int ffmpeg_parse_file_type(play_para_t *am_p, player_file_type_t *type)
                 length = sprintf(format_string, "%s", type->fmt_string);
             }
 
-            if (vpx_flag == 1 || hevc_flag == 1 || wmv2_flag == 1 || rm_flag == 1 || wmv1_flag == 1 || avs_flag == 1 || dra_flag) {
+            if (vpx_flag == 1 || hevc_flag == 1 || wmv2_flag == 1 || rm_flag == 1 || wmv1_flag == 1 || avs_flag == 1 || dra_flag || truehd_flag) {
                 sprintf(&format_string[length], ",%s", vpx_string);
                 memset(vpx_string, 0, sizeof(vpx_string));
             }
