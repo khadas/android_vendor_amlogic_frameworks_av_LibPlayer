@@ -52,15 +52,16 @@ static int tmv_decode_frame(AVCodecContext *avctx, void *data,
     unsigned char_rows = avctx->height >> 3;
     unsigned x, y, fg, bg, c;
 
-    if (tmv->pic.data[0])
+    if (tmv->pic.data[0]) {
         avctx->release_buffer(avctx, &tmv->pic);
+    }
 
     if (avctx->get_buffer(avctx, &tmv->pic) < 0) {
         av_log(avctx, AV_LOG_ERROR, "get_buffer() failed\n");
         return -1;
     }
 
-    if (avpkt->size < 2*char_rows*char_cols) {
+    if (avpkt->size < 2 * char_rows * char_cols) {
         av_log(avctx, AV_LOG_ERROR,
                "Input buffer too small, truncated sample?\n");
         *data_size = 0;
@@ -94,8 +95,9 @@ static av_cold int tmv_decode_close(AVCodecContext *avctx)
 {
     TMVContext *tmv = avctx->priv_data;
 
-    if (tmv->pic.data[0])
+    if (tmv->pic.data[0]) {
         avctx->release_buffer(avctx, &tmv->pic);
+    }
 
     return 0;
 }

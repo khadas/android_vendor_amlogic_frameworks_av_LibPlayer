@@ -72,14 +72,14 @@ static char *value_string(char *buf, int buf_size, double val, const char *unit)
         int index;
 
         if (unit == unit_byte_str && use_byte_value_binary_prefix) {
-            index = (int) (log(val)/log(2)) / 10;
-            index = av_clip(index, 0, FF_ARRAY_ELEMS(binary_unit_prefixes) -1);
-            val /= pow(2, index*10);
+            index = (int)(log(val) / log(2)) / 10;
+            index = av_clip(index, 0, FF_ARRAY_ELEMS(binary_unit_prefixes) - 1);
+            val /= pow(2, index * 10);
             prefix_string = binary_unit_prefixes[index];
         } else {
-            index = (int) (log10(val)) / 3;
-            index = av_clip(index, 0, FF_ARRAY_ELEMS(decimal_unit_prefixes) -1);
-            val /= pow(10, index*3);
+            index = (int)(log10(val)) / 3;
+            index = av_clip(index, 0, FF_ARRAY_ELEMS(decimal_unit_prefixes) - 1);
+            val /= pow(10, index * 3);
             prefix_string = decimal_unit_prefixes[index];
         }
 
@@ -102,7 +102,7 @@ static char *time_value_string(char *buf, int buf_size, int64_t val, const AVRat
     return buf;
 }
 
-static char *ts_value_string (char *buf, int buf_size, int64_t ts)
+static char *ts_value_string(char *buf, int buf_size, int64_t ts)
 {
     if (ts == AV_NOPTS_VALUE) {
         snprintf(buf, buf_size, "N/A");
@@ -116,12 +116,18 @@ static char *ts_value_string (char *buf, int buf_size, int64_t ts)
 static const char *media_type_string(enum AVMediaType media_type)
 {
     switch (media_type) {
-    case AVMEDIA_TYPE_VIDEO:      return "video";
-    case AVMEDIA_TYPE_AUDIO:      return "audio";
-    case AVMEDIA_TYPE_DATA:       return "data";
-    case AVMEDIA_TYPE_SUBTITLE:   return "subtitle";
-    case AVMEDIA_TYPE_ATTACHMENT: return "attachment";
-    default:                      return "unknown";
+    case AVMEDIA_TYPE_VIDEO:
+        return "video";
+    case AVMEDIA_TYPE_AUDIO:
+        return "audio";
+    case AVMEDIA_TYPE_DATA:
+        return "data";
+    case AVMEDIA_TYPE_SUBTITLE:
+        return "subtitle";
+    case AVMEDIA_TYPE_ATTACHMENT:
+        return "attachment";
+    default:
+        return "unknown";
     }
 }
 
@@ -133,13 +139,13 @@ static void show_packet(AVFormatContext *fmt_ctx, AVPacket *pkt)
     printf("[PACKET]\n");
     printf("codec_type=%s\n"   , media_type_string(st->codec->codec_type));
     printf("stream_index=%d\n" , pkt->stream_index);
-    printf("pts=%s\n"          , ts_value_string  (val_str, sizeof(val_str), pkt->pts));
+    printf("pts=%s\n"          , ts_value_string(val_str, sizeof(val_str), pkt->pts));
     printf("pts_time=%s\n"     , time_value_string(val_str, sizeof(val_str), pkt->pts, &st->time_base));
-    printf("dts=%s\n"          , ts_value_string  (val_str, sizeof(val_str), pkt->dts));
+    printf("dts=%s\n"          , ts_value_string(val_str, sizeof(val_str), pkt->dts));
     printf("dts_time=%s\n"     , time_value_string(val_str, sizeof(val_str), pkt->dts, &st->time_base));
-    printf("duration=%s\n"     , ts_value_string  (val_str, sizeof(val_str), pkt->duration));
+    printf("duration=%s\n"     , ts_value_string(val_str, sizeof(val_str), pkt->duration));
     printf("duration_time=%s\n", time_value_string(val_str, sizeof(val_str), pkt->duration, &st->time_base));
-    printf("size=%s\n"         , value_string     (val_str, sizeof(val_str), pkt->size, unit_byte_str));
+    printf("size=%s\n"         , value_string(val_str, sizeof(val_str), pkt->size, unit_byte_str));
     printf("pos=%"PRId64"\n"   , pkt->pos);
     printf("flags=%c\n"        , pkt->flags & AV_PKT_FLAG_KEY ? 'K' : '_');
     printf("[/PACKET]\n");
@@ -151,8 +157,9 @@ static void show_packets(AVFormatContext *fmt_ctx)
 
     av_init_packet(&pkt);
 
-    while (!av_read_frame(fmt_ctx, &pkt))
+    while (!av_read_frame(fmt_ctx, &pkt)) {
         show_packet(fmt_ctx, &pkt);
+    }
 }
 
 static void show_stream(AVFormatContext *fmt_ctx, int stream_idx)
@@ -191,13 +198,13 @@ static void show_stream(AVFormatContext *fmt_ctx, int stream_idx)
             printf("has_b_frames=%d\n",            dec_ctx->has_b_frames);
             if (dec_ctx->sample_aspect_ratio.num) {
                 printf("sample_aspect_ratio=%d:%d\n", dec_ctx->sample_aspect_ratio.num,
-                                                      dec_ctx->sample_aspect_ratio.den);
+                       dec_ctx->sample_aspect_ratio.den);
                 av_reduce(&display_aspect_ratio.num, &display_aspect_ratio.den,
                           dec_ctx->width  * dec_ctx->sample_aspect_ratio.num,
                           dec_ctx->height * dec_ctx->sample_aspect_ratio.den,
-                          1024*1024);
+                          1024 * 1024);
                 printf("display_aspect_ratio=%d:%d\n", display_aspect_ratio.num,
-                                                       display_aspect_ratio.den);
+                       display_aspect_ratio.den);
             }
             printf("pix_fmt=%s\n",                 dec_ctx->pix_fmt != PIX_FMT_NONE ?
                    av_pix_fmt_descriptors[dec_ctx->pix_fmt].name : "unknown");
@@ -205,8 +212,8 @@ static void show_stream(AVFormatContext *fmt_ctx, int stream_idx)
 
         case AVMEDIA_TYPE_AUDIO:
             printf("sample_rate=%s\n",             value_string(val_str, sizeof(val_str),
-                                                                dec_ctx->sample_rate,
-                                                                unit_hertz_str));
+                    dec_ctx->sample_rate,
+                    unit_hertz_str));
             printf("channels=%d\n",                dec_ctx->channels);
             printf("bits_per_sample=%d\n",         av_get_bits_per_sample(dec_ctx->codec_id));
             break;
@@ -215,20 +222,23 @@ static void show_stream(AVFormatContext *fmt_ctx, int stream_idx)
         printf("codec_type=unknown\n");
     }
 
-    if (fmt_ctx->iformat->flags & AVFMT_SHOW_IDS)
+    if (fmt_ctx->iformat->flags & AVFMT_SHOW_IDS) {
         printf("id=0x%x\n", stream->id);
+    }
     printf("r_frame_rate=%d/%d\n",         stream->r_frame_rate.num,   stream->r_frame_rate.den);
     printf("avg_frame_rate=%d/%d\n",       stream->avg_frame_rate.num, stream->avg_frame_rate.den);
     printf("time_base=%d/%d\n",            stream->time_base.num,      stream->time_base.den);
     printf("start_time=%s\n",   time_value_string(val_str, sizeof(val_str), stream->start_time,
-                                                  &stream->time_base));
+            &stream->time_base));
     printf("duration=%s\n",     time_value_string(val_str, sizeof(val_str), stream->duration,
-                                                  &stream->time_base));
-    if (stream->nb_frames)
+            &stream->time_base));
+    if (stream->nb_frames) {
         printf("nb_frames=%"PRId64"\n",    stream->nb_frames);
+    }
 
-    while ((tag = av_dict_get(stream->metadata, "", tag, AV_DICT_IGNORE_SUFFIX)))
+    while ((tag = av_dict_get(stream->metadata, "", tag, AV_DICT_IGNORE_SUFFIX))) {
         printf("TAG:%s=%s\n", tag->key, tag->value);
+    }
 
     printf("[/STREAM]\n");
 }
@@ -245,16 +255,17 @@ static void show_format(AVFormatContext *fmt_ctx)
     printf("format_name=%s\n",      fmt_ctx->iformat->name);
     printf("format_long_name=%s\n", fmt_ctx->iformat->long_name);
     printf("start_time=%s\n",       time_value_string(val_str, sizeof(val_str), fmt_ctx->start_time,
-                                                      &AV_TIME_BASE_Q));
+            &AV_TIME_BASE_Q));
     printf("duration=%s\n",         time_value_string(val_str, sizeof(val_str), fmt_ctx->duration,
-                                                      &AV_TIME_BASE_Q));
+            &AV_TIME_BASE_Q));
     printf("size=%s\n",             value_string(val_str, sizeof(val_str), fmt_ctx->file_size,
-                                                 unit_byte_str));
+            unit_byte_str));
     printf("bit_rate=%s\n",         value_string(val_str, sizeof(val_str), fmt_ctx->bit_rate,
-                                                 unit_bit_per_second_str));
+            unit_bit_per_second_str));
 
-    while ((tag = av_dict_get(fmt_ctx->metadata, "", tag, AV_DICT_IGNORE_SUFFIX)))
+    while ((tag = av_dict_get(fmt_ctx->metadata, "", tag, AV_DICT_IGNORE_SUFFIX))) {
         printf("TAG:%s=%s\n", tag->key, tag->value);
+    }
 
     printf("[/FORMAT]\n");
 }
@@ -306,18 +317,22 @@ static int probe_file(const char *filename)
     AVFormatContext *fmt_ctx;
     int ret, i;
 
-    if ((ret = open_input_file(&fmt_ctx, filename)))
+    if ((ret = open_input_file(&fmt_ctx, filename))) {
         return ret;
+    }
 
-    if (do_show_packets)
+    if (do_show_packets) {
         show_packets(fmt_ctx);
+    }
 
     if (do_show_streams)
-        for (i = 0; i < fmt_ctx->nb_streams; i++)
+        for (i = 0; i < fmt_ctx->nb_streams; i++) {
             show_stream(fmt_ctx, i);
+        }
 
-    if (do_show_format)
+    if (do_show_format) {
         show_format(fmt_ctx);
+    }
 
     av_close_input_file(fmt_ctx);
     return 0;
@@ -347,8 +362,9 @@ static int opt_input_file(const char *opt, const char *arg)
                 arg, input_filename);
         exit(1);
     }
-    if (!strcmp(arg, "-"))
+    if (!strcmp(arg, "-")) {
         arg = "pipe:";
+    }
     input_filename = arg;
     return 0;
 }
@@ -376,12 +392,18 @@ static const OptionDef options[] = {
     { "f", HAS_ARG, {(void*)opt_format}, "force format", "format" },
     { "unit", OPT_BOOL, {(void*)&show_value_unit}, "show unit of the displayed values" },
     { "prefix", OPT_BOOL, {(void*)&use_value_prefix}, "use SI prefixes for the displayed values" },
-    { "byte_binary_prefix", OPT_BOOL, {(void*)&use_byte_value_binary_prefix},
-      "use binary prefixes for byte units" },
-    { "sexagesimal", OPT_BOOL,  {(void*)&use_value_sexagesimal_format},
-      "use sexagesimal format HOURS:MM:SS.MICROSECONDS for time units" },
-    { "pretty", 0, {(void*)&opt_pretty},
-      "prettify the format of displayed values, make it more human readable" },
+    {
+        "byte_binary_prefix", OPT_BOOL, {(void*)&use_byte_value_binary_prefix},
+        "use binary prefixes for byte units"
+    },
+    {
+        "sexagesimal", OPT_BOOL,  {(void*)&use_value_sexagesimal_format},
+        "use sexagesimal format HOURS:MM:SS.MICROSECONDS for time units"
+    },
+    {
+        "pretty", 0, {(void*)&opt_pretty},
+        "prettify the format of displayed values, make it more human readable"
+    },
     { "show_format",  OPT_BOOL, {(void*)&do_show_format} , "show format/container info" },
     { "show_packets", OPT_BOOL, {(void*)&do_show_packets}, "show packets info" },
     { "show_streams", OPT_BOOL, {(void*)&do_show_streams}, "show streams info" },

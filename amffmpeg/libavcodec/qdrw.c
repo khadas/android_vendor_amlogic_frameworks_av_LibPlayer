@@ -27,7 +27,7 @@
 #include "libavutil/intreadwrite.h"
 #include "avcodec.h"
 
-typedef struct QdrawContext{
+typedef struct QdrawContext {
     AVCodecContext *avctx;
     AVFrame pic;
 } QdrawContext;
@@ -39,23 +39,24 @@ static int decode_frame(AVCodecContext *avctx,
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;
     QdrawContext * const a = avctx->priv_data;
-    AVFrame * const p= (AVFrame*)&a->pic;
+    AVFrame * const p = (AVFrame*)&a->pic;
     uint8_t* outdata;
     int colors;
     int i;
     uint32_t *pal;
     int r, g, b;
 
-    if(p->data[0])
+    if (p->data[0]) {
         avctx->release_buffer(avctx, p);
+    }
 
-    p->reference= 0;
-    if(avctx->get_buffer(avctx, p) < 0){
+    p->reference = 0;
+    if (avctx->get_buffer(avctx, p) < 0) {
         av_log(avctx, AV_LOG_ERROR, "get_buffer() failed\n");
         return -1;
     }
-    p->pict_type= AV_PICTURE_TYPE_I;
-    p->key_frame= 1;
+    p->pict_type = AV_PICTURE_TYPE_I;
+    p->key_frame = 1;
 
     outdata = a->pic.data[0];
 
@@ -63,7 +64,7 @@ static int decode_frame(AVCodecContext *avctx,
     colors = AV_RB32(buf);
     buf += 4;
 
-    if(colors < 0 || colors > 256) {
+    if (colors < 0 || colors > 256) {
         av_log(avctx, AV_LOG_ERROR, "Error color count - %i(0x%X)\n", colors, colors);
         return -1;
     }
@@ -104,17 +105,19 @@ static int decode_frame(AVCodecContext *avctx,
         next = buf + size;
         while (left > 0) {
             code = *buf++;
-            if (code & 0x80 ) { /* run */
+            if (code & 0x80) {  /* run */
                 pix = *buf++;
-                if ((out + (257 - code)) > (outdata +  a->pic.linesize[0]))
+                if ((out + (257 - code)) > (outdata +  a->pic.linesize[0])) {
                     break;
+                }
                 memset(out, pix, 257 - code);
                 out += 257 - code;
                 tsize += 257 - code;
                 left -= 2;
             } else { /* copy */
-                if ((out + code) > (outdata +  a->pic.linesize[0]))
+                if ((out + code) > (outdata +  a->pic.linesize[0])) {
                     break;
+                }
                 memcpy(out, buf, code + 1);
                 out += code + 1;
                 buf += code + 1;
@@ -132,21 +135,24 @@ static int decode_frame(AVCodecContext *avctx,
     return buf_size;
 }
 
-static av_cold int decode_init(AVCodecContext *avctx){
+static av_cold int decode_init(AVCodecContext *avctx)
+{
     QdrawContext * const a = avctx->priv_data;
 
     avcodec_get_frame_defaults(&a->pic);
-    avctx->pix_fmt= PIX_FMT_PAL8;
+    avctx->pix_fmt = PIX_FMT_PAL8;
 
     return 0;
 }
 
-static av_cold int decode_end(AVCodecContext *avctx){
+static av_cold int decode_end(AVCodecContext *avctx)
+{
     QdrawContext * const a = avctx->priv_data;
     AVFrame *pic = &a->pic;
 
-    if (pic->data[0])
+    if (pic->data[0]) {
         avctx->release_buffer(avctx, pic);
+    }
 
     return 0;
 }

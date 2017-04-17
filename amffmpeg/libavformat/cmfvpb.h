@@ -28,7 +28,7 @@ typedef struct cmfvpb {
 #define INITIAL_BUFFER_SIZE 32768
 int cmfvpb_dup_pb(AVIOContext *pb, struct cmfvpb **cmfvpb, int  *index);
 int cmfvpb_pb_free(struct cmfvpb *ci);
-int cmfvpb_getinfo(struct cmfvpb *cv, int cmd,int flag,int64_t*info);
+int cmfvpb_getinfo(struct cmfvpb *cv, int cmd, int flag, int64_t*info);
 
 
 #endif

@@ -43,12 +43,14 @@ static int read_header(AVFormatContext *s, AVFormatParameters *ap)
     unsigned int version, frames_count, msecs_per_frame, player_version;
 
     ast = av_new_stream(s, 0);
-    if (!ast)
+    if (!ast) {
         return AVERROR(ENOMEM);
+    }
 
     vst = av_new_stream(s, 0);
-    if (!vst)
+    if (!vst) {
         return AVERROR(ENOMEM);
+    }
 
     vst->codec->extradata_size = 2;
     vst->codec->extradata = av_mallocz(2 + FF_INPUT_BUFFER_PADDING_SIZE);
@@ -68,8 +70,9 @@ static int read_header(AVFormatContext *s, AVFormatParameters *ap)
     avio_rl16(pb);
     avio_r8(pb);
 
-    if (frames_count == 0 || mvi->audio_data_size == 0)
+    if (frames_count == 0 || mvi->audio_data_size == 0) {
         return AVERROR_INVALIDDATA;
+    }
 
     if (version != 7 || player_version > 213) {
         av_log(s, AV_LOG_ERROR, "unhandled version (%d,%d)\n", version, player_version);
@@ -104,19 +107,23 @@ static int read_packet(AVFormatContext *s, AVPacket *pkt)
 
     if (mvi->video_frame_size == 0) {
         mvi->video_frame_size = (mvi->get_int)(pb);
-        if (mvi->audio_size_left == 0)
+        if (mvi->audio_size_left == 0) {
             return AVERROR(EIO);
+        }
         count = (mvi->audio_size_counter + mvi->audio_frame_size + 512) >> MVI_FRAC_BITS;
-        if (count > mvi->audio_size_left)
+        if (count > mvi->audio_size_left) {
             count = mvi->audio_size_left;
-        if ((ret = av_get_packet(pb, pkt, count)) < 0)
+        }
+        if ((ret = av_get_packet(pb, pkt, count)) < 0) {
             return ret;
+        }
         pkt->stream_index = MVI_AUDIO_STREAM_INDEX;
         mvi->audio_size_left -= count;
         mvi->audio_size_counter += mvi->audio_frame_size - (count << MVI_FRAC_BITS);
     } else {
-        if ((ret = av_get_packet(pb, pkt, mvi->video_frame_size)) < 0)
+        if ((ret = av_get_packet(pb, pkt, mvi->video_frame_size)) < 0) {
             return ret;
+        }
         pkt->stream_index = MVI_VIDEO_STREAM_INDEX;
         mvi->video_frame_size = 0;
     }

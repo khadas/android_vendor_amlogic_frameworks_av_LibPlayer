@@ -52,8 +52,9 @@ static int efi_read(AVFormatContext *avctx, uint64_t start_pos)
     int len;
 
     avio_seek(pb, start_pos, SEEK_SET);
-    if (avio_r8(pb) != 0x1A)
+    if (avio_r8(pb) != 0x1A) {
         return -1;
+    }
 
 #define GET_EFI_META(name,size) \
     len = avio_r8(pb); \
@@ -88,7 +89,7 @@ static int read_header(AVFormatContext *avctx,
     st->codec->codec_id    = CODEC_ID_ANSI;
 
     if (s->video_size && (ret = av_parse_video_size(&width, &height, s->video_size)) < 0) {
-        av_log (avctx, AV_LOG_ERROR, "Couldn't parse video size.\n");
+        av_log(avctx, AV_LOG_ERROR, "Couldn't parse video size.\n");
         goto fail;
     }
     if ((ret = av_parse_video_rate(&framerate, s->framerate)) < 0) {
@@ -96,12 +97,16 @@ static int read_header(AVFormatContext *avctx,
         goto fail;
     }
 #if FF_API_FORMAT_PARAMETERS
-    if (ap->width > 0)
+    if (ap->width > 0) {
         width = ap->width;
-    if (ap->height > 0)
+    }
+    if (ap->height > 0) {
         height = ap->height;
+    }
     if (ap->time_base.num)
-        framerate = (AVRational){ap->time_base.den, ap->time_base.num};
+        framerate = (AVRational) {
+        ap->time_base.den, ap->time_base.num
+    };
 #endif
     st->codec->width  = width;
     st->codec->height = height;
@@ -109,17 +114,19 @@ static int read_header(AVFormatContext *avctx,
 
     /* simulate tty display speed */
 #if FF_API_FORMAT_PARAMETERS
-    if (ap->sample_rate)
+    if (ap->sample_rate) {
         s->chars_per_frame = ap->sample_rate;
+    }
 #endif
-    s->chars_per_frame = FFMAX(av_q2d(st->time_base)*s->chars_per_frame, 1);
+    s->chars_per_frame = FFMAX(av_q2d(st->time_base) * s->chars_per_frame, 1);
 
     if (avctx->pb->seekable) {
         s->fsize = avio_size(avctx->pb);
         st->duration = (s->fsize + s->chars_per_frame - 1) / s->chars_per_frame;
 
-        if (ff_sauce_read(avctx, &s->fsize, 0, 0) < 0)
+        if (ff_sauce_read(avctx, &s->fsize, 0, 0) < 0) {
             efi_read(avctx, s->fsize - 51);
+        }
 
         avio_seek(avctx->pb, 0, SEEK_SET);
     }
@@ -133,20 +140,23 @@ static int read_packet(AVFormatContext *avctx, AVPacket *pkt)
     TtyDemuxContext *s = avctx->priv_data;
     int n;
 
-    if (url_feof(avctx->pb))
+    if (url_feof(avctx->pb)) {
         return AVERROR_EOF;
+    }
 
     n = s->chars_per_frame;
     if (s->fsize) {
         // ignore metadata buffer
         uint64_t p = avio_tell(avctx->pb);
-        if (p + s->chars_per_frame > s->fsize)
+        if (p + s->chars_per_frame > s->fsize) {
             n = s->fsize - p;
+        }
     }
 
     pkt->size = av_get_packet(avctx->pb, pkt, n);
-    if (pkt->size <= 0)
+    if (pkt->size <= 0) {
         return AVERROR(EIO);
+    }
     pkt->flags |= AV_PKT_FLAG_KEY;
     return 0;
 }

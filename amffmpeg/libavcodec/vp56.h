@@ -39,7 +39,7 @@ typedef struct {
 } DECLARE_ALIGNED(4, , VP56mv);
 
 typedef void (*VP56ParseVectorAdjustment)(VP56Context *s,
-                                          VP56mv *vect);
+        VP56mv *vect);
 typedef void (*VP56Filter)(VP56Context *s, uint8_t *dst, uint8_t *src,
                            int offset1, int offset2, int stride,
                            VP56mv mv, int mask, int select, int luma);
@@ -47,8 +47,8 @@ typedef void (*VP56ParseCoeff)(VP56Context *s);
 typedef void (*VP56DefaultModelsInit)(VP56Context *s);
 typedef void (*VP56ParseVectorModels)(VP56Context *s);
 typedef void (*VP56ParseCoeffModels)(VP56Context *s);
-typedef int  (*VP56ParseHeader)(VP56Context *s, const uint8_t *buf,
-                                int buf_size, int *golden_frame);
+typedef int (*VP56ParseHeader)(VP56Context *s, const uint8_t *buf,
+                               int buf_size, int *golden_frame);
 
 typedef struct {
     int high;
@@ -193,7 +193,7 @@ static av_always_inline unsigned int vp56_rac_renorm(VP56RangeCoder *c)
     c->high   <<= shift;
     code_word <<= shift;
     bits       += shift;
-    if(bits >= 0 && c->buffer < c->end) {
+    if (bits >= 0 && c->buffer < c->end) {
         code_word |= bytestream_get_be16(&c->buffer) << bits;
         bits -= 16;
     }
@@ -294,13 +294,15 @@ static av_unused int vp8_rac_get_sint(VP56RangeCoder *c, int bits)
 {
     int v;
 
-    if (!vp8_rac_get(c))
+    if (!vp8_rac_get(c)) {
         return 0;
+    }
 
     v = vp8_rac_get_uint(c, bits);
 
-    if (vp8_rac_get(c))
+    if (vp8_rac_get(c)) {
         v = -v;
+    }
 
     return v;
 }
@@ -324,10 +326,11 @@ int vp56_rac_get_tree(VP56RangeCoder *c,
                       const uint8_t *probs)
 {
     while (tree->val > 0) {
-        if (vp56_rac_get_prob(c, probs[tree->prob_idx]))
+        if (vp56_rac_get_prob(c, probs[tree->prob_idx])) {
             tree += tree->val;
-        else
+        } else {
             tree++;
+        }
     }
     return -tree->val;
 }
@@ -363,7 +366,7 @@ static av_always_inline int vp8_rac_get_coeff(VP56RangeCoder *c, const uint8_t *
     int v = 0;
 
     do {
-        v = (v<<1) + vp56_rac_get_prob(c, *prob++);
+        v = (v << 1) + vp56_rac_get_prob(c, *prob++);
     } while (*prob);
 
     return v;

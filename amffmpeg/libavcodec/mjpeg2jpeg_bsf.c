@@ -32,7 +32,7 @@ static const uint8_t jpeg_header[] = {
     0xff, 0xd8,                     // SOI
     0xff, 0xe0,                     // APP0
     0x00, 0x10,                     // APP0 header size (including
-                                    // this field, but excluding preceding)
+    // this field, but excluding preceding)
     0x4a, 0x46, 0x49, 0x46, 0x00,   // ID string 'JFIF\0'
     0x01, 0x01,                     // version
     0x00,                           // bits per type
@@ -96,8 +96,9 @@ static int mjpeg2jpeg_filter(AVBitStreamFilterContext *bsfc,
     output_size = buf_size - input_skip +
                   sizeof(jpeg_header) + dht_segment_size;
     output = out = av_malloc(output_size);
-    if (!output)
+    if (!output) {
         return AVERROR(ENOMEM);
+    }
     out = append(out, jpeg_header, sizeof(jpeg_header));
     out = append_dht_segment(out);
     out = append(out, buf + input_skip, buf_size - input_skip);

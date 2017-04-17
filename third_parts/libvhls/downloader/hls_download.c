@@ -45,7 +45,6 @@ typedef struct _HLSHttpContext {
 #define BOX_SERIAL_AUTH "X-BOX-SERIAL:" //box serial number
 
 #define BOX_TEST_SERIAL "0100210755"
-
 extern int av_strstart(const char *str, const char *pfx, const char **ptr);
 
 static void _add_auth_headers(char* headers)
@@ -76,7 +75,6 @@ static void _add_auth_headers(char* headers)
 
 int hls_http_open(const char* url, const char* _headers, void* key, void** handle)
 {
-
     if (*handle != NULL) {
         LOGE("Need close opend handle\n");
         return -1;
@@ -127,6 +125,7 @@ int hls_http_open(const char* url, const char* _headers, void* key, void** handl
         if (is_ignore_range_req > 0) {
             flag |= URL_SEGMENT_MEDIA;
         }
+
         if (headers[0] && strlen(headers) > 0) {
             ret = ffurl_open_h(&h, fileUrl, AVIO_FLAG_READ | AVIO_FLAG_NONBLOCK | flag, headers, &reason_code);
         } else {
@@ -146,7 +145,7 @@ int hls_http_open(const char* url, const char* _headers, void* key, void** handl
             return -1;
         }
         if (strstr(url, "://")) {
-                snprintf(fileUrl, MAX_URL_SIZE, "crypto+%s", url);
+            snprintf(fileUrl, MAX_URL_SIZE, "crypto+%s", url);
         } else {
             snprintf(fileUrl, MAX_URL_SIZE, "crypto:%s", url);
         }
@@ -393,12 +392,14 @@ int hls_http_close(void* handle)
 
 }
 
-
-
+static int parase_is_extm3u(const char* data, const char *prefix)
+{
+    return !strncmp(data, prefix, strlen(prefix));
+}
 
 //#define _DEBUG_NO_LIBPLAYER 1
 
-int fetchHttpSmallFile(const char* url, const char* headers, void** buf, int* length, char** redirectUrl, char** cookies)
+int fetchHttpSmallFile(const char* url, const char* headers, void** buf, int* length, char** redirectUrl, char** cookies, int *pnHttpCode)
 {
     if (url == NULL) {
         return -1;
@@ -414,6 +415,9 @@ int fetchHttpSmallFile(const char* url, const char* headers, void** buf, int* le
 
     if (ret != 0) {
         LOGV("Failed to open http handle\n");
+        if (NULL != pnHttpCode) {
+            *pnHttpCode = hls_http_get_error_code(handle);
+        }
         if (handle != NULL) {
             hls_http_close(handle);
             handle = NULL;
@@ -455,7 +459,11 @@ int fetchHttpSmallFile(const char* url, const char* headers, void** buf, int* le
 
     do {
         if (flen <= 0 && buf_len - isize < read_len) {
-            LOGW("in case of overflow, it is better to realloc buffer, buf_len : %lld, isize : %lld\n", buf_len, isize);
+            if (!parase_is_extm3u(buffer, "#EXTM3U")) {
+                LOGW("m3u8 is not start witch #EXTM3U\n");
+                break;
+            }
+            LOGW("in case of overflow, it is better to realloc buffer, buf_len : %lld, isize : %d\n", buf_len, isize);
             if (buf_len >= 8 * 1024 * 1024) { //exception protect
                 break;
             }

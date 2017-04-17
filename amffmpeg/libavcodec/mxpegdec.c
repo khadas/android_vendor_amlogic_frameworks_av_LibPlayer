@@ -56,10 +56,11 @@ static int mxpeg_decode_app(MXpegDecodeContext *s,
                             const uint8_t *buf_ptr, int buf_size)
 {
     int len;
-    if (buf_size < 2)
+    if (buf_size < 2) {
         return 0;
+    }
     len = AV_RB16(buf_ptr);
-    skip_bits(&s->jpg.gb, 8*FFMIN(len,buf_size));
+    skip_bits(&s->jpg.gb, 8 * FFMIN(len, buf_size));
 
     return 0;
 }
@@ -70,8 +71,8 @@ static int mxpeg_decode_mxm(MXpegDecodeContext *s,
     unsigned bitmask_size, mb_count;
     int i;
 
-    s->mb_width  = AV_RL16(buf_ptr+4);
-    s->mb_height = AV_RL16(buf_ptr+6);
+    s->mb_width  = AV_RL16(buf_ptr + 4);
+    s->mb_height = AV_RL16(buf_ptr + 6);
     mb_count = s->mb_width * s->mb_height;
 
     bitmask_size = (mb_count + 7) >> 3;
@@ -121,13 +122,14 @@ static int mxpeg_decode_com(MXpegDecodeContext *s,
                             const uint8_t *buf_ptr, int buf_size)
 {
     int len, ret = 0;
-    if (buf_size < 2)
+    if (buf_size < 2) {
         return 0;
+    }
     len = AV_RB16(buf_ptr);
     if (len > 14 && len <= buf_size && !strncmp(buf_ptr + 2, "MXM", 3)) {
         ret = mxpeg_decode_mxm(s, buf_ptr + 2, len - 2);
     }
-    skip_bits(&s->jpg.gb, 8*FFMIN(len,buf_size));
+    skip_bits(&s->jpg.gb, 8 * FFMIN(len, buf_size));
 
     return ret;
 }
@@ -135,8 +137,8 @@ static int mxpeg_decode_com(MXpegDecodeContext *s,
 static int mxpeg_check_dimensions(MXpegDecodeContext *s, MJpegDecodeContext *jpg,
                                   AVFrame *reference_ptr)
 {
-    if ((jpg->width + 0x0F)>>4 != s->mb_width ||
-        (jpg->height + 0x0F)>>4 != s->mb_height) {
+    if ((jpg->width + 0x0F) >> 4 != s->mb_width ||
+        (jpg->height + 0x0F) >> 4 != s->mb_height) {
         av_log(jpg->avctx, AV_LOG_ERROR,
                "Picture dimensions stored in SOF and MXM mismatch\n");
         return AVERROR(EINVAL);
@@ -145,8 +147,8 @@ static int mxpeg_check_dimensions(MXpegDecodeContext *s, MJpegDecodeContext *jpg
     if (reference_ptr->data[0]) {
         int i;
         for (i = 0; i < MAX_COMPONENTS; ++i) {
-            if ( (!reference_ptr->data[i] ^ !jpg->picture_ptr->data[i]) ||
-                 reference_ptr->linesize[i] != jpg->picture_ptr->linesize[i]) {
+            if ((!reference_ptr->data[i] ^ !jpg->picture_ptr->data[i]) ||
+                reference_ptr->linesize[i] != jpg->picture_ptr->linesize[i]) {
                 av_log(jpg->avctx, AV_LOG_ERROR,
                        "Dimensions of current and reference picture mismatch\n");
                 return AVERROR(EINVAL);
@@ -158,8 +160,8 @@ static int mxpeg_check_dimensions(MXpegDecodeContext *s, MJpegDecodeContext *jpg
 }
 
 static int mxpeg_decode_frame(AVCodecContext *avctx,
-                          void *data, int *data_size,
-                          AVPacket *avpkt)
+                              void *data, int *data_size,
+                              AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;
@@ -179,10 +181,11 @@ static int mxpeg_decode_frame(AVCodecContext *avctx,
     while (buf_ptr < buf_end) {
         start_code = ff_mjpeg_find_marker(jpg, &buf_ptr, buf_end,
                                           &unescaped_buf_ptr, &unescaped_buf_size);
-        if (start_code < 0)
+        if (start_code < 0) {
             goto the_end;
+        }
         {
-            init_get_bits(&jpg->gb, unescaped_buf_ptr, unescaped_buf_size*8);
+            init_get_bits(&jpg->gb, unescaped_buf_ptr, unescaped_buf_size * 8);
 
             if (start_code >= APP0 && start_code <= APP15) {
                 mxpeg_decode_app(s, unescaped_buf_ptr, unescaped_buf_size);
@@ -190,8 +193,9 @@ static int mxpeg_decode_frame(AVCodecContext *avctx,
 
             switch (start_code) {
             case SOI:
-                if (jpg->got_picture) //emulating EOI
+                if (jpg->got_picture) { //emulating EOI
                     goto the_end;
+                }
                 break;
             case EOI:
                 goto the_end;
@@ -214,8 +218,9 @@ static int mxpeg_decode_frame(AVCodecContext *avctx,
             case COM:
                 ret = mxpeg_decode_com(s, unescaped_buf_ptr,
                                        unescaped_buf_size);
-                if (ret < 0)
+                if (ret < 0) {
                     return ret;
+                }
                 break;
             case SOF0:
                 s->got_sof_data = 0;
@@ -244,14 +249,15 @@ static int mxpeg_decode_frame(AVCodecContext *avctx,
                                "First picture has no SOF, skipping\n");
                         break;
                     }
-                    if (!s->got_mxm_bitmask){
+                    if (!s->got_mxm_bitmask) {
                         av_log(avctx, AV_LOG_WARNING,
                                "Non-key frame has no MXM, skipping\n");
                         break;
                     }
                     /* use stored SOF data to allocate current picture */
-                    if (jpg->picture_ptr->data[0])
+                    if (jpg->picture_ptr->data[0]) {
                         avctx->release_buffer(avctx, jpg->picture_ptr);
+                    }
                     if (avctx->get_buffer(avctx, jpg->picture_ptr) < 0) {
                         av_log(avctx, AV_LOG_ERROR, "get_buffer() failed\n");
                         return AVERROR(ENOMEM);
@@ -266,8 +272,9 @@ static int mxpeg_decode_frame(AVCodecContext *avctx,
 
                 if (s->got_mxm_bitmask) {
                     AVFrame *reference_ptr = &s->picture[s->picture_index ^ 1];
-                    if (mxpeg_check_dimensions(s, jpg, reference_ptr) < 0)
+                    if (mxpeg_check_dimensions(s, jpg, reference_ptr) < 0) {
                         break;
+                    }
 
                     /* allocate dummy reference picture if needed */
                     if (!reference_ptr->data[0] &&
@@ -284,7 +291,7 @@ static int mxpeg_decode_frame(AVCodecContext *avctx,
                 break;
             }
 
-            buf_ptr += (get_bits_count(&jpg->gb)+7) >> 3;
+            buf_ptr += (get_bits_count(&jpg->gb) + 7) >> 3;
         }
 
     }
@@ -297,10 +304,11 @@ the_end:
         jpg->picture_ptr = &s->picture[s->picture_index];
 
         if (!s->has_complete_frame) {
-            if (!s->got_mxm_bitmask)
+            if (!s->got_mxm_bitmask) {
                 s->has_complete_frame = 1;
-            else
+            } else {
                 *data_size = 0;
+            }
         }
     }
 
@@ -317,8 +325,9 @@ static av_cold int mxpeg_decode_end(AVCodecContext *avctx)
     ff_mjpeg_decode_end(avctx);
 
     for (i = 0; i < 2; ++i) {
-        if (s->picture[i].data[0])
+        if (s->picture[i].data[0]) {
             avctx->release_buffer(avctx, &s->picture[i]);
+        }
     }
 
     av_freep(&s->mxm_bitmask);

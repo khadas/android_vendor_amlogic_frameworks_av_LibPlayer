@@ -27,14 +27,22 @@
 static int mpeg4_get_intra_dc_vlc_thr(MpegEncContext *s)
 {
     switch (s->intra_dc_threshold) {
-    case 99: return 0;
-    case 13: return 1;
-    case 15: return 2;
-    case 17: return 3;
-    case 19: return 4;
-    case 21: return 5;
-    case 23: return 6;
-    case 0:  return 7;
+    case 99:
+        return 0;
+    case 13:
+        return 1;
+    case 15:
+        return 2;
+    case 17:
+        return 3;
+    case 19:
+        return 4;
+    case 21:
+        return 5;
+    case 23:
+        return 6;
+    case 0:
+        return 7;
     }
     return 0;
 }
@@ -53,8 +61,9 @@ static int vaapi_mpeg4_start_frame(AVCodecContext *avctx, av_unused const uint8_
 
     /* Fill in VAPictureParameterBufferMPEG4 */
     pic_param = ff_vaapi_alloc_pic_param(vactx, sizeof(VAPictureParameterBufferMPEG4));
-    if (!pic_param)
+    if (!pic_param) {
         return -1;
+    }
     pic_param->vop_width                                = s->width;
     pic_param->vop_height                               = s->height;
     pic_param->forward_reference_picture                = VA_INVALID_ID;
@@ -92,17 +101,20 @@ static int vaapi_mpeg4_start_frame(AVCodecContext *avctx, av_unused const uint8_
     pic_param->TRB                                      = s->pb_time;
     pic_param->TRD                                      = s->pp_time;
 
-    if (s->pict_type == AV_PICTURE_TYPE_B)
+    if (s->pict_type == AV_PICTURE_TYPE_B) {
         pic_param->backward_reference_picture = ff_vaapi_get_surface_id(&s->next_picture);
-    if (s->pict_type != AV_PICTURE_TYPE_I)
+    }
+    if (s->pict_type != AV_PICTURE_TYPE_I) {
         pic_param->forward_reference_picture  = ff_vaapi_get_surface_id(&s->last_picture);
+    }
 
     /* Fill in VAIQMatrixBufferMPEG4 */
     /* Only the first inverse quantisation method uses the weighthing matrices */
     if (pic_param->vol_fields.bits.quant_type) {
         iq_matrix = ff_vaapi_alloc_iq_matrix(vactx, sizeof(VAIQMatrixBufferMPEG4));
-        if (!iq_matrix)
+        if (!iq_matrix) {
             return -1;
+        }
         iq_matrix->load_intra_quant_mat         = 1;
         iq_matrix->load_non_intra_quant_mat     = 1;
 
@@ -132,19 +144,22 @@ static int vaapi_mpeg4_decode_slice(AVCodecContext *avctx, const uint8_t *buffer
      * a single slice param. So fake macroblock_number for FFmpeg so
      * that we don't call vaapi_mpeg4_decode_slice() again
      */
-    if (avctx->codec->id == CODEC_ID_H263)
+    if (avctx->codec->id == CODEC_ID_H263) {
         size = s->gb.buffer_end - buffer;
+    }
 
     /* Fill in VASliceParameterBufferMPEG4 */
     slice_param = (VASliceParameterBufferMPEG4 *)ff_vaapi_alloc_slice(avctx->hwaccel_context, buffer, size);
-    if (!slice_param)
+    if (!slice_param) {
         return -1;
+    }
     slice_param->macroblock_offset      = get_bits_count(&s->gb) % 8;
     slice_param->macroblock_number      = s->mb_y * s->mb_width + s->mb_x;
     slice_param->quant_scale            = s->qscale;
 
-    if (avctx->codec->id == CODEC_ID_H263)
+    if (avctx->codec->id == CODEC_ID_H263) {
         s->mb_y = s->mb_height;
+    }
 
     return 0;
 }

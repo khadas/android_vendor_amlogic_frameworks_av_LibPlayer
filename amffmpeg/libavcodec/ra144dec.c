@@ -70,10 +70,11 @@ static int ra144_decode_frame(AVCodecContext * avctx, void *vdata,
     RA144Context *ractx = avctx->priv_data;
     GetBitContext gb;
 
-    if (*data_size < 2*160)
+    if (*data_size < 2 * 160) {
         return -1;
+    }
 
-    if(buf_size < 20) {
+    if (buf_size < 20) {
         av_log(avctx, AV_LOG_ERROR,
                "Frame too small (%d bytes). Truncated file?\n", buf_size);
         *data_size = 0;
@@ -81,8 +82,9 @@ static int ra144_decode_frame(AVCodecContext * avctx, void *vdata,
     }
     init_get_bits(&gb, buf, 20 * 8);
 
-    for (i=0; i<10; i++)
+    for (i = 0; i < 10; i++) {
         lpc_refl[i] = ff_lpc_refl_cb[i][get_bits(&gb, sizes[i])];
+    }
 
     ff_eval_coefs(ractx->lpc_coef[0], lpc_refl);
     ractx->lpc_refl_rms[0] = ff_rms(lpc_refl);
@@ -92,17 +94,18 @@ static int ra144_decode_frame(AVCodecContext * avctx, void *vdata,
     refl_rms[0] = ff_interp(ractx, block_coefs[0], 1, 1, ractx->old_energy);
     refl_rms[1] = ff_interp(ractx, block_coefs[1], 2,
                             energy <= ractx->old_energy,
-                            ff_t_sqrt(energy*ractx->old_energy) >> 12);
+                            ff_t_sqrt(energy * ractx->old_energy) >> 12);
     refl_rms[2] = ff_interp(ractx, block_coefs[2], 3, 0, energy);
     refl_rms[3] = ff_rescale_rms(ractx->lpc_refl_rms[0], energy);
 
     ff_int_to_int16(block_coefs[3], ractx->lpc_coef[0]);
 
-    for (i=0; i < 4; i++) {
+    for (i = 0; i < 4; i++) {
         do_output_subblock(ractx, block_coefs[i], refl_rms[i], &gb);
 
-        for (j=0; j < BLOCKSIZE; j++)
+        for (j = 0; j < BLOCKSIZE; j++) {
             *data++ = av_clip_int16(ractx->curr_sblock[j + 10] << 2);
+        }
     }
 
     ractx->old_energy = energy;
@@ -110,12 +113,11 @@ static int ra144_decode_frame(AVCodecContext * avctx, void *vdata,
 
     FFSWAP(unsigned int *, ractx->lpc_coef[0], ractx->lpc_coef[1]);
 
-    *data_size = 2*160;
+    *data_size = 2 * 160;
     return 20;
 }
 
-AVCodec ff_ra_144_decoder =
-{
+AVCodec ff_ra_144_decoder = {
     "real_144",
     AVMEDIA_TYPE_AUDIO,
     CODEC_ID_RA_144,

@@ -45,11 +45,11 @@ void ff_sine_window_init(float *window, int n);
  */
 void ff_init_ff_sine_windows(int index);
 
-extern SINETABLE(  32);
-extern SINETABLE(  64);
-extern SINETABLE( 128);
-extern SINETABLE( 256);
-extern SINETABLE( 512);
+extern SINETABLE(32);
+extern SINETABLE(64);
+extern SINETABLE(128);
+extern SINETABLE(256);
+extern SINETABLE(512);
 extern SINETABLE(1024);
 extern SINETABLE(2048);
 extern SINETABLE(4096);

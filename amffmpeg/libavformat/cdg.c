@@ -29,8 +29,9 @@ static int read_header(AVFormatContext *s, AVFormatParameters *ap)
     int ret;
 
     vst = av_new_stream(s, 0);
-    if (!vst)
+    if (!vst) {
         return AVERROR(ENOMEM);
+    }
 
     vst->codec->codec_type = AVMEDIA_TYPE_VIDEO;
     vst->codec->codec_id   = CODEC_ID_CDGRAPHICS;
@@ -39,8 +40,9 @@ static int read_header(AVFormatContext *s, AVFormatParameters *ap)
     av_set_pts_info(vst, 32, 1, 300);
 
     ret = avio_size(s->pb);
-    if (ret > 0)
+    if (ret > 0) {
         vst->duration = (ret * vst->time_base.den) / (CDG_PACKET_SIZE * 300);
+    }
 
     return 0;
 }

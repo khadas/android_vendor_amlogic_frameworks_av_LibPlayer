@@ -72,7 +72,7 @@ typedef struct {
 
     float excitation[L_INTERPOL + PITCH_MAX + 2 * L_SUBFR_16k];
 
-    DECLARE_ALIGNED(16, float, synth_buf)[LP_FILTER_ORDER + 5*SUBFR_SIZE + 6];
+    DECLARE_ALIGNED(16, float, synth_buf)[LP_FILTER_ORDER + 5 * SUBFR_SIZE + 6];
 
     float lsp_history[LP_FILTER_ORDER];
     float gain_mem;
@@ -84,12 +84,12 @@ typedef struct {
     float tilt_mem;
     float postfilter_agc;
     float postfilter_mem5k0[PITCH_DELAY_MAX + LP_FILTER_ORDER];
-    float postfilter_syn5k0[LP_FILTER_ORDER + SUBFR_SIZE*5];
+    float postfilter_syn5k0[LP_FILTER_ORDER + SUBFR_SIZE * 5];
 
     /* 16k */
     int pitch_lag_prev;
-    float iir_mem[LP_FILTER_ORDER_16k+1];
-    float filt_buf[2][LP_FILTER_ORDER_16k+1];
+    float iir_mem[LP_FILTER_ORDER_16k + 1];
+    float filt_buf[2][LP_FILTER_ORDER_16k + 1];
     float *filt_mem[2];
     float mem_preemph[LP_FILTER_ORDER_16k];
     float synth[LP_FILTER_ORDER_16k];

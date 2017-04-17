@@ -3,22 +3,23 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+
 #include <unistd.h>
+
 #include <utils/Log.h>
 #include <ctype.h>
 #include <strings.h>
 #include <stdlib.h>
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-    typedef enum {
-        HLS_LOG_BASE,
-        HLS_SHOW_URL,
-    }
-    HLS_LOG_LEVEL;
+typedef enum {
+    HLS_LOG_BASE,
+    HLS_SHOW_URL,
+}
+HLS_LOG_LEVEL;
 
 #ifndef LOG_TAG
 #define LOG_TAG "vhls"

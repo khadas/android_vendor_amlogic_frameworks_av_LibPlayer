@@ -41,21 +41,24 @@ static int ape_tag_read_field(AVFormatContext *s)
     avio_skip(pb, 4);      /* field flags */
     for (i = 0; i < sizeof(key) - 1; i++) {
         c = avio_r8(pb);
-        if (c < 0x20 || c > 0x7E)
+        if (c < 0x20 || c > 0x7E) {
             break;
-        else
+        } else {
             key[i] = c;
+        }
     }
     key[i] = 0;
     if (c != 0) {
         av_log(s, AV_LOG_WARNING, "Invalid APE tag key '%s'.\n", key);
         return -1;
     }
-    if (size >= UINT_MAX)
+    if (size >= UINT_MAX) {
         return -1;
-    value = av_malloc(size+1);
-    if (!value)
+    }
+    value = av_malloc(size + 1);
+    if (!value) {
         return AVERROR(ENOMEM);
+    }
     avio_read(pb, value, size);
     value[size] = 0;
     av_dict_set(&s->metadata, key, value, AV_DICT_DONT_STRDUP_VAL);
@@ -70,8 +73,9 @@ void ff_ape_parse_tag(AVFormatContext *s)
     uint8_t buf[8];
     int i;
 
-    if (file_size < APE_TAG_FOOTER_BYTES)
+    if (file_size < APE_TAG_FOOTER_BYTES) {
         return;
+    }
 
     avio_seek(pb, file_size - APE_TAG_FOOTER_BYTES, SEEK_SET);
 
@@ -106,6 +110,8 @@ void ff_ape_parse_tag(AVFormatContext *s)
 
     avio_seek(pb, file_size - tag_bytes, SEEK_SET);
 
-    for (i=0; i<fields; i++)
-        if (ape_tag_read_field(s) < 0) break;
+    for (i = 0; i < fields; i++)
+        if (ape_tag_read_field(s) < 0) {
+            break;
+        }
 }

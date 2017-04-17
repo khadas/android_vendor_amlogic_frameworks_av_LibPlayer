@@ -37,30 +37,30 @@
 extern "C" {
 #endif /* __cplusplus */
 
-    typedef struct mmsx_s mmsx_t;
+typedef struct mmsx_s mmsx_t;
 
-    mmsx_t*   mmsx_connect(mms_io_t *io, void *data, const char *url, int bandwidth);
+mmsx_t*   mmsx_connect(mms_io_t *io, void *data, const char *url, int bandwidth);
 
-    int       mmsx_read(mms_io_t *io, mmsx_t *instance, char *data, int len);
-    int       mmsx_time_seek(mms_io_t *io, mmsx_t *instance, double time_sec);
-    mms_off_t mmsx_seek(mms_io_t *io, mmsx_t *instance, mms_off_t offset, int origin);
-    /* return total playback time in seconds */
-    double    mmsx_get_time_length(mmsx_t *instance);
-    /* return raw total playback time in 100 nanosecs (10^-7) */
-    uint64_t  mmsx_get_raw_time_length(mmsx_t *instance);
-    uint32_t  mmsx_get_length(mmsx_t *instance);
-    uint64_t  mmsx_get_file_time(mmsx_t *instance);
-    void      mmsx_close(mmsx_t *instance);
+int       mmsx_read(mms_io_t *io, mmsx_t *instance, char *data, int len);
+int       mmsx_time_seek(mms_io_t *io, mmsx_t *instance, double time_sec);
+mms_off_t mmsx_seek(mms_io_t *io, mmsx_t *instance, mms_off_t offset, int origin);
+/* return total playback time in seconds */
+double    mmsx_get_time_length(mmsx_t *instance);
+/* return raw total playback time in 100 nanosecs (10^-7) */
+uint64_t  mmsx_get_raw_time_length(mmsx_t *instance);
+uint32_t  mmsx_get_length(mmsx_t *instance);
+uint64_t  mmsx_get_file_time(mmsx_t *instance);
+void      mmsx_close(mmsx_t *instance);
 
-    int       mmsx_peek_header(mmsx_t *instance, char *data, int maxsize);
+int       mmsx_peek_header(mmsx_t *instance, char *data, int maxsize);
 
-    mms_off_t mmsx_get_current_pos(mmsx_t *instance);
+mms_off_t mmsx_get_current_pos(mmsx_t *instance);
 
-    uint32_t  mmsx_get_asf_header_len(mmsx_t *instance);
+uint32_t  mmsx_get_asf_header_len(mmsx_t *instance);
 
-    uint64_t  mmsx_get_asf_packet_len(mmsx_t *instance);
+uint64_t  mmsx_get_asf_packet_len(mmsx_t *instance);
 
-    int       mmsx_get_seekable(mmsx_t *instance);
+int       mmsx_get_seekable(mmsx_t *instance);
 
 #ifdef __cplusplus
 }

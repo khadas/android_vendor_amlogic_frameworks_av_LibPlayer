@@ -24,9 +24,10 @@
 
 static int probe(AVProbeData *p)
 {
-    if (AV_RL32(p->buf) == MKTAG('D','K','I','F')
-        && !AV_RL16(p->buf+4) && AV_RL16(p->buf+6) == 32)
-        return AVPROBE_SCORE_MAX-2;
+    if (AV_RL32(p->buf) == MKTAG('D', 'K', 'I', 'F')
+        && !AV_RL16(p->buf + 4) && AV_RL16(p->buf + 6) == 32) {
+        return AVPROBE_SCORE_MAX - 2;
+    }
 
     return 0;
 }
@@ -41,8 +42,9 @@ static int read_header(AVFormatContext *s, AVFormatParameters *ap)
     avio_rl16(s->pb); // header size
 
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
 
 
     st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
@@ -73,7 +75,7 @@ static int read_packet(AVFormatContext *s, AVPacket *pkt)
     if (url_feof(s->pb)) {
         return AVERROR_EOF;
     }
-	size = avio_rl32(s->pb);
+    size = avio_rl32(s->pb);
     pts = avio_rl64(s->pb);
 
     ret = av_get_packet(s->pb, pkt, size);
@@ -94,6 +96,6 @@ AVInputFormat ff_ivf_demuxer = {
     probe,
     read_header,
     read_packet,
-    .flags= AVFMT_GENERIC_INDEX,
-    .codec_tag = (const AVCodecTag*[]){ff_codec_bmp_tags, 0},
+    .flags = AVFMT_GENERIC_INDEX,
+    .codec_tag = (const AVCodecTag * []){ff_codec_bmp_tags, 0},
 };

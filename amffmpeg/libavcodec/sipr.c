@@ -132,10 +132,10 @@ static const SiprModeParam modes[MODE_COUNT] = {
 };
 
 const float ff_pow_0_5[] = {
-    1.0/(1 <<  1), 1.0/(1 <<  2), 1.0/(1 <<  3), 1.0/(1 <<  4),
-    1.0/(1 <<  5), 1.0/(1 <<  6), 1.0/(1 <<  7), 1.0/(1 <<  8),
-    1.0/(1 <<  9), 1.0/(1 << 10), 1.0/(1 << 11), 1.0/(1 << 12),
-    1.0/(1 << 13), 1.0/(1 << 14), 1.0/(1 << 15), 1.0/(1 << 16)
+    1.0 / (1 <<  1), 1.0 / (1 <<  2), 1.0 / (1 <<  3), 1.0 / (1 <<  4),
+    1.0 / (1 <<  5), 1.0 / (1 <<  6), 1.0 / (1 <<  7), 1.0 / (1 <<  8),
+    1.0 / (1 <<  9), 1.0 / (1 << 10), 1.0 / (1 << 11), 1.0 / (1 << 12),
+    1.0 / (1 << 13), 1.0 / (1 << 14), 1.0 / (1 << 15), 1.0 / (1 << 16)
 };
 
 static void dequant(float *out, const int *idx, const float *cbs[])
@@ -144,8 +144,9 @@ static void dequant(float *out, const int *idx, const float *cbs[])
     int stride  = 2;
     int num_vec = 5;
 
-    for (i = 0; i < num_vec; i++)
-        memcpy(out + stride*i, cbs[i] + stride*idx[i], stride*sizeof(float));
+    for (i = 0; i < num_vec; i++) {
+        memcpy(out + stride * i, cbs[i] + stride * idx[i], stride * sizeof(float));
+    }
 
 }
 
@@ -157,8 +158,9 @@ static void lsf_decode_fp(float *lsfnew, float *lsf_history,
 
     dequant(lsf_tmp, parm->vq_indexes, lsf_codebooks);
 
-    for (i = 0; i < LP_FILTER_ORDER; i++)
+    for (i = 0; i < LP_FILTER_ORDER; i++) {
         lsfnew[i] = lsf_history[i] * 0.33 + lsf_tmp[i] + mean_lsf[i];
+    }
 
     ff_sort_nearly_sorted_floats(lsfnew, LP_FILTER_ORDER - 1);
 
@@ -169,8 +171,9 @@ static void lsf_decode_fp(float *lsfnew, float *lsf_history,
 
     memcpy(lsf_history, lsf_tmp, LP_FILTER_ORDER * sizeof(*lsf_history));
 
-    for (i = 0; i < LP_FILTER_ORDER - 1; i++)
+    for (i = 0; i < LP_FILTER_ORDER - 1; i++) {
         lsfnew[i] = cos(lsfnew[i]);
+    }
     lsfnew[LP_FILTER_ORDER - 1] *= 6.153848 / M_PI;
 }
 
@@ -180,8 +183,9 @@ static void pitch_sharpening(int pitch_lag_int, float beta,
 {
     int i;
 
-    for (i = pitch_lag_int; i < SUBFR_SIZE; i++)
+    for (i = pitch_lag_int; i < SUBFR_SIZE; i++) {
         fixed_vector[i] += beta * fixed_vector[i - pitch_lag_int];
+    }
 }
 
 /**
@@ -194,19 +198,23 @@ static void decode_parameters(SiprParameters* parms, GetBitContext *pgb,
 {
     int i, j;
 
-    if (p->ma_predictor_bits)
+    if (p->ma_predictor_bits) {
         parms->ma_pred_switch       = get_bits(pgb, p->ma_predictor_bits);
+    }
 
-    for (i = 0; i < 5; i++)
+    for (i = 0; i < 5; i++) {
         parms->vq_indexes[i]        = get_bits(pgb, p->vq_indexes_bits[i]);
+    }
 
     for (i = 0; i < p->subframe_count; i++) {
         parms->pitch_delay[i]       = get_bits(pgb, p->pitch_delay_bits[i]);
-        if (p->gp_index_bits)
-        parms->gp_index[i]          = get_bits(pgb, p->gp_index_bits);
+        if (p->gp_index_bits) {
+            parms->gp_index[i]          = get_bits(pgb, p->gp_index_bits);
+        }
 
-        for (j = 0; j < p->number_of_fc_indexes; j++)
+        for (j = 0; j < p->number_of_fc_indexes; j++) {
             parms->fc_indexes[i][j] = get_bits(pgb, p->fc_index_bits[j]);
+        }
 
         parms->gc_index[i]          = get_bits(pgb, p->gc_index_bits);
     }
@@ -216,13 +224,14 @@ static void sipr_decode_lp(float *lsfnew, const float *lsfold, float *Az,
                            int num_subfr)
 {
     double lsfint[LP_FILTER_ORDER];
-    int i,j;
+    int i, j;
     float t, t0 = 1.0 / num_subfr;
 
     t = t0 * 0.5;
     for (i = 0; i < num_subfr; i++) {
-        for (j = 0; j < LP_FILTER_ORDER; j++)
+        for (j = 0; j < LP_FILTER_ORDER; j++) {
             lsfint[j] = lsfold[j] * (1 - t) + t * lsfnew[j];
+        }
 
         ff_amrwb_lsp2lpc(lsfint, Az, LP_FILTER_ORDER);
         Az += LP_FILTER_ORDER;
@@ -236,12 +245,12 @@ static void sipr_decode_lp(float *lsfnew, const float *lsfold, float *Az,
 static void eval_ir(const float *Az, int pitch_lag, float *freq,
                     float pitch_sharp_factor)
 {
-    float tmp1[SUBFR_SIZE+1], tmp2[LP_FILTER_ORDER+1];
+    float tmp1[SUBFR_SIZE + 1], tmp2[LP_FILTER_ORDER + 1];
     int i;
 
     tmp1[0] = 1.;
     for (i = 0; i < LP_FILTER_ORDER; i++) {
-        tmp1[i+1] = Az[i] * ff_pow_0_55[i];
+        tmp1[i + 1] = Az[i] * ff_pow_0_55[i];
         tmp2[i  ] = Az[i] * ff_pow_0_7 [i];
     }
     memset(tmp1 + 11, 0, 37 * sizeof(float));
@@ -260,10 +269,11 @@ static void convolute_with_sparse(float *out, const AMRFixed *pulses,
 {
     int i, j;
 
-    memset(out, 0, length*sizeof(float));
+    memset(out, 0, length * sizeof(float));
     for (i = 0; i < pulses->n; i++)
-        for (j = pulses->x[i]; j < length; j++)
+        for (j = pulses->x[i]; j < length; j++) {
             out[j] += pulses->y[i] * shape[j - pulses->x[i]];
+        }
 }
 
 /**
@@ -283,21 +293,21 @@ static void postfilter_5k0(SiprContext *ctx, const float *lpc, float *samples)
     };
 
     memcpy(pole_out - LP_FILTER_ORDER, ctx->postfilter_mem,
-           LP_FILTER_ORDER*sizeof(float));
+           LP_FILTER_ORDER * sizeof(float));
 
     ff_celp_lp_synthesis_filterf(pole_out, lpc_d, samples, SUBFR_SIZE,
                                  LP_FILTER_ORDER);
 
     memcpy(ctx->postfilter_mem, pole_out + SUBFR_SIZE - LP_FILTER_ORDER,
-           LP_FILTER_ORDER*sizeof(float));
+           LP_FILTER_ORDER * sizeof(float));
 
     ff_tilt_compensation(&ctx->tilt_mem, 0.4, pole_out, SUBFR_SIZE);
 
     memcpy(pole_out - LP_FILTER_ORDER, ctx->postfilter_mem5k0,
-           LP_FILTER_ORDER*sizeof(*pole_out));
+           LP_FILTER_ORDER * sizeof(*pole_out));
 
     memcpy(ctx->postfilter_mem5k0, pole_out + SUBFR_SIZE - LP_FILTER_ORDER,
-           LP_FILTER_ORDER*sizeof(*pole_out));
+           LP_FILTER_ORDER * sizeof(*pole_out));
 
     ff_celp_lp_zero_synthesis_filterf(samples, lpc_n, pole_out, SUBFR_SIZE,
                                       LP_FILTER_ORDER);
@@ -319,14 +329,14 @@ static void decode_fixed_sparse(AMRFixed *fixed_sparse, const int16_t *pulses,
         break;
     case MODE_8k5:
         for (i = 0; i < 3; i++) {
-            fixed_sparse->x[2*i    ] = 3 * ((pulses[i] >> 4) & 0xf) + i;
-            fixed_sparse->x[2*i + 1] = 3 * ( pulses[i]       & 0xf) + i;
+            fixed_sparse->x[2 * i    ] = 3 * ((pulses[i] >> 4) & 0xf) + i;
+            fixed_sparse->x[2 * i + 1] = 3 * (pulses[i]       & 0xf) + i;
 
-            fixed_sparse->y[2*i    ] = (pulses[i] & 0x100) ? -1.0: 1.0;
+            fixed_sparse->y[2 * i    ] = (pulses[i] & 0x100) ? -1.0 : 1.0;
 
-            fixed_sparse->y[2*i + 1] =
-                (fixed_sparse->x[2*i + 1] < fixed_sparse->x[2*i]) ?
-                -fixed_sparse->y[2*i    ] : fixed_sparse->y[2*i];
+            fixed_sparse->y[2 * i + 1] =
+                (fixed_sparse->x[2 * i + 1] < fixed_sparse->x[2 * i]) ?
+                -fixed_sparse->y[2 * i    ] : fixed_sparse->y[2 * i];
         }
 
         fixed_sparse->n = 6;
@@ -338,7 +348,7 @@ static void decode_fixed_sparse(AMRFixed *fixed_sparse, const int16_t *pulses,
             int val = pulses[0];
 
             for (i = 0; i < 3; i++) {
-                int index = (val & 0x7) * 6 + 4 - i*2;
+                int index = (val & 0x7) * 6 + 4 - i * 2;
 
                 fixed_sparse->y[i] = (offset + index) & 0x3 ? -1 : 1;
                 fixed_sparse->x[i] = index;
@@ -350,7 +360,7 @@ static void decode_fixed_sparse(AMRFixed *fixed_sparse, const int16_t *pulses,
             int pulse_subset = (pulses[0] >> 8) & 1;
 
             fixed_sparse->x[0] = ((pulses[0] >> 4) & 15) * 3 + pulse_subset;
-            fixed_sparse->x[1] = ( pulses[0]       & 15) * 3 + pulse_subset + 1;
+            fixed_sparse->x[1] = (pulses[0]       & 15) * 3 + pulse_subset + 1;
 
             fixed_sparse->y[0] = pulses[0] & 0x200 ? -1 : 1;
             fixed_sparse->y[1] = -fixed_sparse->y[0];
@@ -372,7 +382,7 @@ static void decode_frame(SiprContext *ctx, SiprParameters *params,
     float lsf_new[LP_FILTER_ORDER];
     float *impulse_response = ir_buf + LP_FILTER_ORDER;
     float *synth = ctx->synth_buf + 16; // 16 instead of LP_FILTER_ORDER for
-                                        // memory alignment
+    // memory alignment
     int t0_first = 0;
     AMRFixed fixed_cb;
 
@@ -386,20 +396,21 @@ static void decode_frame(SiprContext *ctx, SiprParameters *params,
     excitation = ctx->excitation + PITCH_DELAY_MAX + L_INTERPOL;
 
     for (i = 0; i < subframe_count; i++) {
-        float *pAz = Az + i*LP_FILTER_ORDER;
+        float *pAz = Az + i * LP_FILTER_ORDER;
         float fixed_vector[SUBFR_SIZE];
-        int T0,T0_frac;
+        int T0, T0_frac;
         float pitch_gain, gain_code, avg_energy;
 
         ff_decode_pitch_lag(&T0, &T0_frac, params->pitch_delay[i], t0_first, i,
                             ctx->mode == MODE_5k0, 6);
 
-        if (i == 0 || (i == 2 && ctx->mode == MODE_5k0))
+        if (i == 0 || (i == 2 && ctx->mode == MODE_5k0)) {
             t0_first = T0;
+        }
 
         ff_acelp_interpolatef(excitation, excitation - T0 + (T0_frac <= 0),
                               ff_b60_sinc, 6,
-                              2 * ((2 + T0_frac)%3 + 1), LP_FILTER_ORDER,
+                              2 * ((2 + T0_frac) % 3 + 1), LP_FILTER_ORDER,
                               SUBFR_SIZE);
 
         decode_fixed_sparse(&fixed_cb, params->fc_indexes[i], ctx->mode,
@@ -411,14 +422,14 @@ static void decode_frame(SiprContext *ctx, SiprParameters *params,
                               SUBFR_SIZE);
 
         avg_energy =
-            (0.01 + ff_dot_productf(fixed_vector, fixed_vector, SUBFR_SIZE))/
-                SUBFR_SIZE;
+            (0.01 + ff_dot_productf(fixed_vector, fixed_vector, SUBFR_SIZE)) /
+            SUBFR_SIZE;
 
         ctx->past_pitch_gain = pitch_gain = gain_cb[params->gc_index[i]][0];
 
         gain_code = ff_amr_set_fixed_gain(gain_cb[params->gc_index[i]][1],
                                           avg_energy, ctx->energy_history,
-                                          34 - 15.0/(0.05*M_LN10/M_LN2),
+                                          34 - 15.0 / (0.05 * M_LN10 / M_LN2),
                                           pred);
 
         ff_weighted_vector_sumf(excitation, excitation, fixed_vector,
@@ -431,18 +442,19 @@ static void decode_frame(SiprContext *ctx, SiprParameters *params,
         ctx->gain_mem = FFMIN(ctx->gain_mem, pitch_gain);
         gain_code *= ctx->gain_mem;
 
-        for (j = 0; j < SUBFR_SIZE; j++)
+        for (j = 0; j < SUBFR_SIZE; j++) {
             fixed_vector[j] = excitation[j] - gain_code * fixed_vector[j];
+        }
 
         if (ctx->mode == MODE_5k0) {
             postfilter_5k0(ctx, pAz, fixed_vector);
 
-            ff_celp_lp_synthesis_filterf(ctx->postfilter_syn5k0 + LP_FILTER_ORDER + i*SUBFR_SIZE,
+            ff_celp_lp_synthesis_filterf(ctx->postfilter_syn5k0 + LP_FILTER_ORDER + i * SUBFR_SIZE,
                                          pAz, excitation, SUBFR_SIZE,
                                          LP_FILTER_ORDER);
         }
 
-        ff_celp_lp_synthesis_filterf(synth + i*SUBFR_SIZE, pAz, fixed_vector,
+        ff_celp_lp_synthesis_filterf(synth + i * SUBFR_SIZE, pAz, fixed_vector,
                                      SUBFR_SIZE, LP_FILTER_ORDER);
 
         excitation += SUBFR_SIZE;
@@ -453,8 +465,8 @@ static void decode_frame(SiprContext *ctx, SiprParameters *params,
 
     if (ctx->mode == MODE_5k0) {
         for (i = 0; i < subframe_count; i++) {
-            float energy = ff_dot_productf(ctx->postfilter_syn5k0 + LP_FILTER_ORDER + i*SUBFR_SIZE,
-                                           ctx->postfilter_syn5k0 + LP_FILTER_ORDER + i*SUBFR_SIZE,
+            float energy = ff_dot_productf(ctx->postfilter_syn5k0 + LP_FILTER_ORDER + i * SUBFR_SIZE,
+                                           ctx->postfilter_syn5k0 + LP_FILTER_ORDER + i * SUBFR_SIZE,
                                            SUBFR_SIZE);
             ff_adaptive_gain_control(&synth[i * SUBFR_SIZE],
                                      &synth[i * SUBFR_SIZE], energy,
@@ -462,17 +474,21 @@ static void decode_frame(SiprContext *ctx, SiprParameters *params,
         }
 
         memcpy(ctx->postfilter_syn5k0, ctx->postfilter_syn5k0 + frame_size,
-               LP_FILTER_ORDER*sizeof(float));
+               LP_FILTER_ORDER * sizeof(float));
     }
     memmove(ctx->excitation, excitation - PITCH_DELAY_MAX - L_INTERPOL,
-           (PITCH_DELAY_MAX + L_INTERPOL) * sizeof(float));
+            (PITCH_DELAY_MAX + L_INTERPOL) * sizeof(float));
 
     ff_acelp_apply_order_2_transfer_function(out_data, synth,
-                                             (const float[2]) {-1.99997   , 1.000000000},
-                                             (const float[2]) {-1.93307352, 0.935891986},
-                                             0.939805806,
-                                             ctx->highpass_filt_mem,
-                                             frame_size);
+    (const float[2]) {
+        -1.99997   , 1.000000000
+    },
+    (const float[2]) {
+        -1.93307352, 0.935891986
+    },
+    0.939805806,
+    ctx->highpass_filt_mem,
+    frame_size);
 }
 
 static av_cold int sipr_decoder_init(AVCodecContext * avctx)
@@ -481,15 +497,28 @@ static av_cold int sipr_decoder_init(AVCodecContext * avctx)
     int i;
 
     switch (avctx->block_align) {
-    case 20: ctx->mode = MODE_16k; break;
-    case 19: ctx->mode = MODE_8k5; break;
-    case 29: ctx->mode = MODE_6k5; break;
-    case 37: ctx->mode = MODE_5k0; break;
+    case 20:
+        ctx->mode = MODE_16k;
+        break;
+    case 19:
+        ctx->mode = MODE_8k5;
+        break;
+    case 29:
+        ctx->mode = MODE_6k5;
+        break;
+    case 37:
+        ctx->mode = MODE_5k0;
+        break;
     default:
-    if      (avctx->bit_rate > 12200) ctx->mode = MODE_16k;
-    else if (avctx->bit_rate > 7500 ) ctx->mode = MODE_8k5;
-    else if (avctx->bit_rate > 5750 ) ctx->mode = MODE_6k5;
-    else                              ctx->mode = MODE_5k0;
+        if (avctx->bit_rate > 12200) {
+            ctx->mode = MODE_16k;
+        } else if (avctx->bit_rate > 7500) {
+            ctx->mode = MODE_8k5;
+        } else if (avctx->bit_rate > 5750) {
+            ctx->mode = MODE_6k5;
+        } else {
+            ctx->mode = MODE_5k0;
+        }
         av_log(avctx, AV_LOG_WARNING,
                "Invalid block_align: %d. Mode %s guessed based on bitrate: %d\n",
                avctx->block_align, modes[ctx->mode].mode_name, avctx->bit_rate);
@@ -497,42 +526,45 @@ static av_cold int sipr_decoder_init(AVCodecContext * avctx)
 
     av_log(avctx, AV_LOG_INFO, "Mode: %s\n", modes[ctx->mode].mode_name);
 
-    if (ctx->mode == MODE_16k)
+    if (ctx->mode == MODE_16k) {
         ff_sipr_init_16k(ctx);
+    }
 
-    for (i = 0; i < LP_FILTER_ORDER; i++)
-        ctx->lsp_history[i] = cos((i+1) * M_PI / (LP_FILTER_ORDER + 1));
+    for (i = 0; i < LP_FILTER_ORDER; i++) {
+        ctx->lsp_history[i] = cos((i + 1) * M_PI / (LP_FILTER_ORDER + 1));
+    }
 
-    for (i = 0; i < 4; i++)
+    for (i = 0; i < 4; i++) {
         ctx->energy_history[i] = -14;
+    }
 
     avctx->sample_fmt = AV_SAMPLE_FMT_FLT;
 
     return 0;
 }
-static int clip_float_to_short16(float *buf,int sampls)
+static int clip_float_to_short16(float *buf, int sampls)
 {
     int i;
-    float *pf=buf,ftmp;
-    short *p16=(short *)buf;
-    for(i=0;i<sampls;i++)
-    {
-        ftmp=pf[i]*32767.0;
-        if(ftmp>32767.0)
-            p16[i]=32767;
-        else if(ftmp<-32768.0)
-            p16[i]=-32768;
-        else
-            p16[i]=(short)ftmp;
+    float *pf = buf, ftmp;
+    short *p16 = (short *)buf;
+    for (i = 0; i < sampls; i++) {
+        ftmp = pf[i] * 32767.0;
+        if (ftmp > 32767.0) {
+            p16[i] = 32767;
+        } else if (ftmp < -32768.0) {
+            p16[i] = -32768;
+        } else {
+            p16[i] = (short)ftmp;
+        }
     }
-    return i*sizeof(short);
+    return i * sizeof(short);
 }
 
 static int sipr_decode_frame(AVCodecContext *avctx, void *datap,
                              int *data_size, AVPacket *avpkt)
 {
     SiprContext *ctx = avctx->priv_data;
-    const uint8_t *buf=avpkt->data;
+    const uint8_t *buf = avpkt->data;
     SiprParameters parm;
     const SiprModeParam *mode_par = &modes[ctx->mode];
     GetBitContext gb;
@@ -542,14 +574,14 @@ static int sipr_decode_frame(AVCodecContext *avctx, void *datap,
 
     ctx->avctx = avctx;
     if (avpkt->size < (mode_par->bits_per_frame >> 3)) {
-        av_log(avctx, AV_LOG_ERROR,"Error processing packet: packet size (%d) too small\n",
+        av_log(avctx, AV_LOG_ERROR, "Error processing packet: packet size (%d) too small\n",
                avpkt->size);
 
         *data_size = 0;
         return -1;
     }
     if (*data_size < subframe_size * mode_par->subframe_count * sizeof(float)) {
-        av_log(avctx, AV_LOG_ERROR,"Error processing packet: output buffer (%d) too small\n",
+        av_log(avctx, AV_LOG_ERROR, "Error processing packet: output buffer (%d) too small\n",
                *data_size);
 
         *data_size = 0;
@@ -561,15 +593,16 @@ static int sipr_decode_frame(AVCodecContext *avctx, void *datap,
     for (i = 0; i < mode_par->frames_per_packet; i++) {
         decode_parameters(&parm, &gb, mode_par);
 
-        if (ctx->mode == MODE_16k)
+        if (ctx->mode == MODE_16k) {
             ff_sipr_decode_frame_16k(ctx, &parm, data);
-        else
+        } else {
             decode_frame(ctx, &parm, data);
+        }
 
         data += subframe_size * mode_par->subframe_count;
     }
-    int numsamps=mode_par->frames_per_packet * subframe_size * mode_par->subframe_count;
-    *data_size=clip_float_to_short16(datap,numsamps);
+    int numsamps = mode_par->frames_per_packet * subframe_size * mode_par->subframe_count;
+    *data_size = clip_float_to_short16(datap, numsamps);
     return mode_par->bits_per_frame >> 3;
 }
 

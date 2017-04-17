@@ -26,21 +26,22 @@
 #include "vorbiscomment.h"
 
 static int flac_read_header(AVFormatContext *s,
-                             AVFormatParameters *ap)
+                            AVFormatParameters *ap)
 {
-    int ret, metadata_last=0, metadata_type, metadata_size, found_streaminfo=0;
+    int ret, metadata_last = 0, metadata_type, metadata_size, found_streaminfo = 0;
     uint8_t header[4];
-    uint8_t *buffer=NULL;
+    uint8_t *buffer = NULL;
     AVStream *st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
     st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
     st->codec->codec_id = CODEC_ID_FLAC;
     st->need_parsing = AVSTREAM_PARSE_FULL;
     /* the parameters will be extracted from the compressed bitstream */
 
     /* if fLaC marker is not found, assume there is no header */
-    if (avio_rl32(s->pb) != MKTAG('f','L','a','C')) {
+    if (avio_rl32(s->pb) != MKTAG('f', 'L', 'a', 'C')) {
         avio_seek(s->pb, -4, SEEK_CUR);
         return 0;
     }
@@ -66,8 +67,9 @@ static int flac_read_header(AVFormatContext *s,
         /* skip metadata block for unsupported types */
         default:
             ret = avio_skip(s->pb, metadata_size);
-            if (ret < 0)
+            if (ret < 0) {
                 return ret;
+            }
         }
 
         if (metadata_type == FLAC_METADATA_TYPE_STREAMINFO) {
@@ -92,8 +94,9 @@ static int flac_read_header(AVFormatContext *s,
             /* set time base and duration */
             if (si.samplerate > 0) {
                 av_set_pts_info(st, 64, 1, si.samplerate);
-                if (si.samples > 0)
+                if (si.samples > 0) {
                     st->duration = si.samples;
+                }
             }
         } else {
             /* STREAMINFO must be the first block */
@@ -119,8 +122,11 @@ static int flac_probe(AVProbeData *p)
     uint8_t *bufptr = p->buf;
     uint8_t *end    = p->buf + p->buf_size;
 
-    if(bufptr > end-4 || memcmp(bufptr, "fLaC", 4)) return 0;
-    else                                            return AVPROBE_SCORE_MAX/2;
+    if (bufptr > end - 4 || memcmp(bufptr, "fLaC", 4)) {
+        return 0;
+    } else {
+        return AVPROBE_SCORE_MAX / 2;
+    }
 }
 
 AVInputFormat ff_flac_demuxer = {
@@ -130,7 +136,7 @@ AVInputFormat ff_flac_demuxer = {
     flac_probe,
     flac_read_header,
     ff_raw_read_partial_packet,
-    .flags= AVFMT_GENERIC_INDEX,
+    .flags = AVFMT_GENERIC_INDEX,
     .extensions = "flac",
     .value = CODEC_ID_FLAC,
 };

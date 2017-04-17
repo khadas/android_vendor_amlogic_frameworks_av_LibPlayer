@@ -35,14 +35,18 @@ typedef struct {
 
 static enum CodecID aiff_codec_get_id(int bps)
 {
-    if (bps <= 8)
+    if (bps <= 8) {
         return CODEC_ID_PCM_S8;
-    if (bps <= 16)
+    }
+    if (bps <= 16) {
         return CODEC_ID_PCM_S16BE;
-    if (bps <= 24)
+    }
+    if (bps <= 24) {
         return CODEC_ID_PCM_S24BE;
-    if (bps <= 32)
+    }
+    if (bps <= 32) {
         return CODEC_ID_PCM_S32BE;
+    }
 
     /* bigger than 32 isn't allowed  */
     return CODEC_ID_NONE;
@@ -53,14 +57,16 @@ static int get_tag(AVIOContext *pb, uint32_t * tag)
 {
     int size;
 
-    if (url_feof(pb))
+    if (url_feof(pb)) {
         return AVERROR(EIO);
+    }
 
     *tag = avio_rl32(pb);
     size = avio_rb32(pb);
 
-    if (size < 0)
+    if (size < 0) {
         size = 0x7fffffff;
+    }
 
     return size;
 }
@@ -68,33 +74,35 @@ static int get_tag(AVIOContext *pb, uint32_t * tag)
 /* Metadata string read */
 static void get_meta(AVFormatContext *s, const char *key, int size)
 {
-    uint8_t *str = av_malloc(size+1);
+    uint8_t *str = av_malloc(size + 1);
 
     if (str) {
         int res = avio_read(s->pb, str, size);
-        if (res < 0){
+        if (res < 0) {
             av_free(str);
             return;
         }
-        size += (size&1)-res;
+        size += (size & 1) - res;
         str[res] = 0;
         av_dict_set(&s->metadata, key, str, AV_METADATA_DONT_STRDUP_VAL);
-    }else
-        size+= size&1;
+    } else {
+        size += size & 1;
+    }
 
     avio_skip(s->pb, size);
 }
 
 /* Returns the number of sound data frames or negative on error */
 static unsigned int get_aiff_header(AVIOContext *pb, AVCodecContext *codec,
-                             int size, unsigned version)
+                                    int size, unsigned version)
 {
     AVExtFloat ext;
     double sample_rate;
     unsigned int num_frames;
 
-    if (size & 1)
+    if (size & 1) {
         size++;
+    }
     codec->codec_type = AVMEDIA_TYPE_AUDIO;
     codec->channels = avio_rb16(pb);
     num_frames = avio_rb32(pb);
@@ -116,15 +124,15 @@ static unsigned int get_aiff_header(AVIOContext *pb, AVCodecContext *codec,
             codec->bits_per_coded_sample = av_get_bits_per_sample(codec->codec_id);
             break;
         case CODEC_ID_ADPCM_IMA_QT:
-            codec->block_align = 34*codec->channels;
+            codec->block_align = 34 * codec->channels;
             codec->frame_size = 64;
             break;
         case CODEC_ID_MACE3:
-            codec->block_align = 2*codec->channels;
+            codec->block_align = 2 * codec->channels;
             codec->frame_size = 6;
             break;
         case CODEC_ID_MACE6:
-            codec->block_align = 1*codec->channels;
+            codec->block_align = 1 * codec->channels;
             codec->frame_size = 6;
             break;
         case CODEC_ID_GSM:
@@ -133,7 +141,7 @@ static unsigned int get_aiff_header(AVIOContext *pb, AVCodecContext *codec,
             break;
         case CODEC_ID_QCELP:
             codec->block_align = 35;
-            codec->frame_size= 160;
+            codec->frame_size = 160;
             break;
         default:
             break;
@@ -147,15 +155,17 @@ static unsigned int get_aiff_header(AVIOContext *pb, AVCodecContext *codec,
 
     /* Block align needs to be computed in all cases, as the definition
      * is specific to applications -> here we use the WAVE format definition */
-    if (!codec->block_align)
+    if (!codec->block_align) {
         codec->block_align = (codec->bits_per_coded_sample * codec->channels) >> 3;
+    }
 
-    codec->bit_rate = (codec->frame_size ? codec->sample_rate/codec->frame_size :
+    codec->bit_rate = (codec->frame_size ? codec->sample_rate / codec->frame_size :
                        codec->sample_rate) * (codec->block_align << 3);
 
     /* Chunk is over */
-    if (size)
+    if (size) {
         avio_skip(pb, size);
+    }
 
     return num_frames;
 }
@@ -166,10 +176,11 @@ static int aiff_probe(AVProbeData *p)
     if (p->buf[0] == 'F' && p->buf[1] == 'O' &&
         p->buf[2] == 'R' && p->buf[3] == 'M' &&
         p->buf[8] == 'A' && p->buf[9] == 'I' &&
-        p->buf[10] == 'F' && (p->buf[11] == 'F' || p->buf[11] == 'C'))
+        p->buf[10] == 'F' && (p->buf[11] == 'F' || p->buf[11] == 'C')) {
         return AVPROBE_SCORE_MAX;
-    else
+    } else {
         return 0;
+    }
 }
 
 /* aiff input */
@@ -186,27 +197,31 @@ static int aiff_read_header(AVFormatContext *s,
 
     /* check FORM header */
     filesize = get_tag(pb, &tag);
-    if (filesize < 0 || tag != MKTAG('F', 'O', 'R', 'M'))
+    if (filesize < 0 || tag != MKTAG('F', 'O', 'R', 'M')) {
         return AVERROR_INVALIDDATA;
+    }
 
     /* AIFF data type */
     tag = avio_rl32(pb);
-    if (tag == MKTAG('A', 'I', 'F', 'F'))       /* Got an AIFF file */
+    if (tag == MKTAG('A', 'I', 'F', 'F')) {     /* Got an AIFF file */
         version = AIFF;
-    else if (tag != MKTAG('A', 'I', 'F', 'C'))  /* An AIFF-C file then */
+    } else if (tag != MKTAG('A', 'I', 'F', 'C')) { /* An AIFF-C file then */
         return AVERROR_INVALIDDATA;
+    }
 
     filesize -= 4;
 
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
 
     while (filesize > 0) {
         /* parse different chunks */
         size = get_tag(pb, &tag);
-        if (size < 0)
+        if (size < 0) {
             return size;
+        }
 
         filesize -= size + 8;
 
@@ -214,10 +229,12 @@ static int aiff_read_header(AVFormatContext *s,
         case MKTAG('C', 'O', 'M', 'M'):     /* Common chunk */
             /* Then for the complete header info */
             st->nb_frames = get_aiff_header(pb, st->codec, size, version);
-            if (st->nb_frames < 0)
+            if (st->nb_frames < 0) {
                 return st->nb_frames;
-            if (offset > 0) // COMM is after SSND
+            }
+            if (offset > 0) { // COMM is after SSND
                 goto got_sound;
+            }
             break;
         case MKTAG('F', 'V', 'E', 'R'):     /* Version chunk */
             version = avio_rb32(pb);
@@ -239,8 +256,9 @@ static int aiff_read_header(AVFormatContext *s,
             offset = avio_rb32(pb);      /* Offset of sound data */
             avio_rb32(pb);               /* BlockSize... don't care */
             offset += avio_tell(pb);    /* Compute absolute data offset */
-            if (st->codec->block_align)    /* Assume COMM already parsed */
+            if (st->codec->block_align) {  /* Assume COMM already parsed */
                 goto got_sound;
+            }
             if (!pb->seekable) {
                 av_log(s, AV_LOG_ERROR, "file is not seekable\n");
                 return -1;
@@ -248,22 +266,26 @@ static int aiff_read_header(AVFormatContext *s,
             avio_skip(pb, size - 8);
             break;
         case MKTAG('w', 'a', 'v', 'e'):
-            if ((uint64_t)size > (1<<30))
+            if ((uint64_t)size > (1 << 30)) {
                 return -1;
+            }
             st->codec->extradata = av_mallocz(size + FF_INPUT_BUFFER_PADDING_SIZE);
-            if (!st->codec->extradata)
+            if (!st->codec->extradata) {
                 return AVERROR(ENOMEM);
+            }
             st->codec->extradata_size = size;
             avio_read(pb, st->codec->extradata, size);
             break;
-        case MKTAG('C','H','A','N'):
-            if (size < 12)
+        case MKTAG('C', 'H', 'A', 'N'):
+            if (size < 12) {
                 return AVERROR_INVALIDDATA;
+            }
             ff_mov_read_chan(s, size, st->codec);
             break;
         default: /* Jump */
-            if (size & 1)   /* Always even aligned */
+            if (size & 1) { /* Always even aligned */
                 size++;
+            }
             avio_skip(pb, size);
         }
     }
@@ -275,13 +297,14 @@ static int aiff_read_header(AVFormatContext *s,
 
 got_sound:
     /* Now positioned, get the sound data start and end */
-    if (st->nb_frames)
+    if (st->nb_frames) {
         s->file_size = st->nb_frames * st->codec->block_align;
+    }
 
     av_set_pts_info(st, 64, 1, st->codec->sample_rate);
     st->start_time = 0;
     st->duration = st->codec->frame_size ?
-        st->nb_frames * st->codec->frame_size : st->nb_frames;
+                   st->nb_frames * st->codec->frame_size : st->nb_frames;
 
     /* Position the stream at the first block */
     avio_seek(pb, offset, SEEK_SET);
@@ -301,18 +324,21 @@ static int aiff_read_packet(AVFormatContext *s,
 
     /* calculate size of remaining data */
     max_size = aiff->data_end - avio_tell(s->pb);
-    if (max_size <= 0)
+    if (max_size <= 0) {
         return AVERROR_EOF;
+    }
 
     /* Now for that packet */
-    if (st->codec->block_align >= 33) // GSM, QCLP, IMA4
+    if (st->codec->block_align >= 33) { // GSM, QCLP, IMA4
         size = st->codec->block_align;
-    else
+    } else {
         size = (MAX_SIZE / st->codec->block_align) * st->codec->block_align;
+    }
     size = FFMIN(max_size, size);
     res = av_get_packet(s->pb, pkt, size);
-    if (res < 0)
+    if (res < 0) {
         return res;
+    }
 
     /* Only one stream in an AIFF file */
     pkt->stream_index = 0;
@@ -328,5 +354,5 @@ AVInputFormat ff_aiff_demuxer = {
     aiff_read_packet,
     NULL,
     pcm_read_seek,
-    .codec_tag= (const AVCodecTag* const []){ff_codec_aiff_tags, 0},
+    .codec_tag = (const AVCodecTag* const []){ff_codec_aiff_tags, 0},
 };

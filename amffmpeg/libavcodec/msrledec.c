@@ -39,7 +39,7 @@
     stream_byte = data[stream_ptr++];
 
 static int msrle_decode_pal4(AVCodecContext *avctx, AVPicture *pic,
-                              const uint8_t *data, int data_size)
+                             const uint8_t *data, int data_size)
 {
     int stream_ptr = 0;
     unsigned char rle_code;
@@ -81,22 +81,26 @@ static int msrle_decode_pal4(AVCodecContext *avctx, AVPicture *pic,
                 }
 
                 for (i = 0; i < rle_code; i++) {
-                    if (pixel_ptr >= avctx->width)
+                    if (pixel_ptr >= avctx->width) {
                         break;
+                    }
                     FETCH_NEXT_STREAM_BYTE();
                     pic->data[0][row_ptr + pixel_ptr] = stream_byte >> 4;
                     pixel_ptr++;
-                    if (i + 1 == rle_code && odd_pixel)
+                    if (i + 1 == rle_code && odd_pixel) {
                         break;
-                    if (pixel_ptr >= avctx->width)
+                    }
+                    if (pixel_ptr >= avctx->width) {
                         break;
+                    }
                     pic->data[0][row_ptr + pixel_ptr] = stream_byte & 0x0F;
                     pixel_ptr++;
                 }
 
                 // if the RLE code is odd, skip a byte in the stream
-                if (extra_byte)
+                if (extra_byte) {
                     stream_ptr++;
+                }
             }
         } else {
             // decode a run of data
@@ -106,12 +110,14 @@ static int msrle_decode_pal4(AVCodecContext *avctx, AVPicture *pic,
             }
             FETCH_NEXT_STREAM_BYTE();
             for (i = 0; i < rle_code; i++) {
-                if (pixel_ptr >= avctx->width)
+                if (pixel_ptr >= avctx->width) {
                     break;
-                if ((i & 1) == 0)
+                }
+                if ((i & 1) == 0) {
                     pic->data[0][row_ptr + pixel_ptr] = stream_byte >> 4;
-                else
+                } else {
                     pic->data[0][row_ptr + pixel_ptr] = stream_byte & 0x0F;
+                }
                 pixel_ptr++;
             }
         }
@@ -120,7 +126,7 @@ static int msrle_decode_pal4(AVCodecContext *avctx, AVPicture *pic,
     /* one last sanity check on the way out */
     if (stream_ptr < data_size) {
         av_log(avctx, AV_LOG_ERROR, " MS RLE: ended frame decode with bytes left over (%d < %d)\n",
-            stream_ptr, data_size);
+               stream_ptr, data_size);
         return -1;
     }
 
@@ -129,37 +135,37 @@ static int msrle_decode_pal4(AVCodecContext *avctx, AVPicture *pic,
 
 
 static int msrle_decode_8_16_24_32(AVCodecContext *avctx, AVPicture *pic, int depth,
-                                    const uint8_t *data, int srcsize)
+                                   const uint8_t *data, int srcsize)
 {
     uint8_t *output, *output_end;
     const uint8_t* src = data;
-    int p1, p2, line=avctx->height - 1, pos=0, i;
+    int p1, p2, line = avctx->height - 1, pos = 0, i;
     uint16_t av_uninit(pix16);
     uint32_t av_uninit(pix32);
-    unsigned int width= FFABS(pic->linesize[0]) / (depth >> 3);
+    unsigned int width = FFABS(pic->linesize[0]) / (depth >> 3);
 
     output = pic->data[0] + (avctx->height - 1) * pic->linesize[0];
     output_end = pic->data[0] + (avctx->height) * pic->linesize[0];
-    while(src < data + srcsize) {
+    while (src < data + srcsize) {
         p1 = *src++;
-        if(p1 == 0) { //Escape code
+        if (p1 == 0) { //Escape code
             p2 = *src++;
-            if(p2 == 0) { //End-of-line
+            if (p2 == 0) { //End-of-line
                 output = pic->data[0] + (--line) * pic->linesize[0];
-                if (line < 0 && !(src+1 < data + srcsize && AV_RB16(src) == 1)) {
+                if (line < 0 && !(src + 1 < data + srcsize && AV_RB16(src) == 1)) {
                     av_log(avctx, AV_LOG_ERROR, "Next line is beyond picture bounds\n");
                     return -1;
                 }
                 pos = 0;
                 continue;
-            } else if(p2 == 1) { //End-of-picture
+            } else if (p2 == 1) { //End-of-picture
                 return 0;
-            } else if(p2 == 2) { //Skip
+            } else if (p2 == 2) { //Skip
                 p1 = *src++;
                 p2 = *src++;
                 line -= p2;
                 pos += p1;
-                if (line < 0 || pos >= width){
+                if (line < 0 || pos >= width) {
                     av_log(avctx, AV_LOG_ERROR, "Skip beyond picture bounds\n");
                     return -1;
                 }
@@ -168,27 +174,27 @@ static int msrle_decode_8_16_24_32(AVCodecContext *avctx, AVPicture *pic, int de
             }
             // Copy data
             if ((pic->linesize[0] > 0 && output + p2 * (depth >> 3) > output_end)
-              ||(pic->linesize[0] < 0 && output + p2 * (depth >> 3) < output_end)) {
+                || (pic->linesize[0] < 0 && output + p2 * (depth >> 3) < output_end)) {
                 src += p2 * (depth >> 3);
                 continue;
             }
             if ((depth == 8) || (depth == 24)) {
-                for(i = 0; i < p2 * (depth >> 3); i++) {
+                for (i = 0; i < p2 * (depth >> 3); i++) {
                     *output++ = *src++;
                 }
                 // RLE8 copy is actually padded - and runs are not!
-                if(depth == 8 && (p2 & 1)) {
+                if (depth == 8 && (p2 & 1)) {
                     src++;
                 }
             } else if (depth == 16) {
-                for(i = 0; i < p2; i++) {
+                for (i = 0; i < p2; i++) {
                     pix16 = AV_RL16(src);
                     src += 2;
                     *(uint16_t*)output = pix16;
                     output += 2;
                 }
             } else if (depth == 32) {
-                for(i = 0; i < p2; i++) {
+                for (i = 0; i < p2; i++) {
                     pix32 = AV_RL32(src);
                     src += 4;
                     *(uint32_t*)output = pix32;
@@ -198,37 +204,46 @@ static int msrle_decode_8_16_24_32(AVCodecContext *avctx, AVPicture *pic, int de
             pos += p2;
         } else { //run of pixels
             uint8_t pix[3]; //original pixel
-            switch(depth){
-            case  8: pix[0] = *src++;
-                     break;
-            case 16: pix16 = AV_RL16(src);
-                     src += 2;
-                     break;
-            case 24: pix[0] = *src++;
-                     pix[1] = *src++;
-                     pix[2] = *src++;
-                     break;
-            case 32: pix32 = AV_RL32(src);
-                     src += 4;
-                     break;
+            switch (depth) {
+            case  8:
+                pix[0] = *src++;
+                break;
+            case 16:
+                pix16 = AV_RL16(src);
+                src += 2;
+                break;
+            case 24:
+                pix[0] = *src++;
+                pix[1] = *src++;
+                pix[2] = *src++;
+                break;
+            case 32:
+                pix32 = AV_RL32(src);
+                src += 4;
+                break;
             }
             if ((pic->linesize[0] > 0 && output + p1 * (depth >> 3) > output_end)
-              ||(pic->linesize[0] < 0 && output + p1 * (depth >> 3) < output_end))
+                || (pic->linesize[0] < 0 && output + p1 * (depth >> 3) < output_end)) {
                 continue;
-            for(i = 0; i < p1; i++) {
-                switch(depth){
-                case  8: *output++ = pix[0];
-                         break;
-                case 16: *(uint16_t*)output = pix16;
-                         output += 2;
-                         break;
-                case 24: *output++ = pix[0];
-                         *output++ = pix[1];
-                         *output++ = pix[2];
-                         break;
-                case 32: *(uint32_t*)output = pix32;
-                         output += 4;
-                         break;
+            }
+            for (i = 0; i < p1; i++) {
+                switch (depth) {
+                case  8:
+                    *output++ = pix[0];
+                    break;
+                case 16:
+                    *(uint16_t*)output = pix16;
+                    output += 2;
+                    break;
+                case 24:
+                    *output++ = pix[0];
+                    *output++ = pix[1];
+                    *output++ = pix[2];
+                    break;
+                case 32:
+                    *(uint32_t*)output = pix32;
+                    output += 4;
+                    break;
                 }
             }
             pos += p1;
@@ -243,7 +258,7 @@ static int msrle_decode_8_16_24_32(AVCodecContext *avctx, AVPicture *pic, int de
 int ff_msrle_decode(AVCodecContext *avctx, AVPicture *pic, int depth,
                     const uint8_t* data, int data_size)
 {
-    switch(depth){
+    switch (depth) {
     case  4:
         return msrle_decode_pal4(avctx, pic, data, data_size);
     case  8:

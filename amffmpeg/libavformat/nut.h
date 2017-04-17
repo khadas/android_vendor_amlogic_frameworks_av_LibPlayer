@@ -39,7 +39,7 @@
 
 #define MAX_DISTANCE (1024*32-1)
 
-typedef enum{
+typedef enum {
     FLAG_KEY        =   1, ///<if set, frame is keyframe
     FLAG_EOR        =   2, ///<if set, stream has no relevance on presentation. (EOR)
     FLAG_CODED_PTS  =   8, ///<if set, coded_pts is in the frame header
@@ -47,16 +47,16 @@ typedef enum{
     FLAG_SIZE_MSB   =  32, ///<if set, data_size_msb is at frame header, otherwise data_size_msb is 0
     FLAG_CHECKSUM   =  64, ///<if set, the frame header contains a checksum
     FLAG_RESERVED   = 128, ///<if set, reserved_count is coded in the frame header
-    FLAG_HEADER_IDX =1024, ///<If set, header_idx is coded in the frame header.
-    FLAG_MATCH_TIME =2048, ///<If set, match_time_delta is coded in the frame header
-    FLAG_CODED      =4096, ///<if set, coded_flags are stored in the frame header
-    FLAG_INVALID    =8192, ///<if set, frame_code is invalid
+    FLAG_HEADER_IDX = 1024, ///<If set, header_idx is coded in the frame header.
+    FLAG_MATCH_TIME = 2048, ///<If set, match_time_delta is coded in the frame header
+    FLAG_CODED      = 4096, ///<if set, coded_flags are stored in the frame header
+    FLAG_INVALID    = 8192, ///<if set, frame_code is invalid
 } Flag;
 
 typedef struct {
     uint64_t pos;
     uint64_t back_ptr;
-//    uint64_t global_key_pts;
+    //    uint64_t global_key_pts;
     int64_t ts;
 } Syncpoint;
 
@@ -87,8 +87,8 @@ typedef struct {
 
 typedef struct {
     AVFormatContext *avf;
-//    int written_packet_size;
-//    int64_t packet_start;
+    //    int written_packet_size;
+    //    int64_t packet_start;
     FrameCode frame_code[256];
     uint8_t header_len[128];
     const uint8_t *header[128];

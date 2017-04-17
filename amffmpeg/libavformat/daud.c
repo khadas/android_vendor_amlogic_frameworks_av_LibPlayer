@@ -20,10 +20,12 @@
  */
 #include "avformat.h"
 
-static int daud_header(AVFormatContext *s, AVFormatParameters *ap) {
+static int daud_header(AVFormatContext *s, AVFormatParameters *ap)
+{
     AVStream *st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
     st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
     st->codec->codec_id = CODEC_ID_PCM_S24DAUD;
     st->codec->codec_tag = MKTAG('d', 'a', 'u', 'd');
@@ -35,11 +37,13 @@ static int daud_header(AVFormatContext *s, AVFormatParameters *ap) {
     return 0;
 }
 
-static int daud_packet(AVFormatContext *s, AVPacket *pkt) {
+static int daud_packet(AVFormatContext *s, AVPacket *pkt)
+{
     AVIOContext *pb = s->pb;
     int ret, size;
-    if (url_feof(pb))
+    if (url_feof(pb)) {
         return AVERROR(EIO);
+    }
     size = avio_rb16(pb);
     avio_rb16(pb); // unknown
     ret = av_get_packet(pb, pkt, size);
@@ -50,8 +54,9 @@ static int daud_packet(AVFormatContext *s, AVPacket *pkt) {
 static int daud_write_header(struct AVFormatContext *s)
 {
     AVCodecContext *codec = s->streams[0]->codec;
-    if (codec->channels!=6 || codec->sample_rate!=96000)
+    if (codec->channels != 6 || codec->sample_rate != 96000) {
         return -1;
+    }
     return 0;
 }
 
@@ -84,8 +89,7 @@ AVInputFormat ff_daud_demuxer = {
 #endif
 
 #if CONFIG_DAUD_MUXER
-AVOutputFormat ff_daud_muxer =
-{
+AVOutputFormat ff_daud_muxer = {
     "daud",
     NULL_IF_CONFIG_SMALL("D-Cinema audio format"),
     NULL,
@@ -95,6 +99,6 @@ AVOutputFormat ff_daud_muxer =
     CODEC_ID_NONE,
     daud_write_header,
     daud_write_packet,
-    .flags= AVFMT_NOTIMESTAMPS,
+    .flags = AVFMT_NOTIMESTAMPS,
 };
 #endif

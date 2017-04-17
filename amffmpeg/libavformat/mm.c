@@ -53,35 +53,40 @@
 #define MM_PALETTE_SIZE     (MM_PALETTE_COUNT*3)
 
 typedef struct {
-  unsigned int audio_pts, video_pts;
+    unsigned int audio_pts, video_pts;
 } MmDemuxContext;
 
 static int probe(AVProbeData *p)
 {
     int len, type, fps, w, h;
-    if (p->buf_size < MM_HEADER_LEN_AV + MM_PREAMBLE_SIZE)
+    if (p->buf_size < MM_HEADER_LEN_AV + MM_PREAMBLE_SIZE) {
         return 0;
+    }
     /* the first chunk is always the header */
-    if (AV_RL16(&p->buf[0]) != MM_TYPE_HEADER)
+    if (AV_RL16(&p->buf[0]) != MM_TYPE_HEADER) {
         return 0;
+    }
     len = AV_RL32(&p->buf[2]);
-    if (len != MM_HEADER_LEN_V && len != MM_HEADER_LEN_AV)
+    if (len != MM_HEADER_LEN_V && len != MM_HEADER_LEN_AV) {
         return 0;
+    }
     fps = AV_RL16(&p->buf[8]);
     w = AV_RL16(&p->buf[12]);
     h = AV_RL16(&p->buf[14]);
-    if (!fps || fps > 60 || !w || w > 2048 || !h || h > 2048)
+    if (!fps || fps > 60 || !w || w > 2048 || !h || h > 2048) {
         return 0;
+    }
     type = AV_RL16(&p->buf[len]);
-    if (!type || type > 0x31)
+    if (!type || type > 0x31) {
         return 0;
+    }
 
     /* only return half certainty since this check is a bit sketchy */
     return AVPROBE_SCORE_MAX / 2;
 }
 
 static int read_header(AVFormatContext *s,
-                           AVFormatParameters *ap)
+                       AVFormatParameters *ap)
 {
     MmDemuxContext *mm = s->priv_data;
     AVIOContext *pb = s->pb;
@@ -93,8 +98,9 @@ static int read_header(AVFormatContext *s,
     type = avio_rl16(pb);
     length = avio_rl32(pb);
 
-    if (type != MM_TYPE_HEADER)
+    if (type != MM_TYPE_HEADER) {
         return AVERROR_INVALIDDATA;
+    }
 
     /* read header */
     avio_rl16(pb);   /* total number of chunks */
@@ -106,8 +112,9 @@ static int read_header(AVFormatContext *s,
 
     /* video stream */
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
     st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
     st->codec->codec_id = CODEC_ID_MMVIDEO;
     st->codec->codec_tag = 0;  /* no fourcc */
@@ -118,8 +125,9 @@ static int read_header(AVFormatContext *s,
     /* audio stream */
     if (length == MM_HEADER_LEN_AV) {
         st = av_new_stream(s, 0);
-        if (!st)
+        if (!st) {
             return AVERROR(ENOMEM);
+        }
         st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
         st->codec->codec_tag = 0; /* no fourcc */
         st->codec->codec_id = CODEC_ID_PCM_U8;
@@ -134,14 +142,14 @@ static int read_header(AVFormatContext *s,
 }
 
 static int read_packet(AVFormatContext *s,
-                           AVPacket *pkt)
+                       AVPacket *pkt)
 {
     MmDemuxContext *mm = s->priv_data;
     AVIOContext *pb = s->pb;
     unsigned char preamble[MM_PREAMBLE_SIZE];
     unsigned int type, length;
 
-    while(1) {
+    while (1) {
 
         if (avio_read(pb, preamble, MM_PREAMBLE_SIZE) != MM_PREAMBLE_SIZE) {
             return AVERROR(EIO);
@@ -150,7 +158,7 @@ static int read_packet(AVFormatContext *s,
         type = AV_RL16(&preamble[0]);
         length = AV_RL16(&preamble[2]);
 
-        switch(type) {
+        switch (type) {
         case MM_TYPE_PALETTE :
         case MM_TYPE_INTER :
         case MM_TYPE_INTRA :
@@ -159,21 +167,25 @@ static int read_packet(AVFormatContext *s,
         case MM_TYPE_INTRA_HHV :
         case MM_TYPE_INTER_HHV :
             /* output preamble + data */
-            if (av_new_packet(pkt, length + MM_PREAMBLE_SIZE))
+            if (av_new_packet(pkt, length + MM_PREAMBLE_SIZE)) {
                 return AVERROR(ENOMEM);
+            }
             memcpy(pkt->data, preamble, MM_PREAMBLE_SIZE);
-            if (avio_read(pb, pkt->data + MM_PREAMBLE_SIZE, length) != length)
+            if (avio_read(pb, pkt->data + MM_PREAMBLE_SIZE, length) != length) {
                 return AVERROR(EIO);
+            }
             pkt->size = length + MM_PREAMBLE_SIZE;
             pkt->stream_index = 0;
             pkt->pts = mm->video_pts;
-            if (type!=MM_TYPE_PALETTE)
+            if (type != MM_TYPE_PALETTE) {
                 mm->video_pts++;
+            }
             return 0;
 
         case MM_TYPE_AUDIO :
-            if (av_get_packet(s->pb, pkt, length)<0)
+            if (av_get_packet(s->pb, pkt, length) < 0) {
                 return AVERROR(ENOMEM);
+            }
             pkt->size = length;
             pkt->stream_index = 1;
             pkt->pts = mm->audio_pts++;

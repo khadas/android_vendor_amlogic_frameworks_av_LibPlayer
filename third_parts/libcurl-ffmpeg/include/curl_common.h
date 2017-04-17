@@ -14,7 +14,7 @@
 #define SLEEP_TIME_UNIT 10*1000
 #define CONNECT_TIMEOUT_THRESHOLD 100*1000*1000
 #define SELECT_RETRY_TIMES 30
-#define SELECT_RETRY_WHEN_CONNECTING 50
+#define SELECT_RETRY_WHEN_CONNECTING 30
 
 #if EDOM > 0
 #define CURLERROR(e) (-(e))   ///< Returns a negative error code from a POSIX error code, to return from library functions.
@@ -39,7 +39,6 @@ char *c_stristr(const char *haystack, const char *needle);
 size_t c_strlcpy(char *dst, const char *src, size_t size);
 size_t c_strlcat(char *dst, const char *src, size_t size);
 size_t c_strlcatf(char *dst, size_t size, const char *fmt, ...);
-
 char * c_strrstr(const char *s, const char *str);
 
 #endif

@@ -22,8 +22,7 @@
 #ifndef AVCODEC_BETHSOFTVIDEO_H
 #define AVCODEC_BETHSOFTVIDEO_H
 
-enum BethsoftVidBlockType
-{
+enum BethsoftVidBlockType {
     PALETTE_BLOCK       = 0x02,
     FIRST_AUDIO_BLOCK   = 0x7c,
     AUDIO_BLOCK         = 0x7d,

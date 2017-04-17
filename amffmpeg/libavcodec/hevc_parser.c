@@ -46,8 +46,9 @@ static int hevc_find_frame_end(AVCodecParserContext *s, const uint8_t *buf, int 
 
         pc->state64 = (pc->state64 << 8) | buf[i];
 
-        if (((pc->state64 >> 3 * 8) & 0xFFFFFF) != START_CODE)
+        if (((pc->state64 >> 3 * 8) & 0xFFFFFF) != START_CODE) {
             continue;
+        }
 
         nut = (pc->state64 >> 2 * 8 + 1) & 0x3F;
         // Beginning of access unit
@@ -99,13 +100,15 @@ static inline int parse_nal_units(AVCodecParserContext *s,
 
     h->avctx = avctx;
 
-    if (!buf_size)
+    if (!buf_size) {
         return 0;
+    }
 
     if (h->nals_allocated < 1) {
         HEVCNAL *tmp = av_realloc_array(h->nals, 1, sizeof(*tmp));
-        if (!tmp)
+        if (!tmp) {
             return AVERROR(ENOMEM);
+        }
         h->nals = tmp;
         memset(h->nals, 0, sizeof(*tmp));
         h->nals_allocated = 1;
@@ -117,17 +120,18 @@ static inline int parse_nal_units(AVCodecParserContext *s,
         int src_length, consumed;
         if (s->flags & PARSER_FLAG_COMPLETE_FRAMES) {
             unsigned char *p = buf;
-            if (check_size_in_buffer(buf, buf_end -buf)) {
+            if (check_size_in_buffer(buf, buf_end - buf)) {
                 buf += 4;
                 goto PASS;
-            } else if (check_size_in_buffer3(buf, buf_end -buf)) {
+            } else if (check_size_in_buffer3(buf, buf_end - buf)) {
                 buf += 3;
                 goto PASS;
             }
         }
         buf = avpriv_find_start_code(buf, buf_end, &state);
-        if (--buf + 2 >= buf_end)
+        if (--buf + 2 >= buf_end) {
             break;
+        }
 PASS:
         src_length = buf_end - buf;
 
@@ -135,13 +139,15 @@ PASS:
         h->temporal_id   = (*(buf + 1) & 0x07) - 1;
         if (h->nal_unit_type <= NAL_CRA_NUT) {
             // Do not walk the whole buffer just to decode slice segment header
-            if (src_length > 20)
+            if (src_length > 20) {
                 src_length = 20;
+            }
         }
 
         consumed = ff_hevc_extract_rbsp(h, buf, src_length, nal);
-        if (consumed < 0)
+        if (consumed < 0) {
             return consumed;
+        }
 
         init_get_bits8(gb, nal->data + 2, nal->size);
         switch (h->nal_unit_type) {
@@ -154,14 +160,16 @@ PASS:
             ignore the later sps,we don't need it for hardware decoder;
             if we continue parser it, the big bitrate file may not smooth.
             */
-            if (avctx->width >0 && avctx->height > 0)
+            if (avctx->width > 0 && avctx->height > 0) {
                 break;
+            }
             ff_hevc_decode_nal_sps(h);
             HEVCSPS *sps = (HEVCSPS*)h->sps_list[0]->data;
             avctx->width = sps->width;
             avctx->height = sps->height;
             avctx->bit_depth = sps->bit_depth;
-            if(sps->long_term_ref_pics_present_flag==1 && sps->num_long_term_ref_pics_sps>0) {
+            avctx->pix_fmt = sps->pix_fmt;
+            if (sps->long_term_ref_pics_present_flag == 1 && sps->num_long_term_ref_pics_sps > 0) {
                 avctx->long_term_ref_pic = 1;
             }
             break;
@@ -174,10 +182,10 @@ PASS:
             break;
         case NAL_SEI_DV_META:
             /*
-            sample dolbyvision nal header:
-            00 00 01 8C 7C 01 19 08
-            nal_type =(0x7C >> 1) 0x3f;
-            */
+             * sample dolbyvision nal header:
+             * 00 00 01 8C 7C 01 19 08
+             * nal_type =(0x7C >> 1) 0x3f;
+             * */
             avctx->has_dolby_vision_meta = 1;
             break;
         case NAL_TRAIL_N:
@@ -222,10 +230,11 @@ PASS:
             if (!sh->first_slice_in_pic_flag) {
                 int slice_address_length;
 
-                if (h->pps->dependent_slice_segments_enabled_flag)
+                if (h->pps->dependent_slice_segments_enabled_flag) {
                     sh->dependent_slice_segment_flag = get_bits1(gb);
-                else
+                } else {
                     sh->dependent_slice_segment_flag = 0;
+                }
 
                 slice_address_length = av_ceil_log2_c(h->sps->ctb_width *
                                                       h->sps->ctb_height);
@@ -235,14 +244,17 @@ PASS:
                            sh->slice_segment_addr);
                     return AVERROR_INVALIDDATA;
                 }
-            } else
+            } else {
                 sh->dependent_slice_segment_flag = 0;
+            }
 
-            if (sh->dependent_slice_segment_flag)
+            if (sh->dependent_slice_segment_flag) {
                 break;
+            }
 
-            for (i = 0; i < h->pps->num_extra_slice_header_bits; i++)
-                skip_bits(gb, 1); // slice_reserved_undetermined_flag[]
+            for (i = 0; i < h->pps->num_extra_slice_header_bits; i++) {
+                skip_bits(gb, 1);    // slice_reserved_undetermined_flag[]
+            }
 
             sh->slice_type = get_ue_golomb(gb);
             if (!(sh->slice_type == I_SLICE || sh->slice_type == P_SLICE ||
@@ -253,19 +265,22 @@ PASS:
             }
             s->pict_type = sh->slice_type == B_SLICE ? AV_PICTURE_TYPE_B :
                            sh->slice_type == P_SLICE ? AV_PICTURE_TYPE_P :
-                                                       AV_PICTURE_TYPE_I;
+                           AV_PICTURE_TYPE_I;
 
-            if (h->pps->output_flag_present_flag)
+            if (h->pps->output_flag_present_flag) {
                 sh->pic_output_flag = get_bits1(gb);
+            }
 
-            if (h->sps->separate_colour_plane_flag)
+            if (h->sps->separate_colour_plane_flag) {
                 sh->colour_plane_id = get_bits(gb, 2);
+            }
 
             if (!IS_IDR(h)) {
                 sh->pic_order_cnt_lsb = get_bits(gb, h->sps->log2_max_poc_lsb);
                 h->poc = ff_hevc_compute_poc(h, sh->pic_order_cnt_lsb);
-            } else
+            } else {
                 h->poc = 0;
+            }
 
             if (h->temporal_id == 0 &&
                 h->nal_unit_type != NAL_TRAIL_N &&
@@ -274,8 +289,9 @@ PASS:
                 h->nal_unit_type != NAL_RADL_N &&
                 h->nal_unit_type != NAL_RASL_N &&
                 h->nal_unit_type != NAL_RADL_R &&
-                h->nal_unit_type != NAL_RASL_R)
+                h->nal_unit_type != NAL_RASL_R) {
                 h->pocTid0 = h->poc;
+            }
 
             return 0; /* no need to evaluate the rest */
         }
@@ -354,15 +370,19 @@ static void hevc_close(AVCodecParserContext *s)
     av_freep(&h->HEVClc);
     av_freep(&pc->buffer);
 
-    for (i = 0; i < FF_ARRAY_ELEMS(h->vps_list); i++)
+    for (i = 0; i < FF_ARRAY_ELEMS(h->vps_list); i++) {
         av_freep(&h->vps_list[i]);
-    for (i = 0; i < FF_ARRAY_ELEMS(h->sps_list); i++)
+    }
+    for (i = 0; i < FF_ARRAY_ELEMS(h->sps_list); i++) {
         av_buffer_unref(&h->sps_list[i]);
-    for (i = 0; i < FF_ARRAY_ELEMS(h->pps_list); i++)
+    }
+    for (i = 0; i < FF_ARRAY_ELEMS(h->pps_list); i++) {
         av_buffer_unref(&h->pps_list[i]);
+    }
 
-    for (i = 0; i < h->nals_allocated; i++)
+    for (i = 0; i < h->nals_allocated; i++) {
         av_freep(&h->nals[i].rbsp_buffer);
+    }
     av_freep(&h->nals);
     h->nals_allocated = 0;
 }

@@ -28,40 +28,43 @@
 int ff_acelp_decode_8bit_to_1st_delay3(int ac_index)
 {
     ac_index += 58;
-    if(ac_index > 254)
+    if (ac_index > 254) {
         ac_index = 3 * ac_index - 510;
+    }
     return ac_index;
 }
 
 int ff_acelp_decode_4bit_to_2nd_delay3(
-        int ac_index,
-        int pitch_delay_min)
+    int ac_index,
+    int pitch_delay_min)
 {
-    if(ac_index < 4)
+    if (ac_index < 4) {
         return 3 * (ac_index + pitch_delay_min);
-    else if(ac_index < 12)
+    } else if (ac_index < 12) {
         return 3 * pitch_delay_min + ac_index + 6;
-    else
+    } else {
         return 3 * (ac_index + pitch_delay_min) - 18;
+    }
 }
 
 int ff_acelp_decode_5_6_bit_to_2nd_delay3(
-        int ac_index,
-        int pitch_delay_min)
+    int ac_index,
+    int pitch_delay_min)
 {
-        return 3 * pitch_delay_min + ac_index - 2;
+    return 3 * pitch_delay_min + ac_index - 2;
 }
 
 int ff_acelp_decode_9bit_to_1st_delay6(int ac_index)
 {
-    if(ac_index < 463)
+    if (ac_index < 463) {
         return ac_index + 105;
-    else
+    } else {
         return 6 * (ac_index - 368);
+    }
 }
 int ff_acelp_decode_6bit_to_2nd_delay6(
-        int ac_index,
-        int pitch_delay_min)
+    int ac_index,
+    int pitch_delay_min)
 {
     return 6 * pitch_delay_min + ac_index - 3;
 }
@@ -73,18 +76,18 @@ void ff_acelp_update_past_gain(
     int erasure)
 {
     int i;
-    int avg_gain=quant_energy[(1 << log2_ma_pred_order) - 1]; // (5.10)
+    int avg_gain = quant_energy[(1 << log2_ma_pred_order) - 1]; // (5.10)
 
-    for(i=(1 << log2_ma_pred_order) - 1; i>0; i--)
-    {
-        avg_gain       += quant_energy[i-1];
-        quant_energy[i] = quant_energy[i-1];
+    for (i = (1 << log2_ma_pred_order) - 1; i > 0; i--) {
+        avg_gain       += quant_energy[i - 1];
+        quant_energy[i] = quant_energy[i - 1];
     }
 
-    if(erasure)
-        quant_energy[0] = FFMAX(avg_gain >> log2_ma_pred_order, -10240) - 4096; // -10 and -4 in (5.10)
-    else
+    if (erasure) {
+        quant_energy[0] = FFMAX(avg_gain >> log2_ma_pred_order, -10240) - 4096;    // -10 and -4 in (5.10)
+    } else {
         quant_energy[0] = (6165 * ((ff_log2(gain_corr_factor) >> 2) - (13 << 13))) >> 13;
+    }
 }
 
 int16_t ff_acelp_decode_gain_code(
@@ -101,8 +104,9 @@ int16_t ff_acelp_decode_gain_code(
 
     mr_energy <<= 10;
 
-    for(i=0; i<ma_pred_order; i++)
+    for (i = 0; i < ma_pred_order; i++) {
         mr_energy += quant_energy[i] * ma_prediction_coeff[i];
+    }
 
 #ifdef G729_BITEXACT
     mr_energy += (((-6165LL * ff_log2(dsp->scalarproduct_int16(fc_v, fc_v, subframe_size, 0))) >> 3) & ~0x3ff);
@@ -128,10 +132,10 @@ float ff_amr_set_fixed_gain(float fixed_gain_factor, float fixed_mean_energy,
     // ^g_c = ^gamma_gc * 100.05 (predicted dB + mean dB - dB of fixed vector)
     // Note 10^(0.05 * -10log(average x2)) = 1/sqrt((average x2)).
     float val = fixed_gain_factor *
-        exp2f(M_LOG2_10 * 0.05 *
-              (ff_dot_productf(pred_table, prediction_error, 4) +
-               energy_mean)) /
-        sqrtf(fixed_mean_energy);
+                exp2f(M_LOG2_10 * 0.05 *
+                      (ff_dot_productf(pred_table, prediction_error, 4) +
+                       energy_mean)) /
+                sqrtf(fixed_mean_energy);
 
     // update quantified prediction error energy history
     memmove(&prediction_error[0], &prediction_error[1],
@@ -148,10 +152,11 @@ void ff_decode_pitch_lag(int *lag_int, int *lag_frac, int pitch_index,
     /* Note n * 10923 >> 15 is floor(x/3) for 0 <= n <= 32767 */
     if (subframe == 0 || (subframe == 2 && third_as_first)) {
 
-        if (pitch_index < 197)
+        if (pitch_index < 197) {
             pitch_index += 59;
-        else
+        } else {
             pitch_index = 3 * pitch_index - 335;
+        }
 
     } else {
         if (resolution == 4) {

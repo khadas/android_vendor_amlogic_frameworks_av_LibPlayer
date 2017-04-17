@@ -34,8 +34,9 @@ typedef struct {
 
 static int xwma_probe(AVProbeData *p)
 {
-    if (!memcmp(p->buf, "RIFF", 4) && !memcmp(p->buf + 8, "XWMA", 4))
+    if (!memcmp(p->buf, "RIFF", 4) && !memcmp(p->buf + 8, "XWMA", 4)) {
         return AVPROBE_SCORE_MAX;
+    }
     return 0;
 }
 
@@ -57,25 +58,30 @@ static int xwma_read_header(AVFormatContext *s, AVFormatParameters *ap)
 
     /* check RIFF header */
     tag = avio_rl32(pb);
-    if (tag != MKTAG('R', 'I', 'F', 'F'))
+    if (tag != MKTAG('R', 'I', 'F', 'F')) {
         return -1;
+    }
     avio_rl32(pb); /* file size */
     tag = avio_rl32(pb);
-    if (tag != MKTAG('X', 'W', 'M', 'A'))
+    if (tag != MKTAG('X', 'W', 'M', 'A')) {
         return -1;
+    }
 
     /* parse fmt header */
     tag = avio_rl32(pb);
-    if (tag != MKTAG('f', 'm', 't', ' '))
+    if (tag != MKTAG('f', 'm', 't', ' ')) {
         return -1;
+    }
     size = avio_rl32(pb);
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
 
     ret = ff_get_wav_header(pb, st->codec, size);
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
+    }
     st->need_parsing = AVSTREAM_PARSE_NONE;
 
     /* All xWMA files I have seen contained WMAv2 data. If there are files
@@ -85,7 +91,7 @@ static int xwma_read_header(AVFormatContext *s, AVFormatParameters *ap)
      */
     if (st->codec->codec_id != CODEC_ID_WMAV2) {
         av_log(s, AV_LOG_WARNING, "unexpected codec (tag 0x04%x; id %d)\n",
-                              st->codec->codec_tag, st->codec->codec_id);
+               st->codec->codec_tag, st->codec->codec_id);
         av_log_ask_for_sample(s, NULL);
     } else {
         /* In all xWMA files I have seen, there is no extradata. But the WMA
@@ -101,13 +107,14 @@ static int xwma_read_header(AVFormatContext *s, AVFormatParameters *ap)
              * the user for a sample.
              */
             av_log(s, AV_LOG_WARNING, "unexpected extradata (%d bytes)\n",
-                                  st->codec->extradata_size);
+                   st->codec->extradata_size);
             av_log_ask_for_sample(s, NULL);
         } else {
             st->codec->extradata_size = 6;
             st->codec->extradata      = av_mallocz(6 + FF_INPUT_BUFFER_PADDING_SIZE);
-            if (!st->codec->extradata)
+            if (!st->codec->extradata) {
                 return AVERROR(ENOMEM);
+            }
 
             /* setup extradata with our experimentally obtained value */
             st->codec->extradata[4] = 31;
@@ -119,15 +126,16 @@ static int xwma_read_header(AVFormatContext *s, AVFormatParameters *ap)
 
     /* parse the remaining RIFF chunks */
     for (;;) {
-        if (pb->eof_reached)
+        if (pb->eof_reached) {
             return -1;
+        }
         /* read next chunk tag */
         tag = avio_rl32(pb);
         size = avio_rl32(pb);
         if (tag == MKTAG('d', 'a', 't', 'a')) {
             /* We assume that the data chunk comes last. */
             break;
-        } else if (tag == MKTAG('d','p','d','s')) {
+        } else if (tag == MKTAG('d', 'p', 'd', 's')) {
             /* Quoting the MSDN xWMA docs on the dpds chunk: "Contains the
              * decoded packet cumulative data size array, each element is the
              * number of bytes accumulated after the corresponding xWMA packet
@@ -173,18 +181,20 @@ static int xwma_read_header(AVFormatContext *s, AVFormatParameters *ap)
     }
 
     /* Determine overall data length */
-    if (size < 0)
+    if (size < 0) {
         return -1;
+    }
     if (!size) {
         xwma->data_end = INT64_MAX;
-    } else
+    } else {
         xwma->data_end = avio_tell(pb) + size;
+    }
 
 
     if (dpds_table && dpds_table_size) {
         int64_t cur_pos;
         const uint32_t bytes_per_sample
-                = (st->codec->channels * st->codec->bits_per_coded_sample) >> 3;
+            = (st->codec->channels * st->codec->bits_per_coded_sample) >> 3;
 
         /* Estimate the duration from the total number of output bytes. */
         const uint64_t total_decoded_bytes = dpds_table[dpds_table_size - 1];
@@ -206,7 +216,7 @@ static int xwma_read_header(AVFormatContext *s, AVFormatParameters *ap)
              * an offset / timestamp pair.
              */
             av_add_index_entry(st,
-                               cur_pos + (i+1) * st->codec->block_align, /* pos */
+                               cur_pos + (i + 1) * st->codec->block_align, /* pos */
                                dpds_table[i] / bytes_per_sample,         /* timestamp */
                                st->codec->block_align,                   /* size */
                                0,                                        /* duration */
@@ -217,7 +227,7 @@ static int xwma_read_header(AVFormatContext *s, AVFormatParameters *ap)
          * the total duration using the average bits per sample and the
          * total data length.
          */
-        st->duration = (size<<3) * st->codec->sample_rate / st->codec->bit_rate;
+        st->duration = (size << 3) * st->codec->sample_rate / st->codec->bit_rate;
     }
 
     av_free(dpds_table);
@@ -244,8 +254,9 @@ static int xwma_read_packet(AVFormatContext *s, AVPacket *pkt)
     size = FFMIN(size, left);
 
     ret  = av_get_packet(s->pb, pkt, size);
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
+    }
 
     pkt->stream_index = 0;
     return ret;

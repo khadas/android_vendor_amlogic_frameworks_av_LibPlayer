@@ -24,8 +24,9 @@
 
 static int dfa_probe(AVProbeData *p)
 {
-    if (p->buf_size < 4 || AV_RL32(p->buf) != MKTAG('D', 'F', 'I', 'A'))
+    if (p->buf_size < 4 || AV_RL32(p->buf) != MKTAG('D', 'F', 'I', 'A')) {
         return 0;
+    }
 
     return AVPROBE_SCORE_MAX;
 }
@@ -46,8 +47,9 @@ static int dfa_read_header(AVFormatContext *s,
     frames = avio_rl16(pb);
 
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
 
     st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
     st->codec->codec_id   = CODEC_ID_DFA;
@@ -71,11 +73,13 @@ static int dfa_read_packet(AVFormatContext *s, AVPacket *pkt)
     uint32_t frame_size;
     int ret, first = 1;
 
-    if (pb->eof_reached)
+    if (pb->eof_reached) {
         return AVERROR_EOF;
+    }
 
-    if (av_get_packet(pb, pkt, 12) != 12)
+    if (av_get_packet(pb, pkt, 12) != 12) {
         return AVERROR(EIO);
+    }
     while (!pb->eof_reached) {
         if (!first) {
             ret = av_append_packet(pb, pkt, 12);
@@ -83,8 +87,9 @@ static int dfa_read_packet(AVFormatContext *s, AVPacket *pkt)
                 av_free_packet(pkt);
                 return ret;
             }
-        } else
+        } else {
             first = 0;
+        }
         frame_size = AV_RL32(pkt->data + pkt->size - 8);
         if (frame_size > INT_MAX - 4) {
             av_log(s, AV_LOG_ERROR, "Too large chunk size: %d\n", frame_size);

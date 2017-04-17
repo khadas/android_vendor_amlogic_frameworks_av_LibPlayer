@@ -30,11 +30,11 @@
 #include "libavutil/attributes.h"
 
 #if !CONFIG_HARDCODED_TABLES
-SINETABLE(  32);
-SINETABLE(  64);
-SINETABLE( 128);
-SINETABLE( 256);
-SINETABLE( 512);
+SINETABLE(32);
+SINETABLE(64);
+SINETABLE(128);
+SINETABLE(256);
+SINETABLE(512);
 SINETABLE(1024);
 SINETABLE(2048);
 SINETABLE(4096);
@@ -49,13 +49,16 @@ SINETABLE_CONST float * const ff_sine_windows[] = {
 };
 
 // Generate a sine window.
-av_cold void ff_sine_window_init(float *window, int n) {
+av_cold void ff_sine_window_init(float *window, int n)
+{
     int i;
-    for(i = 0; i < n; i++)
+    for (i = 0; i < n; i++) {
         window[i] = sinf((i + 0.5) * (M_PI / (2.0 * n)));
+    }
 }
 
-av_cold void ff_init_ff_sine_windows(int index) {
+av_cold void ff_init_ff_sine_windows(int index)
+{
     assert(index >= 0 && index < FF_ARRAY_ELEMS(ff_sine_windows));
 #if !CONFIG_HARDCODED_TABLES
     ff_sine_window_init(ff_sine_windows[index], 1 << index);

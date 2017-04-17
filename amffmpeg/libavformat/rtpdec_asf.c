@@ -53,8 +53,9 @@ static int rtp_asf_fix_header(uint8_t *buf, int len)
     do {
         uint64_t chunksize = AV_RL64(p + sizeof(ff_asf_guid));
         if (memcmp(p, ff_asf_file_header, sizeof(ff_asf_guid))) {
-            if (chunksize > end - p)
+            if (chunksize > end - p) {
                 return -1;
+            }
             p += chunksize;
             continue;
         }
@@ -110,12 +111,14 @@ int ff_wms_parse_sdp_a_line(AVFormatContext *s, const char *p)
             av_close_input_file(rt->asf_ctx);
             rt->asf_ctx = NULL;
         }
-        if (!(rt->asf_ctx = avformat_alloc_context()))
+        if (!(rt->asf_ctx = avformat_alloc_context())) {
             return AVERROR(ENOMEM);
+        }
         rt->asf_ctx->pb      = &pb;
         ret = avformat_open_input(&rt->asf_ctx, "", &ff_asf_demuxer, NULL);
-        if (ret < 0)
+        if (ret < 0) {
             return ret;
+        }
         av_dict_copy(&s->metadata, rt->asf_ctx->metadata, 0);
         rt->asf_pb_pos = avio_tell(&pb);
         av_free(buf);
@@ -143,7 +146,7 @@ static int asfrtp_parse_sdp_line(AVFormatContext *s, int stream_index,
                     rt->asf_ctx->streams[i]->codec->extradata = NULL;
                     av_set_pts_info(s->streams[stream_index], 32, 1, 1000);
                 }
-           }
+            }
         }
     }
 
@@ -169,14 +172,16 @@ static int asfrtp_parse_packet(AVFormatContext *s, PayloadContext *asf,
     int res, mflags, len_off;
     RTSPState *rt = s->priv_data;
 
-    if (!rt->asf_ctx)
+    if (!rt->asf_ctx) {
         return -1;
+    }
 
     if (len > 0) {
         int off, out_len = 0;
 
-        if (len < 4)
+        if (len < 4) {
             return -1;
+        }
 
         av_freep(&asf->buf);
 
@@ -186,15 +191,19 @@ static int asfrtp_parse_packet(AVFormatContext *s, PayloadContext *asf,
             int start_off = avio_tell(pb);
 
             mflags = avio_r8(pb);
-            if (mflags & 0x80)
+            if (mflags & 0x80) {
                 flags |= RTP_FLAG_KEY;
+            }
             len_off = avio_rb24(pb);
-            if (mflags & 0x20)   /**< relative timestamp */
+            if (mflags & 0x20) { /**< relative timestamp */
                 avio_skip(pb, 4);
-            if (mflags & 0x10)   /**< has duration */
+            }
+            if (mflags & 0x10) { /**< has duration */
                 avio_skip(pb, 4);
-            if (mflags & 0x8)    /**< has location ID */
+            }
+            if (mflags & 0x8) {  /**< has location ID */
                 avio_skip(pb, 4);
+            }
             off = avio_tell(pb);
 
             if (!(mflags & 0x40)) {
@@ -211,15 +220,18 @@ static int asfrtp_parse_packet(AVFormatContext *s, PayloadContext *asf,
                     av_free(p);
                 }
                 if (!len_off && !asf->pktbuf &&
-                    (res = avio_open_dyn_buf(&asf->pktbuf)) < 0)
+                    (res = avio_open_dyn_buf(&asf->pktbuf)) < 0) {
                     return res;
-                if (!asf->pktbuf)
+                }
+                if (!asf->pktbuf) {
                     return AVERROR(EIO);
+                }
 
                 avio_write(asf->pktbuf, buf + off, len - off);
                 avio_skip(pb, len - off);
-                if (!(flags & RTP_FLAG_MARKER))
+                if (!(flags & RTP_FLAG_MARKER)) {
                     return -1;
+                }
                 out_len     = avio_close_dyn_buf(asf->pktbuf, &asf->buf);
                 asf->pktbuf = NULL;
             } else {
@@ -245,8 +257,8 @@ static int asfrtp_parse_packet(AVFormatContext *s, PayloadContext *asf,
         pb->pos += rt->asf_pb_pos;
         pb->eof_reached = 0;
         rt->asf_ctx->pb = pb;
-        rt->asf_ctx->valid_offset=pb->pos;
-        rt->asf_ctx->data_offset=pb->pos-out_len;		
+        rt->asf_ctx->valid_offset = pb->pos;
+        rt->asf_ctx->data_offset = pb->pos - out_len;
     }
 
     for (;;) {
@@ -254,8 +266,9 @@ static int asfrtp_parse_packet(AVFormatContext *s, PayloadContext *asf,
 
         res = av_read_packet(rt->asf_ctx, pkt);
         rt->asf_pb_pos = avio_tell(pb);
-        if (res != 0)
+        if (res != 0) {
             break;
+        }
         for (i = 0; i < s->nb_streams; i++) {
             if (s->streams[i]->id == rt->asf_ctx->streams[pkt->stream_index]->id) {
                 pkt->stream_index = i;

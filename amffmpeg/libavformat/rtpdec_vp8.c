@@ -85,11 +85,12 @@ static int vp8_handle_packet(AVFormatContext *ctx,
             // that for the next av_get_packet call
             ret = end_packet ? 1 : 0;
         }
-        if ((res = avio_open_dyn_buf(&vp8->data)) < 0)
+        if ((res = avio_open_dyn_buf(&vp8->data)) < 0) {
             return res;
+        }
         vp8->is_keyframe = *buf & 1;
         vp8->timestamp   = ts;
-     }
+    }
 
     if (!vp8->data || vp8->timestamp != *timestamp && ret == AVERROR(EAGAIN)) {
         av_log(ctx, AV_LOG_WARNING,
@@ -116,8 +117,9 @@ static int vp8_handle_packet(AVFormatContext *ctx,
         len -= au_len;
     }
 
-    if (ret != AVERROR(EAGAIN)) // did we miss a end marker?
+    if (ret != AVERROR(EAGAIN)) { // did we miss a end marker?
         return ret;
+    }
 
     if (end_packet) {
         prepare_packet(pkt, vp8, st->index);
@@ -130,7 +132,7 @@ static int vp8_handle_packet(AVFormatContext *ctx,
 static PayloadContext *vp8_new_context(void)
 {
     av_log(NULL, AV_LOG_ERROR, "RTP VP8 payload implementation is incompatible "
-                               "with the latest spec drafts.\n");
+           "with the latest spec drafts.\n");
     return av_mallocz(sizeof(PayloadContext));
 }
 

@@ -27,11 +27,13 @@ static void amr_decode_fix_avctx(AVCodecContext *avctx)
 {
     const int is_amr_wb = 1 + (avctx->codec_id == CODEC_ID_AMR_WB);
 
-    if (!avctx->sample_rate)
+    if (!avctx->sample_rate) {
         avctx->sample_rate = 8000 * is_amr_wb;
+    }
 
-    if (!avctx->channels)
+    if (!avctx->channels) {
         avctx->channels = 1;
+    }
 
     avctx->frame_size = 160 * is_amr_wb;
     avctx->sample_fmt = AV_SAMPLE_FMT_S16;
@@ -60,8 +62,9 @@ static int get_bitrate_mode(int bitrate, void *log_ctx)
     char log_buf[200];
 
     for (i = 0; i < 8; i++) {
-        if (rates[i].rate == bitrate)
+        if (rates[i].rate == bitrate) {
             return rates[i].mode;
+        }
         if (best < 0 || abs(rates[i].rate - bitrate) < min_diff) {
             best     = i;
             min_diff = abs(rates[i].rate - bitrate);
@@ -69,8 +72,9 @@ static int get_bitrate_mode(int bitrate, void *log_ctx)
     }
     /* no bitrate matching exactly, log a warning */
     snprintf(log_buf, sizeof(log_buf), "bitrate not supported: use one of ");
-    for (i = 0; i < 8; i++)
+    for (i = 0; i < 8; i++) {
         av_strlcatf(log_buf, sizeof(log_buf), "%.2fk, ", rates[i].rate    / 1000.f);
+    }
     av_strlcatf(log_buf, sizeof(log_buf), "using %.2fk", rates[best].rate / 1000.f);
     av_log(log_ctx, AV_LOG_WARNING, "%s\n", log_buf);
 
@@ -149,7 +153,7 @@ static int amr_nb_decode_frame(AVCodecContext *avctx, void *data,
 
     s->frame_count++;
     av_dlog(avctx, "packet_size=%d buf= 0x%X %X %X %X\n",
-              packet_size, buf[0], buf[1], buf[2], buf[3]);
+            packet_size, buf[0], buf[1], buf[2], buf[3]);
     /* call decoder */
     Decoder_Interface_Decode(s->dec_state, buf, data, 0);
     *data_size = 160 * 2;
@@ -238,7 +242,7 @@ AVCodec ff_libopencore_amrnb_encoder = {
     amr_nb_encode_frame,
     amr_nb_encode_close,
     NULL,
-    .sample_fmts = (const enum AVSampleFormat[]){AV_SAMPLE_FMT_S16,AV_SAMPLE_FMT_NONE},
+    .sample_fmts = (const enum AVSampleFormat[]){AV_SAMPLE_FMT_S16, AV_SAMPLE_FMT_NONE},
     .long_name = NULL_IF_CONFIG_SMALL("OpenCORE Adaptive Multi-Rate (AMR) Narrow-Band"),
     .priv_class = &class,
 };
@@ -283,7 +287,9 @@ static int amr_wb_decode_frame(AVCodecContext *avctx, void *data,
 
     if (!buf_size)
         /* nothing to do */
+    {
         return 0;
+    }
 
     mode        = (buf[0] >> 3) & 0x000F;
     packet_size = block_size[mode];

@@ -15,6 +15,7 @@
 #include <ammodule.h>
 
 
+
 static char format_string[128] = {0};
 static char vpx_string[8] = {0};
 static int ffmpeg_load_external_module();
@@ -135,7 +136,10 @@ int ffmpeg_buffering_data(play_para_t *para)
 {
     int ret = -1;
     if (para && para->pFormatCtx) {
-        player_mate_wake(para, 100 * 1000);
+        if (para->playctrl_info.cache_enable == 0) {
+            player_mate_wake(para, 100 * 1000);
+        }
+
         if (para->pFormatCtx->pb) { /*lpbuf buffering*/
             ret = url_buffering_data(para->pFormatCtx->pb, 0);
         }
@@ -149,7 +153,11 @@ int ffmpeg_buffering_data(play_para_t *para)
             }
             ret = 0;
         }
-        player_mate_sleep(para);
+
+        if (para->playctrl_info.cache_enable == 0) {
+            player_mate_sleep(para);
+        }
+
         return ret;
     } else {
         return -1;
@@ -158,7 +166,17 @@ int ffmpeg_buffering_data(play_para_t *para)
 int ffmpeg_seturl_buffered_level(play_para_t *para, int levelx10000)
 {
     if (para && para->pFormatCtx && para->pFormatCtx->pb) { //info=buffer data level*10000,-1 is codec not init.
-        url_setcmd(para->pFormatCtx->pb, AVCMD_SET_CODEC_BUFFER_INFO, 0, levelx10000);
+        url_setcmd(para->pFormatCtx->pb, AVCMD_SET_CODEC_BUFFER_INFO, 0, levelx10000, -1);
+    }
+    return 0;
+}
+
+int ffmpeg_seturl_hls_setopt(play_para_t *para, int type, int value)
+{
+    if (para && para->pFormatCtx && para->pFormatCtx->pb && type > 0 && value >= 0) {
+        if (type == 1) {
+            url_setcmd(para->pFormatCtx->pb, AVCMD_HLS_SWITCH_TIMESHIFT, 1, value, -1);
+        }
     }
     return 0;
 }
@@ -167,13 +185,13 @@ int ffmepg_seturl_codec_buf_info(play_para_t *para, int type, int value)
 {
     if (para && para->pFormatCtx && para->pFormatCtx->pb && type > 0 && value >= 0) {
         if (type == 1) { //video buffer size
-            url_setcmd(para->pFormatCtx->pb, AVCMD_SET_CODEC_BUFFER_INFO, 1, value);
+            url_setcmd(para->pFormatCtx->pb, AVCMD_SET_CODEC_BUFFER_INFO, 1, value, -1);
         } else if (type == 2) { //audio buffer size
-            url_setcmd(para->pFormatCtx->pb, AVCMD_SET_CODEC_BUFFER_INFO, 2, value);
+            url_setcmd(para->pFormatCtx->pb, AVCMD_SET_CODEC_BUFFER_INFO, 2, value, -1);
         } else if (type == 3) { //video data size
-            url_setcmd(para->pFormatCtx->pb, AVCMD_SET_CODEC_BUFFER_INFO, 3, value);
+            url_setcmd(para->pFormatCtx->pb, AVCMD_SET_CODEC_BUFFER_INFO, 3, value, -1);
         } else if (type == 4) { //audio data size
-            url_setcmd(para->pFormatCtx->pb, AVCMD_SET_CODEC_BUFFER_INFO, 4, value);
+            url_setcmd(para->pFormatCtx->pb, AVCMD_SET_CODEC_BUFFER_INFO, 4, value, -1);
         }
     }
 
@@ -182,12 +200,14 @@ int ffmepg_seturl_codec_buf_info(play_para_t *para, int type, int value)
 }
 
 // for hls demuxer.
-int ffmpeg_set_format_codec_buffer_info(play_para_t * para, int type, int64_t value) {
+int ffmpeg_set_format_codec_buffer_info(play_para_t * para, int type, int64_t value)
+{
     if (para && para->pFormatCtx && type > 0 && value >= 0) {
-        av_set_private_parameter(para->pFormatCtx, AVCMD_SET_CODEC_BUFFER_INFO, type, value);
+        av_set_private_parameter(para->pFormatCtx, AVCMD_SET_CODEC_BUFFER_INFO, type, value, 0);
     }
     return 0;
 }
+
 
 int ffmpeg_close_file(play_para_t *am_p)
 {
@@ -201,8 +221,10 @@ int ffmpeg_close_file(play_para_t *am_p)
 int player_notify_callback(int pid, int msg, unsigned long ext1, unsigned long ext2)
 {
     play_para_t *player_para = NULL;
+    //log_print("[player_notify_callback]pid=%d,msg:%d,ext1=%lld,ext2=%lld\n",pid,msg,ext1,ext2);
     player_para = player_open_pid_data(pid);
     if (player_para) {
+        log_print("[player_notify_callback]send_event,ext1:%lu, ext2:%lu\n", ext1, ext2);
         send_event(player_para, msg, ext1, ext2);
     }
     player_close_pid_data(pid);
@@ -223,7 +245,7 @@ int ffmpeg_open_file(play_para_t *am_p)
         byteiosize = am_p->byteiobufsize;
     }
 
-    int retry_count = 3;
+    int retry_count = am_getconfig_int_def("media.amplayer.openretry", 3);
     if (am_p->file_name != NULL) {
 Retry_open:
         //ret = av_open_input_file(&pFCtx, am_p->file_name, NULL, byteiosize, NULL, am_p->start_param ? am_p->start_param->headers : NULL);
@@ -238,18 +260,19 @@ Retry_open:
         if (am_getconfig_bool_def("media.amplayer.disp_url", 1) > 0) {
             log_print("[ffmpeg_open_file] file=%s,header=%s\n", am_p->file_name, header);
         }
-        if (url_interrupt_cb()) {
-            return FFMPEG_OPEN_FAILED;
-        }
         if (ret != 0) {
             if (ret == AVERROR(EAGAIN)) {
+                if (url_interrupt_cb()) {
+                    av_close_input_file(pFCtx);
+                    return ret;
+                }
                 goto  Retry_open;
             }
             if (retry_count-- > 0) {
                 goto Retry_open;
             }
             log_print("ffmpeg error: Couldn't open input file! ret==%x\n", ret);
-            return FFMPEG_OPEN_FAILED; // Couldn't open file
+            return ret; // Couldn't open file
         }
         am_p->pFormatCtx = pFCtx;
 
@@ -259,6 +282,7 @@ Retry_open:
         return FFMPEG_NO_FILE;
     }
 }
+
 int ffmpeg_parse_file_type(play_para_t *am_p, player_file_type_t *type)
 {
     AVFormatContext *pFCtx = am_p->pFormatCtx;
@@ -293,9 +317,10 @@ int ffmpeg_parse_file_type(play_para_t *am_p, player_file_type_t *type)
             }
         }
 
+        log_print("parse file type:%d\n", pFCtx->nb_streams);
         for (i = 0; i < pFCtx->nb_streams; i++) {
             AVStream *st = pFCtx->streams[i];
-            log_print("stream[%d:%d] codec_id %x\n",i,st->codec->codec_type,st->codec->codec_id);
+            log_print("stream[%d:%d] codec_id %x\n", i, st->codec->codec_type, st->codec->codec_id);
             if (st->codec->codec_type == CODEC_TYPE_VIDEO) {
                 // special process for vp8 vp6 vp6f vp6a video
                 if ((st->codec->codec_id == CODEC_ID_VP8) || \
@@ -343,8 +368,8 @@ int ffmpeg_parse_file_type(play_para_t *am_p, player_file_type_t *type)
                 }
 
                 if (st->codec->codec_id == CODEC_ID_RV40 && (
-                    (st->codec->width * st->codec->height > 1920 * 1088) &&
-                     !am_p->vdec_profile.real_para.exceed_1080p_enable)) {
+                        (st->codec->width * st->codec->height > 1920 * 1088) &&
+                        !am_p->vdec_profile.real_para.exceed_1080p_enable)) {
                     if (rm_flag == 0) {
                         rm_flag = 1;
                         sprintf(vpx_string, "%s", "rmsoft");
@@ -453,12 +478,37 @@ int ffmpeg_parse_file_type(play_para_t *am_p, player_file_type_t *type)
 int ffmpeg_parse_file(play_para_t *am_p)
 {
     AVFormatContext *pFCtx = am_p->pFormatCtx;
+    URLContext *url_cxt = NULL;
     int ret = -1;
     // Open video file
     ret = av_find_stream_info(pFCtx);
     if (ret < 0) {
         log_print("ERROR:Couldn't find stream information, ret=====%d\n", ret);
         return FFMPEG_PARSE_FAILED; // Couldn't find stream information
+    }
+
+    if (pFCtx->pb == NULL || pFCtx->pb->opaque == NULL) {
+        return FFMPEG_SUCCESS;
+    }
+
+    url_cxt = (URLContext *)pFCtx->pb->opaque;
+    if (url_cxt != NULL
+        && url_cxt->lpbuf != NULL
+        && strcmp(pFCtx->iformat->name, "mpegts") == 0
+        && am_getconfig_bool_def("libplayer.ts.udrm.enable", 0)) {
+        int i = 0;
+        for (i = 0; i < pFCtx->nb_streams; i++) {
+            if (pFCtx->streams[i]->codec && pFCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
+                url_cxt->lpbuf->drm_ts_flags = pFCtx->streams[i]->encrypt;
+                log_print("[%s] drm_ts_flags=%d\n", __FUNCTION__, url_cxt->lpbuf->drm_ts_flags);
+                break;
+            }
+        }
+
+        if (url_cxt->lpbuf->drm_ts_flags == 1) {
+            ff_read_frame_flush(pFCtx);
+            avio_seek(pFCtx, 0, SEEK_SET);
+        }
     }
     return FFMPEG_SUCCESS;
 }
@@ -526,6 +576,12 @@ int ffmpeg_geturl_netstream_info(play_para_t* para, int type, void* value)
             ret = avio_getinfo(para->pFormatCtx->pb, AVCMD_GET_NETSTREAMINFO, 5, value);
         } else if (type == 6) { //estimate bps
             ret = avio_getinfo(para->pFormatCtx->pb, AVCMD_GET_NETSTREAMINFO, 6, value);
+        } else if (type == 7) { //get live mode
+            ret = avio_getinfo(para->pFormatCtx->pb, AVCMD_GET_NETSTREAMINFO, 7, value);
+        } else if (type == 8) {
+            ret = avio_getinfo(para->pFormatCtx->pb, AVCMD_GET_NETSTREAMINFO, 8, value);
+        } else {
+            ret = avio_getinfo(para->pFormatCtx->pb, AVCMD_GET_NETSTREAMINFO, type, value);
         }
     }
 

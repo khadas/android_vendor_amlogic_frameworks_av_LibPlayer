@@ -36,15 +36,16 @@ int ff_adts_decode_extradata(AVFormatContext *s, ADTSContext *adts, uint8_t *buf
 
     init_get_bits(&gb, buf, size * 8);
     off = ff_mpeg4audio_get_config(&m4ac, buf, size);
-    if (off < 0)
+    if (off < 0) {
         return off;
+    }
     skip_bits_long(&gb, off);
     adts->objecttype        = m4ac.object_type - 1;
     adts->sample_rate_index = m4ac.sampling_index;
     adts->channel_conf      = m4ac.chan_config;
 
     if (adts->objecttype > 3U) {
-        av_log(s, AV_LOG_ERROR, "MPEG-4 AOT %d is not allowed in ADTS\n", adts->objecttype+1);
+        av_log(s, AV_LOG_ERROR, "MPEG-4 AOT %d is not allowed in ADTS\n", adts->objecttype + 1);
         return -1;
     }
     if (adts->sample_rate_index == 15) {
@@ -78,8 +79,9 @@ static int adts_write_header(AVFormatContext *s)
     AVCodecContext *avc = s->streams[0]->codec;
 
     if (avc->extradata_size > 0 &&
-            ff_adts_decode_extradata(s, adts, avc->extradata, avc->extradata_size) < 0)
+        ff_adts_decode_extradata(s, adts, avc->extradata, avc->extradata_size) < 0) {
         return -1;
+    }
 
     return 0;
 }
@@ -121,8 +123,9 @@ static int adts_write_packet(AVFormatContext *s, AVPacket *pkt)
     AVIOContext *pb = s->pb;
     uint8_t buf[ADTS_HEADER_SIZE];
 
-    if (!pkt->size)
+    if (!pkt->size) {
         return 0;
+    }
     if (adts->write_adts) {
         ff_adts_write_frame_header(adts, buf, pkt->size, adts->pce_size);
         avio_write(pb, buf, ADTS_HEADER_SIZE);

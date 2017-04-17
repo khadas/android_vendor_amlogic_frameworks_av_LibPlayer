@@ -39,7 +39,7 @@ void lag_rac_init(lag_rac *l, GetBitContext *gb, int length)
      */
     align_get_bits(gb);
     l->bytestream_start =
-    l->bytestream       = gb->buffer + get_bits_count(gb) / 8;
+        l->bytestream       = gb->buffer + get_bits_count(gb) / 8;
     l->bytestream_end   = l->bytestream_start + length;
 
     l->range        = 0x80;
@@ -48,8 +48,9 @@ void lag_rac_init(lag_rac *l, GetBitContext *gb, int length)
 
     for (i = j = 0; i < 256; i++) {
         unsigned r = i << l->hash_shift;
-        while (l->prob[j + 1] <= r)
+        while (l->prob[j + 1] <= r) {
             j++;
+        }
         l->range_hash[i] = j;
     }
 

@@ -38,34 +38,43 @@ struct gxf_stream_info {
  * \param length detected packet length, excluding header is stored here
  * \return 0 if header not found or contains invalid data, 1 otherwise
  */
-static int parse_packet_header(AVIOContext *pb, GXFPktType *type, int *length) {
-    if (avio_rb32(pb))
+static int parse_packet_header(AVIOContext *pb, GXFPktType *type, int *length)
+{
+    if (avio_rb32(pb)) {
         return 0;
-    if (avio_r8(pb) != 1)
+    }
+    if (avio_r8(pb) != 1) {
         return 0;
+    }
     *type = avio_r8(pb);
     *length = avio_rb32(pb);
-    if ((*length >> 24) || *length < 16)
+    if ((*length >> 24) || *length < 16) {
         return 0;
+    }
     *length -= 16;
-    if (avio_rb32(pb))
+    if (avio_rb32(pb)) {
         return 0;
-    if (avio_r8(pb) != 0xe1)
+    }
+    if (avio_r8(pb) != 0xe1) {
         return 0;
-    if (avio_r8(pb) != 0xe2)
+    }
+    if (avio_r8(pb) != 0xe2) {
         return 0;
+    }
     return 1;
 }
 
 /**
  * \brief check if file starts with a PKT_MAP header
  */
-static int gxf_probe(AVProbeData *p) {
+static int gxf_probe(AVProbeData *p)
+{
     static const uint8_t startcode[] = {0, 0, 0, 0, 1, 0xbc}; // start with map packet
     static const uint8_t endcode[] = {0, 0, 0, 0, 0xe1, 0xe2};
     if (!memcmp(p->buf, startcode, sizeof(startcode)) &&
-        !memcmp(&p->buf[16 - sizeof(endcode)], endcode, sizeof(endcode)))
+        !memcmp(&p->buf[16 - sizeof(endcode)], endcode, sizeof(endcode))) {
         return AVPROBE_SCORE_MAX;
+    }
     return 0;
 }
 
@@ -75,79 +84,82 @@ static int gxf_probe(AVProbeData *p) {
  * \param id     id of stream to find / add
  * \param format stream format identifier
  */
-static int get_sindex(AVFormatContext *s, int id, int format) {
+static int get_sindex(AVFormatContext *s, int id, int format)
+{
     int i;
     AVStream *st = NULL;
     i = ff_find_stream_index(s, id);
-    if (i >= 0)
+    if (i >= 0) {
         return i;
+    }
     st = av_new_stream(s, id);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
     switch (format) {
-        case 3:
-        case 4:
-            st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
-            st->codec->codec_id = CODEC_ID_MJPEG;
-            break;
-        case 13:
-        case 15:
-            st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
-            st->codec->codec_id = CODEC_ID_DVVIDEO;
-            break;
-        case 14:
-        case 16:
-            st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
-            st->codec->codec_id = CODEC_ID_DVVIDEO;
-            break;
-        case 11:
-        case 12:
-        case 20:
-            st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
-            st->codec->codec_id = CODEC_ID_MPEG2VIDEO;
-            st->need_parsing = AVSTREAM_PARSE_HEADERS; //get keyframe flag etc.
-            break;
-        case 22:
-        case 23:
-            st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
-            st->codec->codec_id = CODEC_ID_MPEG1VIDEO;
-            st->need_parsing = AVSTREAM_PARSE_HEADERS; //get keyframe flag etc.
-            break;
-        case 9:
-            st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
-            st->codec->codec_id = CODEC_ID_PCM_S24LE;
-            st->codec->channels = 1;
-            st->codec->sample_rate = 48000;
-            st->codec->bit_rate = 3 * 1 * 48000 * 8;
-            st->codec->block_align = 3 * 1;
-            st->codec->bits_per_coded_sample = 24;
-            break;
-        case 10:
-            st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
-            st->codec->codec_id = CODEC_ID_PCM_S16LE;
-            st->codec->channels = 1;
-            st->codec->sample_rate = 48000;
-            st->codec->bit_rate = 2 * 1 * 48000 * 8;
-            st->codec->block_align = 2 * 1;
-            st->codec->bits_per_coded_sample = 16;
-            break;
-        case 17:
-            st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
-            st->codec->codec_id = CODEC_ID_AC3;
-            st->codec->channels = 2;
-            st->codec->sample_rate = 48000;
-            break;
-        // timecode tracks:
-        case 7:
-        case 8:
-        case 24:
-            st->codec->codec_type = AVMEDIA_TYPE_DATA;
-            st->codec->codec_id = CODEC_ID_NONE;
-            break;
-        default:
-            st->codec->codec_type = AVMEDIA_TYPE_UNKNOWN;
-            st->codec->codec_id = CODEC_ID_NONE;
-            break;
+    case 3:
+    case 4:
+        st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
+        st->codec->codec_id = CODEC_ID_MJPEG;
+        break;
+    case 13:
+    case 15:
+        st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
+        st->codec->codec_id = CODEC_ID_DVVIDEO;
+        break;
+    case 14:
+    case 16:
+        st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
+        st->codec->codec_id = CODEC_ID_DVVIDEO;
+        break;
+    case 11:
+    case 12:
+    case 20:
+        st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
+        st->codec->codec_id = CODEC_ID_MPEG2VIDEO;
+        st->need_parsing = AVSTREAM_PARSE_HEADERS; //get keyframe flag etc.
+        break;
+    case 22:
+    case 23:
+        st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
+        st->codec->codec_id = CODEC_ID_MPEG1VIDEO;
+        st->need_parsing = AVSTREAM_PARSE_HEADERS; //get keyframe flag etc.
+        break;
+    case 9:
+        st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
+        st->codec->codec_id = CODEC_ID_PCM_S24LE;
+        st->codec->channels = 1;
+        st->codec->sample_rate = 48000;
+        st->codec->bit_rate = 3 * 1 * 48000 * 8;
+        st->codec->block_align = 3 * 1;
+        st->codec->bits_per_coded_sample = 24;
+        break;
+    case 10:
+        st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
+        st->codec->codec_id = CODEC_ID_PCM_S16LE;
+        st->codec->channels = 1;
+        st->codec->sample_rate = 48000;
+        st->codec->bit_rate = 2 * 1 * 48000 * 8;
+        st->codec->block_align = 2 * 1;
+        st->codec->bits_per_coded_sample = 16;
+        break;
+    case 17:
+        st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
+        st->codec->codec_id = CODEC_ID_AC3;
+        st->codec->channels = 2;
+        st->codec->sample_rate = 48000;
+        break;
+    // timecode tracks:
+    case 7:
+    case 8:
+    case 24:
+        st->codec->codec_type = AVMEDIA_TYPE_DATA;
+        st->codec->codec_id = CODEC_ID_NONE;
+        break;
+    default:
+        st->codec->codec_type = AVMEDIA_TYPE_UNKNOWN;
+        st->codec->codec_id = CODEC_ID_NONE;
+        break;
     }
     return s->nb_streams - 1;
 }
@@ -157,24 +169,28 @@ static int get_sindex(AVFormatContext *s, int id, int format) {
  * \param len length of tag section, will be adjusted to contain remaining bytes
  * \param si struct to store collected information into
  */
-static void gxf_material_tags(AVIOContext *pb, int *len, struct gxf_stream_info *si) {
+static void gxf_material_tags(AVIOContext *pb, int *len, struct gxf_stream_info *si)
+{
     si->first_field = AV_NOPTS_VALUE;
     si->last_field = AV_NOPTS_VALUE;
     while (*len >= 2) {
         GXFMatTag tag = avio_r8(pb);
         int tlen = avio_r8(pb);
         *len -= 2;
-        if (tlen > *len)
+        if (tlen > *len) {
             return;
+        }
         *len -= tlen;
         if (tlen == 4) {
             uint32_t value = avio_rb32(pb);
-            if (tag == MAT_FIRST_FIELD)
+            if (tag == MAT_FIRST_FIELD) {
                 si->first_field = value;
-            else if (tag == MAT_LAST_FIELD)
+            } else if (tag == MAT_LAST_FIELD) {
                 si->last_field = value;
-        } else
+            }
+        } else {
             avio_skip(pb, tlen);
+        }
     }
 }
 
@@ -183,9 +199,12 @@ static void gxf_material_tags(AVIOContext *pb, int *len, struct gxf_stream_info 
  * \param fps fps value from tag
  * \return fps as AVRational, or 0 / 0 if unknown
  */
-static AVRational fps_tag2avr(int32_t fps) {
+static AVRational fps_tag2avr(int32_t fps)
+{
     extern const AVRational ff_frame_rate_tab[];
-    if (fps < 1 || fps > 9) fps = 9;
+    if (fps < 1 || fps > 9) {
+        fps = 9;
+    }
     return ff_frame_rate_tab[9 - fps]; // values have opposite order
 }
 
@@ -194,9 +213,11 @@ static AVRational fps_tag2avr(int32_t fps) {
  * \param flags UMF flags to convert
  * \return fps as AVRational, or 0 / 0 if unknown
  */
-static AVRational fps_umf2avr(uint32_t flags) {
+static AVRational fps_umf2avr(uint32_t flags)
+{
     static const AVRational map[] = {{50, 1}, {60000, 1001}, {24, 1},
-        {25, 1}, {30000, 1001}};
+        {25, 1}, {30000, 1001}
+    };
     int idx =  av_log2((flags & 0x7c0) >> 6);
     return map[idx];
 }
@@ -206,31 +227,38 @@ static AVRational fps_umf2avr(uint32_t flags) {
  * \param len length of tag section, will be adjusted to contain remaining bytes
  * \param si struct to store collected information into
  */
-static void gxf_track_tags(AVIOContext *pb, int *len, struct gxf_stream_info *si) {
-    si->frames_per_second = (AVRational){0, 0};
+static void gxf_track_tags(AVIOContext *pb, int *len, struct gxf_stream_info *si)
+{
+    si->frames_per_second = (AVRational) {
+        0, 0
+    };
     si->fields_per_frame = 0;
     while (*len >= 2) {
         GXFTrackTag tag = avio_r8(pb);
         int tlen = avio_r8(pb);
         *len -= 2;
-        if (tlen > *len)
+        if (tlen > *len) {
             return;
+        }
         *len -= tlen;
         if (tlen == 4) {
             uint32_t value = avio_rb32(pb);
-            if (tag == TRACK_FPS)
+            if (tag == TRACK_FPS) {
                 si->frames_per_second = fps_tag2avr(value);
-            else if (tag == TRACK_FPF && (value == 1 || value == 2))
+            } else if (tag == TRACK_FPF && (value == 1 || value == 2)) {
                 si->fields_per_frame = value;
-        } else
+            }
+        } else {
             avio_skip(pb, tlen);
+        }
     }
 }
 
 /**
  * \brief read index from FLT packet into stream 0 av_index
  */
-static void gxf_read_index(AVFormatContext *s, int pkt_len) {
+static void gxf_read_index(AVFormatContext *s, int pkt_len)
+{
     AVIOContext *pb = s->pb;
     AVStream *st = s->streams[0];
     uint32_t fields_per_map = avio_rl32(pb);
@@ -258,7 +286,8 @@ static void gxf_read_index(AVFormatContext *s, int pkt_len) {
     avio_skip(pb, pkt_len);
 }
 
-static int gxf_header(AVFormatContext *s, AVFormatParameters *ap) {
+static int gxf_header(AVFormatContext *s, AVFormatParameters *ap)
+{
     AVIOContext *pb = s->pb;
     GXFPktType pkt_type;
     int map_len;
@@ -303,30 +332,35 @@ static int gxf_header(AVFormatContext *s, AVFormatParameters *ap) {
         gxf_track_tags(pb, &track_len, &si);
         avio_skip(pb, track_len);
         if (!(track_type & 0x80)) {
-           av_log(s, AV_LOG_ERROR, "invalid track type %x\n", track_type);
-           continue;
+            av_log(s, AV_LOG_ERROR, "invalid track type %x\n", track_type);
+            continue;
         }
         track_type &= 0x7f;
         if ((track_id & 0xc0) != 0xc0) {
-           av_log(s, AV_LOG_ERROR, "invalid track id %x\n", track_id);
-           continue;
+            av_log(s, AV_LOG_ERROR, "invalid track id %x\n", track_id);
+            continue;
         }
         track_id &= 0x3f;
         idx = get_sindex(s, track_id, track_type);
-        if (idx < 0) continue;
+        if (idx < 0) {
+            continue;
+        }
         st = s->streams[idx];
         if (!main_timebase.num || !main_timebase.den) {
             main_timebase.num = si.frames_per_second.den;
             main_timebase.den = si.frames_per_second.num * 2;
         }
         st->start_time = si.first_field;
-        if (si.first_field != AV_NOPTS_VALUE && si.last_field != AV_NOPTS_VALUE)
+        if (si.first_field != AV_NOPTS_VALUE && si.last_field != AV_NOPTS_VALUE) {
             st->duration = si.last_field - si.first_field;
+        }
     }
-    if (len < 0)
+    if (len < 0) {
         av_log(s, AV_LOG_ERROR, "invalid track description length specified\n");
-    if (map_len)
+    }
+    if (map_len) {
         avio_skip(pb, map_len);
+    }
     if (!parse_packet_header(pb, &pkt_type, &len)) {
         av_log(s, AV_LOG_ERROR, "sync lost in header\n");
         return -1;
@@ -350,15 +384,19 @@ static int gxf_header(AVFormatContext *s, AVFormatParameters *ap) {
                 main_timebase.num = fps.den;
                 main_timebase.den = fps.num * 2;
             }
-        } else
+        } else {
             av_log(s, AV_LOG_INFO, "UMF packet too short\n");
-    } else
+        }
+    } else {
         av_log(s, AV_LOG_INFO, "UMF packet missing\n");
+    }
     avio_skip(pb, len);
     // set a fallback value, 60000/1001 is specified for audio-only files
     // so use that regardless of why we do not know the video frame rate.
     if (!main_timebase.num || !main_timebase.den)
-        main_timebase = (AVRational){1001, 60000};
+        main_timebase = (AVRational) {
+        1001, 60000
+    };
     for (i = 0; i < s->nb_streams; i++) {
         AVStream *st = s->streams[i];
         av_set_pts_info(st, 32, main_timebase.num, main_timebase.den);
@@ -380,7 +418,8 @@ static int gxf_header(AVFormatContext *s, AVFormatParameters *ap) {
  * \param timestamp minimum timestamp (== field number) the packet must have, -1 for any
  * \return timestamp of packet found
  */
-static int64_t gxf_resync_media(AVFormatContext *s, uint64_t max_interval, int track, int timestamp) {
+static int64_t gxf_resync_media(AVFormatContext *s, uint64_t max_interval, int track, int timestamp)
+{
     uint32_t tmp;
     uint64_t last_pos;
     uint64_t last_found_pos = 0;
@@ -391,17 +430,21 @@ static int64_t gxf_resync_media(AVFormatContext *s, uint64_t max_interval, int t
     GXFPktType type;
     tmp = avio_rb32(pb);
 start:
-    while (tmp)
+    while (tmp) {
         READ_ONE();
+    }
     READ_ONE();
-    if (tmp != 1)
+    if (tmp != 1) {
         goto start;
+    }
     last_pos = avio_tell(pb);
-    if (avio_seek(pb, -5, SEEK_CUR) < 0)
+    if (avio_seek(pb, -5, SEEK_CUR) < 0) {
         goto out;
+    }
     if (!parse_packet_header(pb, &type, &len) || type != PKT_MEDIA) {
-        if (avio_seek(pb, last_pos, SEEK_SET) < 0)
+        if (avio_seek(pb, last_pos, SEEK_SET) < 0) {
             goto out;
+        }
         goto start;
     }
     avio_r8(pb);
@@ -409,16 +452,19 @@ start:
     cur_timestamp = avio_rb32(pb);
     last_found_pos = avio_tell(pb) - 16 - 6;
     if ((track >= 0 && track != cur_track) || (timestamp >= 0 && timestamp > cur_timestamp)) {
-        if (avio_seek(pb, last_pos, SEEK_SET) >= 0)
+        if (avio_seek(pb, last_pos, SEEK_SET) >= 0) {
             goto start;
+        }
     }
 out:
-    if (last_found_pos)
+    if (last_found_pos) {
         avio_seek(pb, last_found_pos, SEEK_SET);
+    }
     return cur_timestamp;
 }
 
-static int gxf_packet(AVFormatContext *s, AVPacket *pkt) {
+static int gxf_packet(AVFormatContext *s, AVPacket *pkt)
+{
     AVIOContext *pb = s->pb;
     GXFPktType pkt_type;
     int pkt_len;
@@ -428,8 +474,9 @@ static int gxf_packet(AVFormatContext *s, AVPacket *pkt) {
         int field_nr, field_info, skip = 0;
         int stream_index;
         if (!parse_packet_header(pb, &pkt_type, &pkt_len)) {
-            if (!url_feof(pb))
+            if (!url_feof(pb)) {
                 av_log(s, AV_LOG_ERROR, "sync lost\n");
+            }
             return -1;
         }
         if (pkt_type == PKT_FLT) {
@@ -448,8 +495,9 @@ static int gxf_packet(AVFormatContext *s, AVPacket *pkt) {
         track_type = avio_r8(pb);
         track_id = avio_r8(pb);
         stream_index = get_sindex(s, track_id, track_type);
-        if (stream_index < 0)
+        if (stream_index < 0) {
             return stream_index;
+        }
         st = s->streams[stream_index];
         field_nr = avio_rb32(pb);
         field_info = avio_rb32(pb);
@@ -460,17 +508,19 @@ static int gxf_packet(AVFormatContext *s, AVPacket *pkt) {
             st->codec->codec_id == CODEC_ID_PCM_S16LE) {
             int first = field_info >> 16;
             int last  = field_info & 0xffff; // last is exclusive
-            int bps = av_get_bits_per_sample(st->codec->codec_id)>>3;
-            if (first <= last && last*bps <= pkt_len) {
-                avio_skip(pb, first*bps);
-                skip = pkt_len - last*bps;
-                pkt_len = (last-first)*bps;
-            } else
+            int bps = av_get_bits_per_sample(st->codec->codec_id) >> 3;
+            if (first <= last && last * bps <= pkt_len) {
+                avio_skip(pb, first * bps);
+                skip = pkt_len - last * bps;
+                pkt_len = (last - first) * bps;
+            } else {
                 av_log(s, AV_LOG_ERROR, "invalid first and last sample values\n");
+            }
         }
         ret = av_get_packet(pb, pkt, pkt_len);
-        if (skip)
+        if (skip) {
             avio_skip(pb, skip);
+        }
         pkt->stream_index = stream_index;
         pkt->dts = field_nr;
         return ret;
@@ -478,7 +528,8 @@ static int gxf_packet(AVFormatContext *s, AVPacket *pkt) {
     return AVERROR(EIO);
 }
 
-static int gxf_seek(AVFormatContext *s, int stream_index, int64_t timestamp, int flags) {
+static int gxf_seek(AVFormatContext *s, int stream_index, int64_t timestamp, int flags)
+{
     int res = 0;
     uint64_t pos;
     uint64_t maxlen = 100 * 1024 * 1024;
@@ -486,30 +537,38 @@ static int gxf_seek(AVFormatContext *s, int stream_index, int64_t timestamp, int
     int64_t start_time = s->streams[stream_index]->start_time;
     int64_t found;
     int idx;
-    if (timestamp < start_time) timestamp = start_time;
+    if (timestamp < start_time) {
+        timestamp = start_time;
+    }
     idx = av_index_search_timestamp(st, timestamp - start_time,
                                     AVSEEK_FLAG_ANY | AVSEEK_FLAG_BACKWARD);
-    if (idx < 0)
+    if (idx < 0) {
         return -1;
+    }
     pos = st->index_entries[idx].pos;
-    if (idx < st->nb_index_entries - 2)
+    if (idx < st->nb_index_entries - 2) {
         maxlen = st->index_entries[idx + 2].pos - pos;
+    }
     maxlen = FFMAX(maxlen, 200 * 1024);
     res = avio_seek(s->pb, pos, SEEK_SET);
-    if (res < 0)
+    if (res < 0) {
         return res;
+    }
     found = gxf_resync_media(s, maxlen, -1, timestamp);
-    if (FFABS(found - timestamp) > 4)
+    if (FFABS(found - timestamp) > 4) {
         return -1;
+    }
     return 0;
 }
 
 static int64_t gxf_read_timestamp(AVFormatContext *s, int stream_index,
-                                  int64_t *pos, int64_t pos_limit) {
+                                  int64_t *pos, int64_t pos_limit)
+{
     AVIOContext *pb = s->pb;
     int64_t res;
-    if (avio_seek(pb, *pos, SEEK_SET) < 0)
+    if (avio_seek(pb, *pos, SEEK_SET) < 0) {
         return AV_NOPTS_VALUE;
+    }
     res = gxf_resync_media(s, pos_limit - *pos, -1, -1);
     *pos = avio_tell(pb);
     return res;

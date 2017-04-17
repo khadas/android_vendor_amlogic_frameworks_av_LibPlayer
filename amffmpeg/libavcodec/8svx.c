@@ -63,11 +63,11 @@ static const int8_t exponential[16] = { -128, -64, -32, -16, -8, -4, -2, -1, 0, 
 static void interleave_stereo(uint8_t *dst, const uint8_t *src, int size)
 {
     uint8_t *dst_end = dst + size;
-    size = size>>1;
+    size = size >> 1;
 
     while (dst < dst_end) {
         *dst++ = *src;
-        *dst++ = *(src+size);
+        *dst++ = *(src + size);
         src++;
     }
 }
@@ -94,7 +94,7 @@ static int delta_decode(int8_t *dst, const uint8_t *src, int src_size,
         *dst++ = val;
     }
 
-    return dst-dst0;
+    return dst - dst0;
 }
 
 static int eightsvx_decode_frame(AVCodecContext *avctx, void *data, int *data_size,
@@ -109,9 +109,10 @@ static int eightsvx_decode_frame(AVCodecContext *avctx, void *data, int *data_si
         uint8_t *deinterleaved_samples;
 
         esc->samples_size = avctx->codec->id == CODEC_ID_8SVX_RAW ?
-            avpkt->size : avctx->channels + (avpkt->size-avctx->channels) * 2;
-        if (!(esc->samples = av_malloc(esc->samples_size)))
+                            avpkt->size : avctx->channels + (avpkt->size - avctx->channels) * 2;
+        if (!(esc->samples = av_malloc(esc->samples_size))) {
             return AVERROR(ENOMEM);
+        }
 
         /* decompress */
         if (avctx->codec->id == CODEC_ID_8SVX_FIB || avctx->codec->id == CODEC_ID_8SVX_EXP) {
@@ -119,24 +120,27 @@ static int eightsvx_decode_frame(AVCodecContext *avctx, void *data, int *data_si
             int buf_size = avpkt->size;
             int n = esc->samples_size;
 
-            if (!(deinterleaved_samples = av_mallocz(n)))
+            if (!(deinterleaved_samples = av_mallocz(n))) {
                 return AVERROR(ENOMEM);
+            }
 
             /* the uncompressed starting value is contained in the first byte */
             if (avctx->channels == 2) {
-                delta_decode(deinterleaved_samples      , buf+1, buf_size/2-1, buf[0], esc->table);
-                buf += buf_size/2;
-                delta_decode(deinterleaved_samples+n/2-1, buf+1, buf_size/2-1, buf[0], esc->table);
-            } else
-                delta_decode(deinterleaved_samples      , buf+1, buf_size-1  , buf[0], esc->table);
+                delta_decode(deinterleaved_samples      , buf + 1, buf_size / 2 - 1, buf[0], esc->table);
+                buf += buf_size / 2;
+                delta_decode(deinterleaved_samples + n / 2 - 1, buf + 1, buf_size / 2 - 1, buf[0], esc->table);
+            } else {
+                delta_decode(deinterleaved_samples      , buf + 1, buf_size - 1  , buf[0], esc->table);
+            }
         } else {
             deinterleaved_samples = avpkt->data;
         }
 
-        if (avctx->channels == 2)
+        if (avctx->channels == 2) {
             interleave_stereo(esc->samples, deinterleaved_samples, esc->samples_size);
-        else
+        } else {
             memcpy(esc->samples, deinterleaved_samples, esc->samples_size);
+        }
     }
 
     /* return single packed with fixed size */
@@ -149,13 +153,14 @@ static int eightsvx_decode_frame(AVCodecContext *avctx, void *data, int *data_si
     *data_size = out_data_size;
     dst = data;
     src = esc->samples + esc->samples_idx;
-    for (n = out_data_size; n > 0; n--)
+    for (n = out_data_size; n > 0; n--) {
         *dst++ = *src++ + 128;
+    }
     esc->samples_idx += *data_size;
 
     return avctx->codec->id == CODEC_ID_8SVX_FIB || avctx->codec->id == CODEC_ID_8SVX_EXP ?
-        (avctx->frame_number == 0)*2 + out_data_size / 2 :
-        out_data_size;
+           (avctx->frame_number == 0) * 2 + out_data_size / 2 :
+           out_data_size;
 }
 
 static av_cold int eightsvx_decode_init(AVCodecContext *avctx)
@@ -168,9 +173,15 @@ static av_cold int eightsvx_decode_init(AVCodecContext *avctx)
     }
 
     switch (avctx->codec->id) {
-    case CODEC_ID_8SVX_FIB: esc->table = fibonacci;    break;
-    case CODEC_ID_8SVX_EXP: esc->table = exponential;  break;
-    case CODEC_ID_8SVX_RAW: esc->table = NULL;         break;
+    case CODEC_ID_8SVX_FIB:
+        esc->table = fibonacci;
+        break;
+    case CODEC_ID_8SVX_EXP:
+        esc->table = exponential;
+        break;
+    case CODEC_ID_8SVX_RAW:
+        esc->table = NULL;
+        break;
     default:
         av_log(avctx, AV_LOG_ERROR, "Invalid codec id %d.\n", avctx->codec->id);
         return AVERROR_INVALIDDATA;
@@ -192,34 +203,34 @@ static av_cold int eightsvx_decode_close(AVCodecContext *avctx)
 }
 
 AVCodec ff_eightsvx_fib_decoder = {
-  .name           = "8svx_fib",
-  .type           = AVMEDIA_TYPE_AUDIO,
-  .id             = CODEC_ID_8SVX_FIB,
-  .priv_data_size = sizeof (EightSvxContext),
-  .init           = eightsvx_decode_init,
-  .decode         = eightsvx_decode_frame,
-  .close          = eightsvx_decode_close,
-  .long_name      = NULL_IF_CONFIG_SMALL("8SVX fibonacci"),
+    .name           = "8svx_fib",
+    .type           = AVMEDIA_TYPE_AUDIO,
+    .id             = CODEC_ID_8SVX_FIB,
+    .priv_data_size = sizeof(EightSvxContext),
+    .init           = eightsvx_decode_init,
+    .decode         = eightsvx_decode_frame,
+    .close          = eightsvx_decode_close,
+    .long_name      = NULL_IF_CONFIG_SMALL("8SVX fibonacci"),
 };
 
 AVCodec ff_eightsvx_exp_decoder = {
-  .name           = "8svx_exp",
-  .type           = AVMEDIA_TYPE_AUDIO,
-  .id             = CODEC_ID_8SVX_EXP,
-  .priv_data_size = sizeof (EightSvxContext),
-  .init           = eightsvx_decode_init,
-  .decode         = eightsvx_decode_frame,
-  .close          = eightsvx_decode_close,
-  .long_name      = NULL_IF_CONFIG_SMALL("8SVX exponential"),
+    .name           = "8svx_exp",
+    .type           = AVMEDIA_TYPE_AUDIO,
+    .id             = CODEC_ID_8SVX_EXP,
+    .priv_data_size = sizeof(EightSvxContext),
+    .init           = eightsvx_decode_init,
+    .decode         = eightsvx_decode_frame,
+    .close          = eightsvx_decode_close,
+    .long_name      = NULL_IF_CONFIG_SMALL("8SVX exponential"),
 };
 
 AVCodec ff_eightsvx_raw_decoder = {
-  .name           = "8svx_raw",
-  .type           = AVMEDIA_TYPE_AUDIO,
-  .id             = CODEC_ID_8SVX_RAW,
-  .priv_data_size = sizeof(EightSvxContext),
-  .init           = eightsvx_decode_init,
-  .decode         = eightsvx_decode_frame,
-  .close          = eightsvx_decode_close,
-  .long_name      = NULL_IF_CONFIG_SMALL("8SVX rawaudio"),
+    .name           = "8svx_raw",
+    .type           = AVMEDIA_TYPE_AUDIO,
+    .id             = CODEC_ID_8SVX_RAW,
+    .priv_data_size = sizeof(EightSvxContext),
+    .init           = eightsvx_decode_init,
+    .decode         = eightsvx_decode_frame,
+    .close          = eightsvx_decode_close,
+    .long_name      = NULL_IF_CONFIG_SMALL("8SVX rawaudio"),
 };

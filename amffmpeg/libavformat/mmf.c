@@ -32,8 +32,9 @@ static const int mmf_rates[] = { 4000, 8000, 11025, 22050, 44100 };
 
 static int mmf_rate(int code)
 {
-    if((code < 0) || (code > 4))
+    if ((code < 0) || (code > 4)) {
         return -1;
+    }
     return mmf_rates[code];
 }
 
@@ -41,9 +42,10 @@ static int mmf_rate(int code)
 static int mmf_rate_code(int rate)
 {
     int i;
-    for(i = 0; i < 5; i++)
-        if(mmf_rates[i] == rate)
+    for (i = 0; i < 5; i++)
+        if (mmf_rates[i] == rate) {
             return i;
+        }
     return -1;
 }
 
@@ -66,7 +68,7 @@ static int mmf_write_header(AVFormatContext *s)
     int rate;
 
     rate = mmf_rate_code(s->streams[0]->codec->sample_rate);
-    if(rate < 0) {
+    if (rate < 0) {
         av_log(s, AV_LOG_ERROR, "Unsupported sample rate %d\n", s->streams[0]->codec->sample_rate);
         return -1;
     }
@@ -79,7 +81,7 @@ static int mmf_write_header(AVFormatContext *s)
     avio_w8(pb, 0); /* code type */
     avio_w8(pb, 0); /* status */
     avio_w8(pb, 0); /* counts */
-    avio_write(pb, "VN:libavcodec,", sizeof("VN:libavcodec,") -1); /* metadata ("ST:songtitle,VN:version,...") */
+    avio_write(pb, "VN:libavcodec,", sizeof("VN:libavcodec,") - 1); /* metadata ("ST:songtitle,VN:version,...") */
     end_tag_be(pb, pos);
 
     avio_write(pb, "ATR\x00", 4);
@@ -117,9 +119,9 @@ static int mmf_write_packet(AVFormatContext *s, AVPacket *pkt)
 /* Write a variable-length symbol */
 static void put_varlength(AVIOContext *pb, int val)
 {
-    if(val < 128)
+    if (val < 128) {
         avio_w8(pb, val);
-    else {
+    } else {
         val -= 128;
         avio_w8(pb, 0x80 | val >> 7);
         avio_w8(pb, 0x7f & val);
@@ -172,10 +174,11 @@ static int mmf_probe(AVProbeData *p)
     if (p->buf[0] == 'M' && p->buf[1] == 'M' &&
         p->buf[2] == 'M' && p->buf[3] == 'D' &&
         p->buf[8] == 'C' && p->buf[9] == 'N' &&
-        p->buf[10] == 'T' && p->buf[11] == 'I')
+        p->buf[10] == 'T' && p->buf[11] == 'I') {
         return AVPROBE_SCORE_MAX;
-    else
+    } else {
         return 0;
+    }
 }
 
 /* mmf input */
@@ -190,16 +193,21 @@ static int mmf_read_header(AVFormatContext *s,
     int rate, params;
 
     tag = avio_rl32(pb);
-    if (tag != MKTAG('M', 'M', 'M', 'D'))
+    if (tag != MKTAG('M', 'M', 'M', 'D')) {
         return -1;
+    }
     avio_skip(pb, 4); /* file_size */
 
     /* Skip some unused chunks that may or may not be present */
-    for(;; avio_skip(pb, size)) {
+    for (;; avio_skip(pb, size)) {
         tag = avio_rl32(pb);
         size = avio_rb32(pb);
-        if(tag == MKTAG('C','N','T','I')) continue;
-        if(tag == MKTAG('O','P','D','A')) continue;
+        if (tag == MKTAG('C', 'N', 'T', 'I')) {
+            continue;
+        }
+        if (tag == MKTAG('O', 'P', 'D', 'A')) {
+            continue;
+        }
         break;
     }
 
@@ -217,7 +225,7 @@ static int mmf_read_header(AVFormatContext *s,
     avio_r8(pb); /* sequence type */
     params = avio_r8(pb); /* (channel << 7) | (format << 4) | rate */
     rate = mmf_rate(params & 0x0f);
-    if(rate  < 0) {
+    if (rate  < 0) {
         av_log(s, AV_LOG_ERROR, "Invalid sample rate\n");
         return -1;
     }
@@ -226,11 +234,15 @@ static int mmf_read_header(AVFormatContext *s,
     avio_r8(pb); /* time base g */
 
     /* Skip some unused chunks that may or may not be present */
-    for(;; avio_skip(pb, size)) {
+    for (;; avio_skip(pb, size)) {
         tag = avio_rl32(pb);
         size = avio_rb32(pb);
-        if(tag == MKTAG('A','t','s','q')) continue;
-        if(tag == MKTAG('A','s','p','I')) continue;
+        if (tag == MKTAG('A', 't', 's', 'q')) {
+            continue;
+        }
+        if (tag == MKTAG('A', 's', 'p', 'I')) {
+            continue;
+        }
         break;
     }
 
@@ -242,8 +254,9 @@ static int mmf_read_header(AVFormatContext *s,
     mmf->data_size = size;
 
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
 
     st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
     st->codec->codec_id = CODEC_ID_ADPCM_YAMAHA;
@@ -265,23 +278,28 @@ static int mmf_read_packet(AVFormatContext *s,
     MMFContext *mmf = s->priv_data;
     int ret, size;
 
-    if (url_feof(s->pb))
+    if (url_feof(s->pb)) {
         return AVERROR(EIO);
+    }
 
     size = MAX_SIZE;
-    if(size > mmf->data_size)
+    if (size > mmf->data_size) {
         size = mmf->data_size;
+    }
 
-    if(!size)
+    if (!size) {
         return AVERROR(EIO);
+    }
 
-    if (av_new_packet(pkt, size))
+    if (av_new_packet(pkt, size)) {
         return AVERROR(EIO);
+    }
     pkt->stream_index = 0;
 
     ret = avio_read(s->pb, pkt->data, pkt->size);
-    if (ret < 0)
+    if (ret < 0) {
         av_free_packet(pkt);
+    }
 
     mmf->data_size -= ret;
 

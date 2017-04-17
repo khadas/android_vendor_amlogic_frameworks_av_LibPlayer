@@ -32,16 +32,18 @@ static void flush_packet(AVFormatContext *s)
     fill_size = ffm->packet_end - ffm->packet_ptr;
     memset(ffm->packet_ptr, 0, fill_size);
 
-    if (avio_tell(pb) % ffm->packet_size)
+    if (avio_tell(pb) % ffm->packet_size) {
         av_abort();
+    }
 
     /* put header */
     avio_wb16(pb, PACKET_ID);
     avio_wb16(pb, fill_size);
     avio_wb64(pb, ffm->dts);
     h = ffm->frame_offset;
-    if (ffm->first_packet)
+    if (ffm->first_packet) {
         h |= 0x8000;
+    }
     avio_wb16(pb, h);
     avio_write(pb, ffm->packet, ffm->packet_end - ffm->packet);
     avio_flush(pb);
@@ -68,15 +70,17 @@ static void ffm_write_data(AVFormatContext *s,
     /* write as many packets as needed */
     while (size > 0) {
         len = ffm->packet_end - ffm->packet_ptr;
-        if (len > size)
+        if (len > size) {
             len = size;
+        }
         memcpy(ffm->packet_ptr, buf, len);
 
         ffm->packet_ptr += len;
         buf += len;
         size -= len;
-        if (ffm->packet_ptr >= ffm->packet_end)
+        if (ffm->packet_ptr >= ffm->packet_end) {
             flush_packet(s);
+        }
     }
 }
 
@@ -97,14 +101,14 @@ static int ffm_write_header(AVFormatContext *s)
 
     avio_wb32(pb, s->nb_streams);
     bit_rate = 0;
-    for(i=0;i<s->nb_streams;i++) {
+    for (i = 0; i < s->nb_streams; i++) {
         st = s->streams[i];
         bit_rate += st->codec->bit_rate;
     }
     avio_wb32(pb, bit_rate);
 
     /* list of streams */
-    for(i=0;i<s->nb_streams;i++) {
+    for (i = 0; i < s->nb_streams; i++) {
         st = s->streams[i];
         av_set_pts_info(st, 64, 1, 1000000);
 
@@ -118,7 +122,7 @@ static int ffm_write_header(AVFormatContext *s)
         avio_wb32(pb, codec->flags2);
         avio_wb32(pb, codec->debug);
         /* specific info */
-        switch(codec->codec_type) {
+        switch (codec->codec_type) {
         case AVMEDIA_TYPE_VIDEO:
             avio_wb32(pb, codec->time_base.num);
             avio_wb32(pb, codec->time_base.den);
@@ -129,8 +133,8 @@ static int ffm_write_header(AVFormatContext *s)
             avio_w8(pb, codec->qmin);
             avio_w8(pb, codec->qmax);
             avio_w8(pb, codec->max_qdiff);
-            avio_wb16(pb, (int) (codec->qcompress * 10000.0));
-            avio_wb16(pb, (int) (codec->qblur * 10000.0));
+            avio_wb16(pb, (int)(codec->qcompress * 10000.0));
+            avio_wb16(pb, (int)(codec->qblur * 10000.0));
             avio_wb32(pb, codec->bit_rate_tolerance);
             avio_put_str(pb, codec->rc_eq ? codec->rc_eq : "tex^qComp");
             avio_wb32(pb, codec->rc_max_rate);
@@ -184,8 +188,9 @@ static int ffm_write_header(AVFormatContext *s)
     }
 
     /* flush until end of block reached */
-    while ((avio_tell(pb) % ffm->packet_size) != 0)
+    while ((avio_tell(pb) % ffm->packet_size) != 0) {
         avio_w8(pb, 0);
+    }
 
     avio_flush(pb);
 
@@ -203,21 +208,22 @@ static int ffm_write_header(AVFormatContext *s)
 static int ffm_write_packet(AVFormatContext *s, AVPacket *pkt)
 {
     int64_t dts;
-    uint8_t header[FRAME_HEADER_SIZE+4];
+    uint8_t header[FRAME_HEADER_SIZE + 4];
     int header_size = FRAME_HEADER_SIZE;
 
     dts = s->timestamp + pkt->dts;
     /* packet size & key_frame */
     header[0] = pkt->stream_index;
     header[1] = 0;
-    if (pkt->flags & AV_PKT_FLAG_KEY)
+    if (pkt->flags & AV_PKT_FLAG_KEY) {
         header[1] |= FLAG_KEY_FRAME;
-    AV_WB24(header+2, pkt->size);
-    AV_WB24(header+5, pkt->duration);
-    AV_WB64(header+8, s->timestamp + pkt->pts);
+    }
+    AV_WB24(header + 2, pkt->size);
+    AV_WB24(header + 5, pkt->duration);
+    AV_WB64(header + 8, s->timestamp + pkt->pts);
     if (pkt->pts != pkt->dts) {
         header[1] |= FLAG_DTS;
-        AV_WB32(header+16, pkt->pts - pkt->dts);
+        AV_WB32(header + 16, pkt->pts - pkt->dts);
         header_size += 4;
     }
     ffm_write_data(s, header, header_size, dts, 1);
@@ -232,8 +238,9 @@ static int ffm_write_trailer(AVFormatContext *s)
     FFMContext *ffm = s->priv_data;
 
     /* flush packets */
-    if (ffm->packet_ptr > ffm->packet)
+    if (ffm->packet_ptr > ffm->packet) {
         flush_packet(s);
+    }
 
     avio_flush(pb);
 

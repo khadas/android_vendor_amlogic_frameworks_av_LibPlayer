@@ -35,7 +35,7 @@
 
 static const uint8_t mlp_quants[16] = {
     16, 20, 24, 0, 0, 0, 0, 0,
-     0,  0,  0, 0, 0, 0, 0, 0,
+    0,  0,  0, 0, 0, 0, 0, 0,
 };
 
 static const uint8_t mlp_channels[32] = {
@@ -48,51 +48,52 @@ const uint64_t ff_mlp_layout[32] = {
     AV_CH_LAYOUT_STEREO,
     AV_CH_LAYOUT_2_1,
     AV_CH_LAYOUT_QUAD,
-    AV_CH_LAYOUT_STEREO|AV_CH_LOW_FREQUENCY,
-    AV_CH_LAYOUT_2_1|AV_CH_LOW_FREQUENCY,
-    AV_CH_LAYOUT_QUAD|AV_CH_LOW_FREQUENCY,
+    AV_CH_LAYOUT_STEREO | AV_CH_LOW_FREQUENCY,
+    AV_CH_LAYOUT_2_1 | AV_CH_LOW_FREQUENCY,
+    AV_CH_LAYOUT_QUAD | AV_CH_LOW_FREQUENCY,
     AV_CH_LAYOUT_SURROUND,
     AV_CH_LAYOUT_4POINT0,
     AV_CH_LAYOUT_5POINT0_BACK,
-    AV_CH_LAYOUT_SURROUND|AV_CH_LOW_FREQUENCY,
-    AV_CH_LAYOUT_4POINT0|AV_CH_LOW_FREQUENCY,
+    AV_CH_LAYOUT_SURROUND | AV_CH_LOW_FREQUENCY,
+    AV_CH_LAYOUT_4POINT0 | AV_CH_LOW_FREQUENCY,
     AV_CH_LAYOUT_5POINT1_BACK,
     AV_CH_LAYOUT_4POINT0,
     AV_CH_LAYOUT_5POINT0_BACK,
-    AV_CH_LAYOUT_SURROUND|AV_CH_LOW_FREQUENCY,
-    AV_CH_LAYOUT_4POINT0|AV_CH_LOW_FREQUENCY,
+    AV_CH_LAYOUT_SURROUND | AV_CH_LOW_FREQUENCY,
+    AV_CH_LAYOUT_4POINT0 | AV_CH_LOW_FREQUENCY,
     AV_CH_LAYOUT_5POINT1_BACK,
-    AV_CH_LAYOUT_QUAD|AV_CH_LOW_FREQUENCY,
+    AV_CH_LAYOUT_QUAD | AV_CH_LOW_FREQUENCY,
     AV_CH_LAYOUT_5POINT0_BACK,
     AV_CH_LAYOUT_5POINT1_BACK,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
 static const uint8_t thd_chancount[13] = {
-//  LR    C   LFE  LRs LRvh  LRc LRrs  Cs   Ts  LRsd  LRw  Cvh  LFE2
-     2,   1,   1,   2,   2,   2,   2,   1,   1,   2,   2,   1,   1
+    //  LR    C   LFE  LRs LRvh  LRc LRrs  Cs   Ts  LRsd  LRw  Cvh  LFE2
+    2,   1,   1,   2,   2,   2,   2,   1,   1,   2,   2,   1,   1
 };
 
 static const uint64_t thd_layout[13] = {
-    AV_CH_FRONT_LEFT|AV_CH_FRONT_RIGHT,                     // LR
+    AV_CH_FRONT_LEFT | AV_CH_FRONT_RIGHT,                   // LR
     AV_CH_FRONT_CENTER,                                     // C
     AV_CH_LOW_FREQUENCY,                                    // LFE
-    AV_CH_SIDE_LEFT|AV_CH_SIDE_RIGHT,                       // LRs
-    AV_CH_TOP_FRONT_LEFT|AV_CH_TOP_FRONT_RIGHT,             // LRvh
-    AV_CH_SIDE_LEFT|AV_CH_SIDE_RIGHT,                       // LRc
-    AV_CH_BACK_LEFT|AV_CH_BACK_RIGHT,                       // LRrs
+    AV_CH_SIDE_LEFT | AV_CH_SIDE_RIGHT,                     // LRs
+    AV_CH_TOP_FRONT_LEFT | AV_CH_TOP_FRONT_RIGHT,           // LRvh
+    AV_CH_SIDE_LEFT | AV_CH_SIDE_RIGHT,                     // LRc
+    AV_CH_BACK_LEFT | AV_CH_BACK_RIGHT,                     // LRrs
     AV_CH_BACK_CENTER,                                      // Cs
     AV_CH_TOP_BACK_CENTER,                                  // Ts
-    AV_CH_SIDE_LEFT|AV_CH_SIDE_RIGHT,                       // LRsd
-    AV_CH_FRONT_LEFT_OF_CENTER|AV_CH_FRONT_RIGHT_OF_CENTER, // LRw
+    AV_CH_SIDE_LEFT | AV_CH_SIDE_RIGHT,                     // LRsd
+    AV_CH_FRONT_LEFT_OF_CENTER | AV_CH_FRONT_RIGHT_OF_CENTER, // LRw
     AV_CH_TOP_BACK_CENTER,                                  // Cvh
     AV_CH_LOW_FREQUENCY                                     // LFE2
 };
 
 static int mlp_samplerate(int in)
 {
-    if (in == 0xF)
+    if (in == 0xF) {
         return 0;
+    }
 
     return (in & 8 ? 44100 : 48000) << (in & 7) ;
 }
@@ -101,8 +102,9 @@ static int truehd_channels(int chanmap)
 {
     int channels = 0, i;
 
-    for (i = 0; i < 13; i++)
+    for (i = 0; i < 13; i++) {
         channels += thd_chancount[i] * ((chanmap >> i) & 1);
+    }
 
     return channels;
 }
@@ -111,8 +113,9 @@ int64_t ff_truehd_layout(int chanmap)
 {
     int layout = 0, i;
 
-    for (i = 0; i < 13; i++)
+    for (i = 0; i < 13; i++) {
         layout |= thd_layout[i] * ((chanmap >> i) & 1);
+    }
 
     return layout;
 }
@@ -136,13 +139,14 @@ int ff_mlp_read_major_sync(void *log, MLPHeaderInfo *mh, GetBitContext *gb)
     }
 
     checksum = ff_mlp_checksum16(gb->buffer, 26);
-    if (checksum != AV_RL16(gb->buffer+26)) {
+    if (checksum != AV_RL16(gb->buffer + 26)) {
         av_log(log, AV_LOG_ERROR, "major sync info header checksum error\n");
         return -1;
     }
 
-    if (get_bits_long(gb, 24) != 0xf8726f) /* Sync words */
+    if (get_bits_long(gb, 24) != 0xf8726f) { /* Sync words */
         return -1;
+    }
 
     mh->stream_type = get_bits(gb, 8);
 
@@ -172,8 +176,9 @@ int ff_mlp_read_major_sync(void *log, MLPHeaderInfo *mh, GetBitContext *gb)
         skip_bits(gb, 2);
 
         mh->channels_thd_stream2 = get_bits(gb, 13);
-    } else
+    } else {
         return -1;
+    }
 
     mh->access_unit_size = 40 << (ratebits & 7);
     mh->access_unit_size_pow2 = 64 << (ratebits & 7);
@@ -191,8 +196,7 @@ int ff_mlp_read_major_sync(void *log, MLPHeaderInfo *mh, GetBitContext *gb)
     return 0;
 }
 
-typedef struct MLPParseContext
-{
+typedef struct MLPParseContext {
     ParseContext pc;
 
     int bytes_left;
@@ -246,8 +250,9 @@ static int mlp_parse(AVCodecParserContext *s,
     int i, p = 0;
 
     *poutbuf_size = 0;
-    if (buf_size == 0)
+    if (buf_size == 0) {
         return 0;
+    }
 
     if (!mp->in_sync) {
         // Not in sync - find a major sync header
@@ -277,8 +282,8 @@ static int mlp_parse(AVCodecParserContext *s,
         // Find length of this packet
 
         /* Copy overread bytes from last frame into buffer. */
-        for(; mp->pc.overread>0; mp->pc.overread--) {
-            mp->pc.buffer[mp->pc.index++]= mp->pc.buffer[mp->pc.overread_index++];
+        for (; mp->pc.overread > 0; mp->pc.overread--) {
+            mp->pc.buffer[mp->pc.index++] = mp->pc.buffer[mp->pc.overread_index++];
         }
 
         if (mp->pc.index + buf_size < 2) {
@@ -287,7 +292,7 @@ static int mlp_parse(AVCodecParserContext *s,
         }
 
         mp->bytes_left = ((mp->pc.index > 0 ? mp->pc.buffer[0] : buf[0]) << 8)
-                       |  (mp->pc.index > 1 ? mp->pc.buffer[1] : buf[1-mp->pc.index]);
+                         | (mp->pc.index > 1 ? mp->pc.buffer[1] : buf[1 - mp->pc.index]);
         mp->bytes_left = (mp->bytes_left & 0xfff) * 2;
         mp->bytes_left -= mp->pc.index;
     }
@@ -313,7 +318,7 @@ static int mlp_parse(AVCodecParserContext *s,
             parity_bits ^= buf[p++];
             parity_bits ^= buf[p++];
 
-            if (i < 0 || buf[p-2] & 0x80) {
+            if (i < 0 || buf[p - 2] & 0x80) {
                 parity_bits ^= buf[p++];
                 parity_bits ^= buf[p++];
             }
@@ -328,14 +333,16 @@ static int mlp_parse(AVCodecParserContext *s,
         MLPHeaderInfo mh;
 
         init_get_bits(&gb, buf + 4, (buf_size - 4) << 3);
-        if (ff_mlp_read_major_sync(avctx, &mh, &gb) < 0)
+        if (ff_mlp_read_major_sync(avctx, &mh, &gb) < 0) {
             goto lost_sync;
+        }
 
         avctx->bits_per_raw_sample = mh.group1_bits;
-        if (avctx->bits_per_raw_sample > 16)
+        if (avctx->bits_per_raw_sample > 16) {
             avctx->sample_fmt = AV_SAMPLE_FMT_S32;
-        else
+        } else {
             avctx->sample_fmt = AV_SAMPLE_FMT_S16;
+        }
         avctx->sample_rate = mh.group1_samplerate;
         avctx->frame_size = mh.access_unit_size;
 
@@ -354,8 +361,9 @@ static int mlp_parse(AVCodecParserContext *s,
             }
         }
 
-        if (!mh.is_vbr) /* Stream is CBR */
+        if (!mh.is_vbr) { /* Stream is CBR */
             avctx->bit_rate = mh.peak_bitrate;
+        }
 
         mp->num_substreams = mh.num_substreams;
     }

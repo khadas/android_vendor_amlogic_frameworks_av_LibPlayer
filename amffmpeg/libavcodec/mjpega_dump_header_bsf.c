@@ -60,9 +60,15 @@ static int mjpega_dump_header(AVBitStreamFilterContext *bsfc, AVCodecContext *av
     for (i = 0; i < buf_size - 1; i++) {
         if (buf[i] == 0xff) {
             switch (buf[i + 1]) {
-            case DQT:  dqt  = i + 46; break;
-            case DHT:  dht  = i + 46; break;
-            case SOF0: sof0 = i + 46; break;
+            case DQT:
+                dqt  = i + 46;
+                break;
+            case DHT:
+                dht  = i + 46;
+                break;
+            case SOF0:
+                sof0 = i + 46;
+                break;
             case SOS:
                 bytestream_put_be32(&poutbufp, dqt); /* quant off */
                 bytestream_put_be32(&poutbufp, dht); /* huff off */

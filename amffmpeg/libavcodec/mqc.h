@@ -33,9 +33,9 @@
 #define MQC_CX_UNI 17
 #define MQC_CX_RL  18
 
-extern uint16_t  ff_mqc_qe[2*47];
-extern uint8_t ff_mqc_nlps[2*47];
-extern uint8_t ff_mqc_nmps[2*47];
+extern uint16_t  ff_mqc_qe[2 * 47];
+extern uint8_t ff_mqc_nlps[2 * 47];
+extern uint8_t ff_mqc_nmps[2 * 47];
 
 typedef struct {
     uint8_t *bp, *bpstart;

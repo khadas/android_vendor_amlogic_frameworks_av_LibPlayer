@@ -55,8 +55,9 @@ static int rso_read_header(AVFormatContext *s, AVFormatParameters *ap)
 
     /* now we are ready: build format streams */
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
 
     st->duration            = (size * 8) / bps;
     st->codec->codec_type   = AVMEDIA_TYPE_AUDIO;
@@ -77,8 +78,9 @@ static int rso_read_packet(AVFormatContext *s, AVPacket *pkt)
     int bps = av_get_bits_per_sample(s->streams[0]->codec->codec_id);
     int ret = av_get_packet(s->pb, pkt, BLOCK_SIZE * bps >> 3);
 
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
+    }
 
     pkt->stream_index = 0;
 
@@ -98,5 +100,5 @@ AVInputFormat ff_rso_demuxer = {
     .read_packet    =   rso_read_packet,
     .read_close     =   NULL,
     .read_seek      =   pcm_read_seek,
-    .codec_tag      =   (const AVCodecTag* const []){ff_codec_rso_tags, 0},
+    .codec_tag      = (const AVCodecTag* const []){ff_codec_rso_tags, 0},
 };

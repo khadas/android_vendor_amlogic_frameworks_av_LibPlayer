@@ -26,7 +26,7 @@
 #include "aac.h"
 //#include "lowpass.h"
 
-enum AACPsyModelType{
+enum AACPsyModelType {
     AAC_PSY_TEST,              ///< a sample model to exercise encoder
     AAC_PSY_3GPP,              ///< model following recommendations from 3GPP TS 26.403
 
@@ -38,7 +38,7 @@ enum AACPsyModelType{
  */
 typedef struct AACPsyContext {
     AVCodecContext *avctx;            ///< encoder context
-}AACPsyContext;
+} AACPsyContext;
 
 /**
  * Cleanup model context at the end.

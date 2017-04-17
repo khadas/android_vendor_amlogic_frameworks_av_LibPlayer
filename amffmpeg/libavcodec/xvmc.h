@@ -88,9 +88,9 @@ struct xvmc_pix_fmt {
     */
     XvMCSurface*    p_surface;
 
-/** Set by the decoder before calling ff_draw_horiz_band(),
-    needed by the XvMCRenderSurface function. */
-//@{
+    /** Set by the decoder before calling ff_draw_horiz_band(),
+        needed by the XvMCRenderSurface function. */
+    //@{
     /** Pointer to the surface used as past reference
         - application - unchanged
         - libavcodec  - set
@@ -114,7 +114,7 @@ struct xvmc_pix_fmt {
         - libavcodec  - set
     */
     unsigned int    flags;
-//}@
+    //}@
 
     /** Number of macroblock descriptions in the mv_blocks array
         that have already been passed to the hardware.

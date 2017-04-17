@@ -29,7 +29,7 @@ static int vp5_adjust(int v, int t)
     int s2, s1 = v >> 31;
     v ^= s1;
     v -= s1;
-    v *= v < 2*t;
+    v *= v < 2 * t;
     v -= t;
     s2 = v >> 31;
     v ^= s2;
@@ -45,9 +45,10 @@ static int vp6_adjust(int v, int t)
     int V = v, s = v >> 31;
     V ^= s;
     V -= s;
-    if (V-t-1 >= (unsigned)(t-1))
+    if (V - t - 1 >= (unsigned)(t - 1)) {
         return v;
-    V = 2*t - V;
+    }
+    V = 2 * t - V;
     V += s;
     V ^= s;
     return V;
@@ -88,6 +89,10 @@ void ff_vp56dsp_init(VP56DSPContext *s, enum CodecID codec)
         }
     }
 
-    if (ARCH_ARM) ff_vp56dsp_init_arm(s, codec);
-    if (HAVE_MMX) ff_vp56dsp_init_x86(s, codec);
+    if (ARCH_ARM) {
+        ff_vp56dsp_init_arm(s, codec);
+    }
+    if (HAVE_MMX) {
+        ff_vp56dsp_init_x86(s, codec);
+    }
 }

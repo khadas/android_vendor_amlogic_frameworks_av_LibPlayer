@@ -83,8 +83,8 @@ extern const uint16_t ff_mpeg4_resync_prefix[8];
 extern const uint8_t mpeg4_dc_threshold[8];
 
 void mpeg4_encode_mb(MpegEncContext *s,
-                    DCTELEM block[6][64],
-                    int motion_x, int motion_y);
+                     DCTELEM block[6][64],
+                     int motion_x, int motion_y);
 void mpeg4_pred_ac(MpegEncContext * s, DCTELEM *block, int n,
                    int dir);
 void ff_set_mpeg4_time(MpegEncContext * s);
@@ -108,7 +108,7 @@ void ff_mpeg4_init_direct_mv(MpegEncContext *s);
  */
 int ff_mpeg4_set_direct_mv(MpegEncContext *s, int mx, int my);
 
-extern uint8_t ff_mpeg4_static_rl_table_store[3][2][2*MAX_RUN + MAX_LEVEL + 3];
+extern uint8_t ff_mpeg4_static_rl_table_store[3][2][2 * MAX_RUN + MAX_LEVEL + 3];
 
 
 #if 0 //3IV1 is quite rare and it slows things down a tiny bit
@@ -136,10 +136,11 @@ static inline int ff_mpeg4_pred_dc(MpegEncContext * s, int n, int level, int *di
     } else {
         scale = s->c_dc_scale;
     }
-    if(IS_3IV1)
-        scale= 8;
+    if (IS_3IV1) {
+        scale = 8;
+    }
 
-    wrap= s->block_wrap[n];
+    wrap = s->block_wrap[n];
     dc_val = s->dc_val[0] + s->block_index[n];
 
     /* B C
@@ -150,13 +151,18 @@ static inline int ff_mpeg4_pred_dc(MpegEncContext * s, int n, int level, int *di
     c = dc_val[ - wrap];
 
     /* outside slice handling (we can't do that by memset as we need the dc for error resilience) */
-    if(s->first_slice_line && n!=3){
-        if(n!=2) b=c= 1024;
-        if(n!=1 && s->mb_x == s->resync_mb_x) b=a= 1024;
+    if (s->first_slice_line && n != 3) {
+        if (n != 2) {
+            b = c = 1024;
+        }
+        if (n != 1 && s->mb_x == s->resync_mb_x) {
+            b = a = 1024;
+        }
     }
-    if(s->mb_x == s->resync_mb_x && s->mb_y == s->resync_mb_y+1){
-        if(n==0 || n==4 || n==5)
-            b=1024;
+    if (s->mb_x == s->resync_mb_x && s->mb_y == s->resync_mb_y + 1) {
+        if (n == 0 || n == 4 || n == 5) {
+            b = 1024;
+        }
     }
 
     if (abs(a - b) < abs(b - c)) {
@@ -169,30 +175,31 @@ static inline int ff_mpeg4_pred_dc(MpegEncContext * s, int n, int level, int *di
     /* we assume pred is positive */
     pred = FASTDIV((pred + (scale >> 1)), scale);
 
-    if(encoding){
+    if (encoding) {
         ret = level - pred;
-    }else{
+    } else {
         level += pred;
-        ret= level;
-        if(s->error_recognition>=3){
-            if(level<0){
+        ret = level;
+        if (s->error_recognition >= 3) {
+            if (level < 0) {
                 av_log(s->avctx, AV_LOG_ERROR, "dc<0 at %dx%d\n", s->mb_x, s->mb_y);
                 return -1;
             }
-            if(level*scale > 2048 + scale){
+            if (level * scale > 2048 + scale) {
                 av_log(s->avctx, AV_LOG_ERROR, "dc overflow at %dx%d\n", s->mb_x, s->mb_y);
                 return -1;
             }
         }
     }
-    level *=scale;
-    if(level&(~2047)){
-        if(level<0)
-            level=0;
-        else if(!(s->workaround_bugs&FF_BUG_DC_CLIP))
-            level=2047;
+    level *= scale;
+    if (level & (~2047)) {
+        if (level < 0) {
+            level = 0;
+        } else if (!(s->workaround_bugs & FF_BUG_DC_CLIP)) {
+            level = 2047;
+        }
     }
-    dc_val[0]= level;
+    dc_val[0] = level;
 
     return ret;
 }

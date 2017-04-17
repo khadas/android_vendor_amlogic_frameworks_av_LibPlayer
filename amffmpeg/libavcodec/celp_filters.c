@@ -36,11 +36,13 @@ void ff_celp_convolve_circ(int16_t* fc_out, const int16_t* fc_in,
        all fc_in[i] are zero) it is faster to loop over fc_in first. */
     for (i = 0; i < len; i++) {
         if (fc_in[i]) {
-            for (k = 0; k < i; k++)
+            for (k = 0; k < i; k++) {
                 fc_out[k] += (fc_in[i] * filter[len + k - i]) >> 15;
+            }
 
-            for (k = i; k < len; k++)
+            for (k = i; k < len; k++) {
                 fc_out[k] += (fc_in[i] * filter[      k - i]) >> 15;
+            }
         }
     }
 }
@@ -49,10 +51,12 @@ void ff_celp_circ_addf(float *out, const float *in,
                        const float *lagged, int lag, float fac, int n)
 {
     int k;
-    for (k = 0; k < lag; k++)
+    for (k = 0; k < lag; k++) {
         out[k] = in[k] + fac * lagged[n + k - lag];
-    for (; k < n; k++)
+    }
+    for (; k < n; k++) {
         out[k] = in[k] + fac * lagged[    k - lag];
+    }
 }
 
 int ff_celp_lp_synthesis_filter(int16_t *out, const int16_t *filter_coeffs,
@@ -60,18 +64,20 @@ int ff_celp_lp_synthesis_filter(int16_t *out, const int16_t *filter_coeffs,
                                 int filter_length, int stop_on_overflow,
                                 int rounder)
 {
-    int i,n;
+    int i, n;
 
     for (n = 0; n < buffer_length; n++) {
         int sum = rounder;
-        for (i = 1; i <= filter_length; i++)
-            sum -= filter_coeffs[i-1] * out[n-i];
+        for (i = 1; i <= filter_length; i++) {
+            sum -= filter_coeffs[i - 1] * out[n - i];
+        }
 
         sum = (sum >> 12) + in[n];
 
         if (sum + 0x8000 > 0xFFFFU) {
-            if (stop_on_overflow)
+            if (stop_on_overflow) {
                 return 1;
+            }
             sum = (sum >> 31) ^ 32767;
         }
         out[n] = sum;
@@ -84,18 +90,19 @@ void ff_celp_lp_synthesis_filterf(float *out, const float *filter_coeffs,
                                   const float* in, int buffer_length,
                                   int filter_length)
 {
-    int i,n;
+    int i, n;
 
 #if 0 // Unoptimized code path for improved readability
     for (n = 0; n < buffer_length; n++) {
         out[n] = in[n];
-        for (i = 1; i <= filter_length; i++)
-            out[n] -= filter_coeffs[i-1] * out[n-i];
+        for (i = 1; i <= filter_length; i++) {
+            out[n] -= filter_coeffs[i - 1] * out[n - i];
+        }
     }
 #else
     float out0, out1, out2, out3;
     float old_out0, old_out1, old_out2, old_out3;
-    float a,b,c;
+    float a, b, c;
 
     a = filter_coeffs[0];
     b = filter_coeffs[1];
@@ -108,8 +115,8 @@ void ff_celp_lp_synthesis_filterf(float *out, const float *filter_coeffs,
     old_out1 = out[-3];
     old_out2 = out[-2];
     old_out3 = out[-1];
-    for (n = 0; n <= buffer_length - 4; n+=4) {
-        float tmp0,tmp1,tmp2;
+    for (n = 0; n <= buffer_length - 4; n += 4) {
+        float tmp0, tmp1, tmp2;
         float val;
 
         out0 = in[0];
@@ -136,14 +143,14 @@ void ff_celp_lp_synthesis_filterf(float *out, const float *filter_coeffs,
         old_out3 = out[-5];
 
         for (i = 5; i <= filter_length; i += 2) {
-            val = filter_coeffs[i-1];
+            val = filter_coeffs[i - 1];
 
             out0 -= val * old_out3;
             out1 -= val * old_out0;
             out2 -= val * old_out1;
             out3 -= val * old_out2;
 
-            old_out2 = out[-i-1];
+            old_out2 = out[-i - 1];
 
             val = filter_coeffs[i];
 
@@ -154,7 +161,7 @@ void ff_celp_lp_synthesis_filterf(float *out, const float *filter_coeffs,
 
             FFSWAP(float, old_out0, old_out2);
             old_out1 = old_out3;
-            old_out3 = out[-i-2];
+            old_out3 = out[-i - 2];
         }
 
         tmp0 = out0;
@@ -189,8 +196,9 @@ void ff_celp_lp_synthesis_filterf(float *out, const float *filter_coeffs,
     in -= n;
     for (; n < buffer_length; n++) {
         out[n] = in[n];
-        for (i = 1; i <= filter_length; i++)
-            out[n] -= filter_coeffs[i-1] * out[n-i];
+        for (i = 1; i <= filter_length; i++) {
+            out[n] -= filter_coeffs[i - 1] * out[n - i];
+        }
     }
 #endif
 }
@@ -199,11 +207,12 @@ void ff_celp_lp_zero_synthesis_filterf(float *out, const float *filter_coeffs,
                                        const float *in, int buffer_length,
                                        int filter_length)
 {
-    int i,n;
+    int i, n;
 
     for (n = 0; n < buffer_length; n++) {
         out[n] = in[n];
-        for (i = 1; i <= filter_length; i++)
-            out[n] += filter_coeffs[i-1] * in[n-i];
+        for (i = 1; i <= filter_length; i++) {
+            out[n] += filter_coeffs[i - 1] * in[n - i];
+        }
     }
 }

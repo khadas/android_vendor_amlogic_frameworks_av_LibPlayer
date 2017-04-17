@@ -7,11 +7,11 @@
 extern "C" {
 #endif
 
-    typedef enum {
-        HLS_LOG_BASE,
-        HLS_SHOW_URL,
-    }
-    HLS_LOG_LEVEL;
+typedef enum {
+    HLS_LOG_BASE,
+    HLS_SHOW_URL,
+}
+HLS_LOG_LEVEL;
 
 #ifndef LOGV
 #define LOGV(...)   fprintf(stderr,__VA_ARGS__)

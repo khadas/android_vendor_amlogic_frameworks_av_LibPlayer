@@ -21,6 +21,7 @@ static pthread_mutex_t priv_pid_mutex;
 static unsigned long priv_pid_pool = 0; /*player_id*/
 static void * priv_pid_data[MAX_PLAYER_THREADS];/*player_id*/
 static unsigned long priv_pid_used[MAX_PLAYER_THREADS];/*player_id*/
+static int priv_inner_exit[MAX_PLAYER_THREADS];/*player_id*/
 #define PID_isVALID(pid) (pid>=0 && pid<32 && (priv_pid_pool &(1 <<pid)))
 
 #define PID_PRINT(fmt,args...)  log_print(fmt,##args)
@@ -31,6 +32,7 @@ int player_id_pool_init(void)
     priv_pid_pool = 0;
     MEMSET(priv_pid_data, 0, sizeof(priv_pid_data));
     MEMSET(priv_pid_used, 0, sizeof(priv_pid_used));
+    MEMSET(priv_inner_exit, 0, sizeof(priv_inner_exit));
     pthread_mutex_init(&priv_pid_mutex, NULL);
     return 0;
 }
@@ -40,7 +42,7 @@ int player_request_pid(void)
     int pid = -1;
     static int last = -1;
     pthread_mutex_lock(&priv_pid_mutex);
-    log_debug1("[player_request_pid:%d]last=%d\n", __LINE__, last);
+    log_print("[player_request_pid:%d]last=%d\n", __LINE__, last);
     i = last + 1;
     if (i >= (MAX_PLAYER_THREADS)) {
         i = 0;
@@ -50,9 +52,10 @@ int player_request_pid(void)
             priv_pid_pool |= (1 << i);
             priv_pid_data[i] = NULL;
             priv_pid_used[i] = 0;
+            priv_inner_exit[i] = 0;
             pid = i;
             last = i;
-            log_debug1("[player_request_pid:%d]last=%d pid=%d\n", __LINE__, last, pid);
+            log_print("[player_request_pid:%d]last=%d pid=%d\n", __LINE__, last, pid);
             break;
         }
         i = i + 1;
@@ -84,6 +87,36 @@ int player_release_pid(int pid)
     return ret;
 }
 
+void * player_set_inner_exit_pid(int pid)
+{
+    void * pid_data;
+    pthread_mutex_lock(&priv_pid_mutex);
+    if (PID_isVALID(pid)) {
+        pid_data = priv_pid_data[pid];
+        priv_inner_exit[pid] = 1;
+    } else {
+        pid_data = NULL; /*0 is no data!NULL*/
+        //PID_PRINT("%s:pid is not valid,pid=%d,priv_pid_pool=%lx\n",__FUNCTION__,pid,priv_pid_pool);
+    }
+    pthread_mutex_unlock(&priv_pid_mutex);
+
+    return pid_data;
+}
+void * player_is_inner_exit_pid(int pid)
+{
+    void *inner_exit = NULL;
+    pthread_mutex_lock(&priv_pid_mutex);
+    if (PID_isVALID(pid)) {
+        //pid_data = priv_pid_data[pid];
+        inner_exit = (void *)priv_inner_exit[pid];
+    } else {
+        inner_exit = NULL; /*0 is no data!NULL*/
+        //PID_PRINT("%s:pid is not valid,pid=%d,priv_pid_pool=%lx\n",__FUNCTION__,pid,priv_pid_pool);
+    }
+    pthread_mutex_unlock(&priv_pid_mutex);
+
+    return inner_exit;
+}
 
 
 int player_init_pid_data(int pid, void * data)

@@ -24,14 +24,17 @@
 #include "rtpenc.h"
 
 static const uint8_t *find_resync_marker_reverse(const uint8_t *restrict start,
-                                                 const uint8_t *restrict end)
+        const uint8_t *restrict end)
 {
     const uint8_t *p = end - 1;
     start += 1; /* Make sure we never return the original start. */
     for (; p > start; p -= 2) {
         if (!*p) {
-            if      (!p[ 1] && p[2]) return p;
-            else if (!p[-1] && p[1]) return p - 1;
+            if (!p[ 1] && p[2]) {
+                return p;
+            } else if (!p[-1] && p[1]) {
+                return p - 1;
+            }
         }
     }
     return end;

@@ -45,19 +45,22 @@
  * in MPlayer libmpcodecs/native/rtjpegn.c.
  */
 static inline int get_block(GetBitContext *gb, DCTELEM *block, const uint8_t *scan,
-                            const uint32_t *quant) {
+                            const uint32_t *quant)
+{
     int coeff, i, n;
     int8_t ac;
     uint8_t dc = get_bits(gb, 8);
 
     // block not coded
-    if (dc == 255)
-       return 0;
+    if (dc == 255) {
+        return 0;
+    }
 
     // number of non-zero coefficients
     coeff = get_bits(gb, 6);
-    if (get_bits_count(gb) + (coeff << 1) >= gb->size_in_bits)
+    if (get_bits_count(gb) + (coeff << 1) >= gb->size_in_bits) {
         return -1;
+    }
 
     // normally we would only need to clear the (63 - coeff) last values,
     // but since we do not know where they are we just clear the whole block
@@ -66,26 +69,30 @@ static inline int get_block(GetBitContext *gb, DCTELEM *block, const uint8_t *sc
     // 2 bits per coefficient
     while (coeff) {
         ac = get_sbits(gb, 2);
-        if (ac == -2)
-            break; // continue with more bits
+        if (ac == -2) {
+            break;    // continue with more bits
+        }
         PUT_COEFF(ac);
     }
 
     // 4 bits per coefficient
     ALIGN(4);
-    if (get_bits_count(gb) + (coeff << 2) >= gb->size_in_bits)
+    if (get_bits_count(gb) + (coeff << 2) >= gb->size_in_bits) {
         return -1;
+    }
     while (coeff) {
         ac = get_sbits(gb, 4);
-        if (ac == -8)
-            break; // continue with more bits
+        if (ac == -8) {
+            break;    // continue with more bits
+        }
         PUT_COEFF(ac);
     }
 
     // 8 bits per coefficient
     ALIGN(8);
-    if (get_bits_count(gb) + (coeff << 3) >= gb->size_in_bits)
+    if (get_bits_count(gb) + (coeff << 3) >= gb->size_in_bits) {
         return -1;
+    }
     while (coeff) {
         ac = get_sbits(gb, 8);
         PUT_COEFF(ac);
@@ -105,7 +112,8 @@ static inline int get_block(GetBitContext *gb, DCTELEM *block, const uint8_t *sc
  * \return number of bytes consumed from the input buffer
  */
 int rtjpeg_decode_frame_yuv420(RTJpegContext *c, AVFrame *f,
-                               const uint8_t *buf, int buf_size) {
+                               const uint8_t *buf, int buf_size)
+{
     GetBitContext gb;
     int w = c->w / 16, h = c->h / 16;
     int x, y;
@@ -115,23 +123,29 @@ int rtjpeg_decode_frame_yuv420(RTJpegContext *c, AVFrame *f,
     for (y = 0; y < h; y++) {
         for (x = 0; x < w; x++) {
             DCTELEM *block = c->block;
-            if (get_block(&gb, block, c->scan, c->lquant) > 0)
+            if (get_block(&gb, block, c->scan, c->lquant) > 0) {
                 c->dsp->idct_put(y1, f->linesize[0], block);
+            }
             y1 += 8;
-            if (get_block(&gb, block, c->scan, c->lquant) > 0)
+            if (get_block(&gb, block, c->scan, c->lquant) > 0) {
                 c->dsp->idct_put(y1, f->linesize[0], block);
+            }
             y1 += 8;
-            if (get_block(&gb, block, c->scan, c->lquant) > 0)
+            if (get_block(&gb, block, c->scan, c->lquant) > 0) {
                 c->dsp->idct_put(y2, f->linesize[0], block);
+            }
             y2 += 8;
-            if (get_block(&gb, block, c->scan, c->lquant) > 0)
+            if (get_block(&gb, block, c->scan, c->lquant) > 0) {
                 c->dsp->idct_put(y2, f->linesize[0], block);
+            }
             y2 += 8;
-            if (get_block(&gb, block, c->scan, c->cquant) > 0)
+            if (get_block(&gb, block, c->scan, c->cquant) > 0) {
                 c->dsp->idct_put(u, f->linesize[1], block);
+            }
             u += 8;
-            if (get_block(&gb, block, c->scan, c->cquant) > 0)
+            if (get_block(&gb, block, c->scan, c->cquant) > 0) {
                 c->dsp->idct_put(v, f->linesize[2], block);
+            }
             v += 8;
         }
         y1 += 2 * 8 * (f->linesize[0] - w);
@@ -155,7 +169,8 @@ int rtjpeg_decode_frame_yuv420(RTJpegContext *c, AVFrame *f,
  */
 void rtjpeg_decode_init(RTJpegContext *c, DSPContext *dsp,
                         int width, int height,
-                        const uint32_t *lquant, const uint32_t *cquant) {
+                        const uint32_t *lquant, const uint32_t *cquant)
+{
     int i;
     c->dsp = dsp;
     for (i = 0; i < 64; i++) {

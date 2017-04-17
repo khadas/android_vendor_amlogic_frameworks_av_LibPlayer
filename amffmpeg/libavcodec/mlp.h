@@ -101,7 +101,7 @@ extern const uint8_t ff_mlp_huffman_tables[3][18][2];
  *  We can implement this behavior using a standard av_crc on all but the
  *  last element, then XOR that with the last element.
  */
-uint8_t  ff_mlp_checksum8 (const uint8_t *buf, unsigned int buf_size);
+uint8_t  ff_mlp_checksum8(const uint8_t *buf, unsigned int buf_size);
 uint16_t ff_mlp_checksum16(const uint8_t *buf, unsigned int buf_size);
 
 /** Calculate an 8-bit checksum over a restart header -- a non-multiple-of-8

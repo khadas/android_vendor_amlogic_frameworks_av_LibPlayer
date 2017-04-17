@@ -60,21 +60,25 @@ typedef struct CinDemuxContext {
 static int cin_probe(AVProbeData *p)
 {
     /* header starts with this special marker */
-    if (AV_RL32(&p->buf[0]) != 0x55AA0000)
+    if (AV_RL32(&p->buf[0]) != 0x55AA0000) {
         return 0;
+    }
 
     /* for accuracy, check some header field values */
-    if (AV_RL32(&p->buf[12]) != 22050 || p->buf[16] != 16 || p->buf[17] != 0)
+    if (AV_RL32(&p->buf[12]) != 22050 || p->buf[16] != 16 || p->buf[17] != 0) {
         return 0;
+    }
 
     return AVPROBE_SCORE_MAX;
 }
 
-static int cin_read_file_header(CinDemuxContext *cin, AVIOContext *pb) {
+static int cin_read_file_header(CinDemuxContext *cin, AVIOContext *pb)
+{
     CinFileHeader *hdr = &cin->file_header;
 
-    if (avio_rl32(pb) != 0x55AA0000)
+    if (avio_rl32(pb) != 0x55AA0000) {
         return AVERROR_INVALIDDATA;
+    }
 
     hdr->video_frame_size   = avio_rl32(pb);
     hdr->video_frame_width  = avio_rl16(pb);
@@ -84,8 +88,9 @@ static int cin_read_file_header(CinDemuxContext *cin, AVIOContext *pb) {
     hdr->audio_stereo       = avio_r8(pb);
     hdr->audio_frame_size   = avio_rl16(pb);
 
-    if (hdr->audio_frequency != 22050 || hdr->audio_bits != 16 || hdr->audio_stereo != 0)
+    if (hdr->audio_frequency != 22050 || hdr->audio_bits != 16 || hdr->audio_stereo != 0) {
         return AVERROR_INVALIDDATA;
+    }
 
     return 0;
 }
@@ -99,8 +104,9 @@ static int cin_read_header(AVFormatContext *s, AVFormatParameters *ap)
     AVStream *st;
 
     rc = cin_read_file_header(cin, pb);
-    if (rc)
+    if (rc) {
         return rc;
+    }
 
     cin->video_stream_pts = 0;
     cin->audio_stream_pts = 0;
@@ -108,8 +114,9 @@ static int cin_read_header(AVFormatContext *s, AVFormatParameters *ap)
 
     /* initialize the video decoder stream */
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
 
     av_set_pts_info(st, 32, 1, 12);
     cin->video_stream_index = st->index;
@@ -121,8 +128,9 @@ static int cin_read_header(AVFormatContext *s, AVFormatParameters *ap)
 
     /* initialize the audio decoder stream */
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
 
     av_set_pts_info(st, 32, 1, 22050);
     cin->audio_stream_index = st->index;
@@ -138,7 +146,8 @@ static int cin_read_header(AVFormatContext *s, AVFormatParameters *ap)
     return 0;
 }
 
-static int cin_read_frame_header(CinDemuxContext *cin, AVIOContext *pb) {
+static int cin_read_frame_header(CinDemuxContext *cin, AVIOContext *pb)
+{
     CinFrameHeader *hdr = &cin->frame_header;
 
     hdr->video_frame_type = avio_r8(pb);
@@ -147,11 +156,13 @@ static int cin_read_frame_header(CinDemuxContext *cin, AVIOContext *pb) {
     hdr->video_frame_size = avio_rl32(pb);
     hdr->audio_frame_size = avio_rl32(pb);
 
-    if (url_feof(pb) || pb->error)
+    if (url_feof(pb) || pb->error) {
         return AVERROR(EIO);
+    }
 
-    if (avio_rl32(pb) != 0xAA55AA55)
+    if (avio_rl32(pb) != 0xAA55AA55) {
         return AVERROR_INVALIDDATA;
+    }
 
     return 0;
 }
@@ -166,8 +177,9 @@ static int cin_read_packet(AVFormatContext *s, AVPacket *pkt)
 
     if (cin->audio_buffer_size == 0) {
         rc = cin_read_frame_header(cin, pb);
-        if (rc)
+        if (rc) {
             return rc;
+        }
 
         if ((int16_t)hdr->pal_colors_count < 0) {
             hdr->pal_colors_count = -(int16_t)hdr->pal_colors_count;
@@ -180,8 +192,9 @@ static int cin_read_packet(AVFormatContext *s, AVPacket *pkt)
         pkt_size = (palette_type + 3) * hdr->pal_colors_count + hdr->video_frame_size;
 
         ret = av_new_packet(pkt, 4 + pkt_size);
-        if (ret < 0)
+        if (ret < 0) {
             return ret;
+        }
 
         pkt->stream_index = cin->video_stream_index;
         pkt->pts = cin->video_stream_pts++;
@@ -196,8 +209,9 @@ static int cin_read_packet(AVFormatContext *s, AVPacket *pkt)
             av_free_packet(pkt);
             return ret;
         }
-        if (ret < pkt_size)
+        if (ret < pkt_size) {
             av_shrink_packet(pkt, 4 + ret);
+        }
 
         /* sound buffer will be processed on next read_packet() call */
         cin->audio_buffer_size = hdr->audio_frame_size;
@@ -206,8 +220,9 @@ static int cin_read_packet(AVFormatContext *s, AVPacket *pkt)
 
     /* audio packet */
     ret = av_get_packet(pb, pkt, cin->audio_buffer_size);
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
+    }
 
     pkt->stream_index = cin->audio_stream_index;
     pkt->pts = cin->audio_stream_pts;

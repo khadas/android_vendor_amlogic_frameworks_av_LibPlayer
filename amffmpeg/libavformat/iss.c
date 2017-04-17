@@ -45,22 +45,26 @@ static void get_token(AVIOContext *s, char *buf, int maxlen)
     char c;
 
     while ((c = avio_r8(s))) {
-        if(c == ' ')
+        if (c == ' ') {
             break;
-        if (i < maxlen-1)
+        }
+        if (i < maxlen - 1) {
             buf[i++] = c;
+        }
     }
 
-    if(!c)
+    if (!c) {
         avio_r8(s);
+    }
 
     buf[i] = 0; /* Ensure null terminated, but may be truncated */
 }
 
 static int iss_probe(AVProbeData *p)
 {
-    if (strncmp(p->buf, ISS_SIG, ISS_SIG_LEN))
+    if (strncmp(p->buf, ISS_SIG, ISS_SIG_LEN)) {
         return 0;
+    }
 
     return AVPROBE_SCORE_MAX;
 }
@@ -90,17 +94,19 @@ static av_cold int iss_read_header(AVFormatContext *s, AVFormatParameters *ap)
     iss->sample_start_pos = avio_tell(pb);
 
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
     st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
     st->codec->codec_id = CODEC_ID_ADPCM_IMA_ISS;
     st->codec->channels = stereo ? 2 : 1;
     st->codec->sample_rate = 44100;
-    if(rate_divisor > 0)
-         st->codec->sample_rate /= rate_divisor;
+    if (rate_divisor > 0) {
+        st->codec->sample_rate /= rate_divisor;
+    }
     st->codec->bits_per_coded_sample = 4;
     st->codec->bit_rate = st->codec->channels * st->codec->sample_rate
-                                      * st->codec->bits_per_coded_sample;
+                          * st->codec->bits_per_coded_sample;
     st->codec->block_align = iss->packet_size;
     av_set_pts_info(st, 32, 1, st->codec->sample_rate);
 
@@ -112,13 +118,15 @@ static int iss_read_packet(AVFormatContext *s, AVPacket *pkt)
     IssDemuxContext *iss = s->priv_data;
     int ret = av_get_packet(s->pb, pkt, iss->packet_size);
 
-    if(ret != iss->packet_size)
+    if (ret != iss->packet_size) {
         return AVERROR(EIO);
+    }
 
     pkt->stream_index = 0;
     pkt->pts = avio_tell(s->pb) - iss->sample_start_pos;
-    if(s->streams[0]->codec->channels > 0)
-        pkt->pts /= s->streams[0]->codec->channels*2;
+    if (s->streams[0]->codec->channels > 0) {
+        pkt->pts /= s->streams[0]->codec->channels * 2;
+    }
     return 0;
 }
 

@@ -21,7 +21,7 @@
 
 #include "matroska.h"
 
-const CodecTags ff_mkv_codec_tags[]={
+const CodecTags ff_mkv_codec_tags[] = {
     {"A_AAC"            , CODEC_ID_AAC},
     {"A_AC3"            , CODEC_ID_AC3},
     {"A_ALAC"           , CODEC_ID_ALAC},

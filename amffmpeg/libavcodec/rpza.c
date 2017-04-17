@@ -91,15 +91,16 @@ static void rpza_decode_stream(RpzaContext *s)
     /* First byte is always 0xe1. Warn if it's different */
     if (s->buf[stream_ptr] != 0xe1)
         av_log(s->avctx, AV_LOG_ERROR, "First chunk byte is 0x%02x instead of 0xe1\n",
-            s->buf[stream_ptr]);
+               s->buf[stream_ptr]);
 
     /* Get chunk size, ingnoring first byte */
     chunk_size = AV_RB32(&s->buf[stream_ptr]) & 0x00FFFFFF;
     stream_ptr += 4;
 
     /* If length mismatch use size from MOV file and try to decode anyway */
-    if (chunk_size != s->size)
+    if (chunk_size != s->size) {
         av_log(s->avctx, AV_LOG_ERROR, "MOV chunk size != encoded chunk size; using MOV chunk size\n");
+    }
 
     chunk_size = s->size;
 
@@ -130,18 +131,18 @@ static void rpza_decode_stream(RpzaContext *s)
         /* Skip blocks */
         case 0x80:
             while (n_blocks--) {
-              ADVANCE_BLOCK();
+                ADVANCE_BLOCK();
             }
             break;
 
         /* Fill blocks with one color */
         case 0xa0:
-            colorA = AV_RB16 (&s->buf[stream_ptr]);
+            colorA = AV_RB16(&s->buf[stream_ptr]);
             stream_ptr += 2;
             while (n_blocks--) {
                 block_ptr = row_ptr + pixel_ptr;
                 for (pixel_y = 0; pixel_y < 4; pixel_y++) {
-                    for (pixel_x = 0; pixel_x < 4; pixel_x++){
+                    for (pixel_x = 0; pixel_x < 4; pixel_x++) {
                         pixels[block_ptr] = colorA;
                         block_ptr++;
                     }
@@ -153,10 +154,10 @@ static void rpza_decode_stream(RpzaContext *s)
 
         /* Fill blocks with 4 colors */
         case 0xc0:
-            colorA = AV_RB16 (&s->buf[stream_ptr]);
+            colorA = AV_RB16(&s->buf[stream_ptr]);
             stream_ptr += 2;
         case 0x20:
-            colorB = AV_RB16 (&s->buf[stream_ptr]);
+            colorB = AV_RB16(&s->buf[stream_ptr]);
             stream_ptr += 2;
 
             /* sort out the colors */
@@ -187,7 +188,7 @@ static void rpza_decode_stream(RpzaContext *s)
                 block_ptr = row_ptr + pixel_ptr;
                 for (pixel_y = 0; pixel_y < 4; pixel_y++) {
                     index = s->buf[stream_ptr++];
-                    for (pixel_x = 0; pixel_x < 4; pixel_x++){
+                    for (pixel_x = 0; pixel_x < 4; pixel_x++) {
                         idx = (index >> (2 * (3 - pixel_x))) & 0x03;
                         pixels[block_ptr] = color4[idx];
                         block_ptr++;
@@ -202,10 +203,10 @@ static void rpza_decode_stream(RpzaContext *s)
         case 0x00:
             block_ptr = row_ptr + pixel_ptr;
             for (pixel_y = 0; pixel_y < 4; pixel_y++) {
-                for (pixel_x = 0; pixel_x < 4; pixel_x++){
+                for (pixel_x = 0; pixel_x < 4; pixel_x++) {
                     /* We already have color of upper left pixel */
-                    if ((pixel_y != 0) || (pixel_x !=0)) {
-                        colorA = AV_RB16 (&s->buf[stream_ptr]);
+                    if ((pixel_y != 0) || (pixel_x != 0)) {
+                        colorA = AV_RB16(&s->buf[stream_ptr]);
                         stream_ptr += 2;
                     }
                     pixels[block_ptr] = colorA;
@@ -219,8 +220,8 @@ static void rpza_decode_stream(RpzaContext *s)
         /* Unknown opcode */
         default:
             av_log(s->avctx, AV_LOG_ERROR, "Unknown opcode %d in rpza chunk."
-                 " Skip remaining %d bytes of chunk data.\n", opcode,
-                 chunk_size - stream_ptr);
+                   " Skip remaining %d bytes of chunk data.\n", opcode,
+                   chunk_size - stream_ptr);
             return;
         } /* Opcode switch */
     }
@@ -270,8 +271,9 @@ static av_cold int rpza_decode_end(AVCodecContext *avctx)
 {
     RpzaContext *s = avctx->priv_data;
 
-    if (s->frame.data[0])
+    if (s->frame.data[0]) {
         avctx->release_buffer(avctx, &s->frame);
+    }
 
     return 0;
 }

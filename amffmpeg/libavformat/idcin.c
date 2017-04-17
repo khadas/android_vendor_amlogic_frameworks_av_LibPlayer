@@ -105,33 +105,39 @@ static int idcin_probe(AVProbeData *p)
 
     /* check we have enough data to do all checks, otherwise the
        0-padding may cause a wrong recognition */
-    if (p->buf_size < 20)
+    if (p->buf_size < 20) {
         return 0;
+    }
 
     /* check the video width */
     number = AV_RL32(&p->buf[0]);
-    if ((number == 0) || (number > 1024))
-       return 0;
+    if ((number == 0) || (number > 1024)) {
+        return 0;
+    }
 
     /* check the video height */
     number = AV_RL32(&p->buf[4]);
-    if ((number == 0) || (number > 1024))
-       return 0;
+    if ((number == 0) || (number > 1024)) {
+        return 0;
+    }
 
     /* check the audio sample rate */
     number = AV_RL32(&p->buf[8]);
-    if ((number != 0) && ((number < 8000) | (number > 48000)))
+    if ((number != 0) && ((number < 8000) | (number > 48000))) {
         return 0;
+    }
 
     /* check the audio bytes/sample */
     number = AV_RL32(&p->buf[12]);
-    if (number > 2)
+    if (number > 2) {
         return 0;
+    }
 
     /* check the audio channels */
     number = AV_RL32(&p->buf[16]);
-    if (number > 2)
+    if (number > 2) {
         return 0;
+    }
 
     /* return half certainly since this check is a bit sketchy */
     return AVPROBE_SCORE_MAX / 2;
@@ -154,8 +160,9 @@ static int idcin_read_header(AVFormatContext *s,
     channels = avio_rl32(pb);
 
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
     av_set_pts_info(st, 33, 1, IDCIN_FPS);
     idcin->video_stream_index = st->index;
     st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
@@ -168,15 +175,17 @@ static int idcin_read_header(AVFormatContext *s,
     st->codec->extradata_size = HUFFMAN_TABLE_SIZE;
     st->codec->extradata = av_malloc(HUFFMAN_TABLE_SIZE);
     if (avio_read(pb, st->codec->extradata, HUFFMAN_TABLE_SIZE) !=
-        HUFFMAN_TABLE_SIZE)
+        HUFFMAN_TABLE_SIZE) {
         return AVERROR(EIO);
+    }
 
     /* if sample rate is 0, assume no audio */
     if (sample_rate) {
         idcin->audio_present = 1;
         st = av_new_stream(s, 0);
-        if (!st)
+        if (!st) {
             return AVERROR(ENOMEM);
+        }
         av_set_pts_info(st, 33, 1, IDCIN_FPS);
         idcin->audio_stream_index = st->index;
         st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
@@ -186,23 +195,25 @@ static int idcin_read_header(AVFormatContext *s,
         st->codec->bits_per_coded_sample = bytes_per_sample * 8;
         st->codec->bit_rate = sample_rate * bytes_per_sample * 8 * channels;
         st->codec->block_align = bytes_per_sample * channels;
-        if (bytes_per_sample == 1)
+        if (bytes_per_sample == 1) {
             st->codec->codec_id = CODEC_ID_PCM_U8;
-        else
+        } else {
             st->codec->codec_id = CODEC_ID_PCM_S16LE;
+        }
 
         if (sample_rate % 14 != 0) {
             idcin->audio_chunk_size1 = (sample_rate / 14) *
-            bytes_per_sample * channels;
+                                       bytes_per_sample * channels;
             idcin->audio_chunk_size2 = (sample_rate / 14 + 1) *
-                bytes_per_sample * channels;
+                                       bytes_per_sample * channels;
         } else {
             idcin->audio_chunk_size1 = idcin->audio_chunk_size2 =
-                (sample_rate / 14) * bytes_per_sample * channels;
+                                           (sample_rate / 14) * bytes_per_sample * channels;
         }
         idcin->current_audio_chunk = 0;
-    } else
+    } else {
         idcin->audio_present = 1;
+    }
 
     idcin->next_chunk_is_video = 1;
     idcin->pts = 0;
@@ -224,8 +235,9 @@ static int idcin_read_packet(AVFormatContext *s,
     unsigned char palette_buffer[768];
     uint32_t palette[256];
 
-    if (url_feof(s->pb))
+    if (url_feof(s->pb)) {
         return AVERROR(EIO);
+    }
 
     if (idcin->next_chunk_is_video) {
         command = avio_rl32(pb);
@@ -233,8 +245,9 @@ static int idcin_read_packet(AVFormatContext *s,
             return AVERROR(EIO);
         } else if (command == 1) {
             /* trigger a palette change */
-            if (avio_read(pb, palette_buffer, 768) != 768)
+            if (avio_read(pb, palette_buffer, 768) != 768) {
                 return AVERROR(EIO);
+            }
             /* scale the palette as necessary */
             palette_scale = 2;
             for (i = 0; i < 768; i++)
@@ -255,29 +268,33 @@ static int idcin_read_packet(AVFormatContext *s,
         /* skip the number of decoded bytes (always equal to width * height) */
         avio_skip(pb, 4);
         chunk_size -= 4;
-        ret= av_get_packet(pb, pkt, chunk_size);
-        if (ret < 0)
+        ret = av_get_packet(pb, pkt, chunk_size);
+        if (ret < 0) {
             return ret;
+        }
         if (command == 1) {
             uint8_t *pal;
 
             pal = av_packet_new_side_data(pkt, AV_PKT_DATA_PALETTE,
                                           AVPALETTE_SIZE);
-            if (ret < 0)
+            if (ret < 0) {
                 return ret;
+            }
             memcpy(pal, palette, AVPALETTE_SIZE);
         }
         pkt->stream_index = idcin->video_stream_index;
         pkt->pts = idcin->pts;
     } else {
         /* send out the audio chunk */
-        if (idcin->current_audio_chunk)
+        if (idcin->current_audio_chunk) {
             chunk_size = idcin->audio_chunk_size2;
-        else
+        } else {
             chunk_size = idcin->audio_chunk_size1;
-        ret= av_get_packet(pb, pkt, chunk_size);
-        if (ret < 0)
+        }
+        ret = av_get_packet(pb, pkt, chunk_size);
+        if (ret < 0) {
             return ret;
+        }
         pkt->stream_index = idcin->audio_stream_index;
         pkt->pts = idcin->pts;
 
@@ -285,8 +302,9 @@ static int idcin_read_packet(AVFormatContext *s,
         idcin->pts++;
     }
 
-    if (idcin->audio_present)
+    if (idcin->audio_present) {
         idcin->next_chunk_is_video ^= 1;
+    }
 
     return ret;
 }

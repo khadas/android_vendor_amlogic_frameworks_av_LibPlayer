@@ -52,13 +52,13 @@ typedef struct TMVContext {
 static int tmv_probe(AVProbeData *p)
 {
     if (AV_RL32(p->buf)   == TMV_TAG &&
-        AV_RL16(p->buf+4) >= PROBE_MIN_SAMPLE_RATE &&
-        AV_RL16(p->buf+6) >= PROBE_MIN_AUDIO_SIZE  &&
-               !p->buf[8] && // compression method
-                p->buf[9] && // char cols
-                p->buf[10])  // char rows
+        AV_RL16(p->buf + 4) >= PROBE_MIN_SAMPLE_RATE &&
+        AV_RL16(p->buf + 6) >= PROBE_MIN_AUDIO_SIZE  &&
+        !p->buf[8] && // compression method
+        p->buf[9] && // char cols
+        p->buf[10])  // char rows
         return AVPROBE_SCORE_MAX /
-            ((p->buf[9] == 40 && p->buf[10] == 25) ? 1 : 4);
+               ((p->buf[9] == 40 && p->buf[10] == 25) ? 1 : 4);
     return 0;
 }
 
@@ -70,14 +70,17 @@ static int tmv_read_header(AVFormatContext *s, AVFormatParameters *ap)
     AVRational fps;
     unsigned comp_method, char_cols, char_rows, features;
 
-    if (avio_rl32(pb) != TMV_TAG)
+    if (avio_rl32(pb) != TMV_TAG) {
         return -1;
+    }
 
-    if (!(vst = av_new_stream(s, 0)))
+    if (!(vst = av_new_stream(s, 0))) {
         return AVERROR(ENOMEM);
+    }
 
-    if (!(ast = av_new_stream(s, 0)))
+    if (!(ast = av_new_stream(s, 0))) {
         return AVERROR(ENOMEM);
+    }
 
     ast->codec->sample_rate = avio_rl16(pb);
     if (!ast->codec->sample_rate) {
@@ -131,7 +134,7 @@ static int tmv_read_header(AVFormatContext *s, AVFormatParameters *ap)
     if (features & TMV_PADDING)
         tmv->padding =
             ((tmv->video_chunk_size + tmv->audio_chunk_size + 511) & ~511) -
-             (tmv->video_chunk_size + tmv->audio_chunk_size);
+            (tmv->video_chunk_size + tmv->audio_chunk_size);
 
     vst->codec->bit_rate = ((tmv->video_chunk_size + tmv->padding) *
                             fps.num * 8) / fps.den;
@@ -146,13 +149,15 @@ static int tmv_read_packet(AVFormatContext *s, AVPacket *pkt)
     int ret, pkt_size = tmv->stream_index ?
                         tmv->audio_chunk_size : tmv->video_chunk_size;
 
-    if (url_feof(pb))
+    if (url_feof(pb)) {
         return AVERROR_EOF;
+    }
 
     ret = av_get_packet(pb, pkt, pkt_size);
 
-    if (tmv->stream_index)
+    if (tmv->stream_index) {
         avio_skip(pb, tmv->padding);
+    }
 
     pkt->stream_index  = tmv->stream_index;
     tmv->stream_index ^= 1;
@@ -167,8 +172,9 @@ static int tmv_read_seek(AVFormatContext *s, int stream_index,
     TMVContext *tmv = s->priv_data;
     int64_t pos;
 
-    if (stream_index)
+    if (stream_index) {
         return -1;
+    }
 
     pos = timestamp *
           (tmv->audio_chunk_size + tmv->video_chunk_size + tmv->padding);

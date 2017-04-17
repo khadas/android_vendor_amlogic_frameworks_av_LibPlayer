@@ -42,8 +42,9 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size,
     int aligned_width = FFALIGN(avctx->width, 64);
     uint8_t *dst_line;
 
-    if (pic->data[0])
+    if (pic->data[0]) {
         avctx->release_buffer(avctx, pic);
+    }
 
     if (avpkt->size < 4 * aligned_width * avctx->height) {
         av_log(avctx, AV_LOG_ERROR, "packet too small\n");
@@ -51,8 +52,9 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size,
     }
 
     pic->reference = 0;
-    if (avctx->get_buffer(avctx, pic) < 0)
+    if (avctx->get_buffer(avctx, pic) < 0) {
         return -1;
+    }
 
     pic->pict_type = AV_PICTURE_TYPE_I;
     pic->key_frame = 1;
@@ -63,7 +65,7 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size,
         for (w = 0; w < avctx->width; w++) {
             uint32_t pixel = av_be2ne32(*src++);
             uint16_t r, g, b;
-            if (avctx->codec_id==CODEC_ID_R210) {
+            if (avctx->codec_id == CODEC_ID_R210) {
                 b =  pixel <<  6;
                 g = (pixel >>  4) & 0xffc0;
                 r = (pixel >> 14) & 0xffc0;
@@ -89,8 +91,9 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size,
 static av_cold int decode_close(AVCodecContext *avctx)
 {
     AVFrame *pic = avctx->coded_frame;
-    if (pic->data[0])
+    if (pic->data[0]) {
         avctx->release_buffer(avctx, pic);
+    }
     av_freep(&avctx->coded_frame);
 
     return 0;

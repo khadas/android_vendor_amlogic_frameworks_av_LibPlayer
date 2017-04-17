@@ -105,13 +105,13 @@ typedef struct {
  * @param len length of buf
  * @param flags flags from the RTP packet header (RTP_FLAG_*)
  */
-typedef int (*DynamicPayloadPacketHandlerProc) (AVFormatContext *ctx,
-                                                PayloadContext *s,
-                                                AVStream *st,
-                                                AVPacket * pkt,
-                                                uint32_t *timestamp,
-                                                const uint8_t * buf,
-                                                int len, int flags);
+typedef int (*DynamicPayloadPacketHandlerProc)(AVFormatContext *ctx,
+        PayloadContext *s,
+        AVStream *st,
+        AVPacket * pkt,
+        uint32_t *timestamp,
+        const uint8_t * buf,
+        int len, int flags);
 
 struct RTPDynamicProtocolHandler_s {
     // fields from AVRtpDynamicPayloadType_s
@@ -123,11 +123,11 @@ struct RTPDynamicProtocolHandler_s {
                             * require any custom depacketization code. */
 
     // may be null
-    int (*parse_sdp_a_line) (AVFormatContext *s,
-                             int st_index,
-                             PayloadContext *priv_data,
-                             const char *line); ///< Parse the a= line from the sdp field
-    PayloadContext *(*alloc) (void); ///< allocate any data needed by the rtp parsing for this dynamic data.
+    int (*parse_sdp_a_line)(AVFormatContext *s,
+                            int st_index,
+                            PayloadContext *priv_data,
+                            const char *line); ///< Parse the a= line from the sdp field
+    PayloadContext *(*alloc)(void);  ///< allocate any data needed by the rtp parsing for this dynamic data.
     void (*free)(PayloadContext *protocol_data); ///< free any data needed by the rtp parsing for this dynamic data.
     DynamicPayloadPacketHandlerProc parse_packet; ///< parse handler for this dynamic packet.
 
@@ -140,7 +140,7 @@ typedef struct RTPPacket {
     int len;
 
     int valid_data_offset;
-    
+
     int64_t recvtime;
     struct RTPPacket *next;
 } RTPPacket;
@@ -150,10 +150,12 @@ typedef struct RTPContext {
     int rtp_fd, rtcp_fd;
 
     int use_cache;
+    int network_down;
     volatile uint8_t brunning;
     pthread_t recv_thread;
     struct itemlist recvlist;
     int last_seq;
+    int report_flag;
 } RTPContext;
 
 // moved out of rtp.c, because the h264 decoder needs to know about this structure..
@@ -207,9 +209,9 @@ struct RTPDemuxContext {
 
 void ff_register_dynamic_payload_handler(RTPDynamicProtocolHandler *handler);
 RTPDynamicProtocolHandler *ff_rtp_handler_find_by_name(const char *name,
-                                                  enum AVMediaType codec_type);
+        enum AVMediaType codec_type);
 RTPDynamicProtocolHandler *ff_rtp_handler_find_by_id(int id,
-                                                enum AVMediaType codec_type);
+        enum AVMediaType codec_type);
 
 int ff_rtsp_next_attr_and_value(const char **p, char *attr, int attr_size, char *value, int value_size); ///< from rtsp.c, but used by rtp dynamic protocol handlers.
 

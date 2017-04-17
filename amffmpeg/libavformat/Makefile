@@ -346,7 +346,7 @@ RTMP-OBJS-$(CONFIG_LIBRTMP)               = librtmp.o
 RTMP-OBJS-$(!CONFIG_LIBRTMP)              = rtmpproto.o rtmppkt.o
 OBJS-$(CONFIG_RTMP_PROTOCOL)             += $(RTMP-OBJS-yes)
 
-OBJS-$(CONFIG_RTP_PROTOCOL)              += rtpproto.o
+OBJS-$(CONFIG_RTP_PROTOCOL)              += rtpproto.o RS_fec.o
 OBJS-$(CONFIG_TCP_PROTOCOL)              += tcp.o
 OBJS-$(CONFIG_UDP_PROTOCOL)              += udp.o
 

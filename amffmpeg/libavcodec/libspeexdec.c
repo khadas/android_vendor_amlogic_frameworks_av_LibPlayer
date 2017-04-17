@@ -39,31 +39,35 @@ static av_cold int libspeex_decode_init(AVCodecContext *avctx)
     const SpeexMode *mode;
 
     // defaults in the case of a missing header
-    if (avctx->sample_rate <= 8000)
+    if (avctx->sample_rate <= 8000) {
         mode = &speex_nb_mode;
-    else if (avctx->sample_rate <= 16000)
+    } else if (avctx->sample_rate <= 16000) {
         mode = &speex_wb_mode;
-    else
+    } else {
         mode = &speex_uwb_mode;
+    }
 
-    if (avctx->extradata_size >= 80)
+    if (avctx->extradata_size >= 80) {
         s->header = speex_packet_to_header(avctx->extradata, avctx->extradata_size);
+    }
 
     avctx->sample_fmt = AV_SAMPLE_FMT_S16;
     if (s->header) {
         avctx->sample_rate = s->header->rate;
         avctx->channels    = s->header->nb_channels;
         avctx->frame_size  = s->frame_size = s->header->frame_size;
-        if (s->header->frames_per_packet)
+        if (s->header->frames_per_packet) {
             avctx->frame_size *= s->header->frames_per_packet;
+        }
 
         mode = speex_lib_get_mode(s->header->mode);
         if (!mode) {
             av_log(avctx, AV_LOG_ERROR, "Unknown Speex mode %d", s->header->mode);
             return -1;
         }
-    } else
+    } else {
         av_log(avctx, AV_LOG_INFO, "Missing Speex header, assuming defaults.\n");
+    }
 
     if (avctx->channels > 2) {
         av_log(avctx, AV_LOG_ERROR, "Only stereo and mono are supported.\n");
@@ -114,10 +118,13 @@ static int libspeex_decode_frame(AVCodecContext *avctx,
             return -1;
         } else if (ret == -1)
             // end of stream
+        {
             break;
+        }
 
-        if (avctx->channels == 2)
+        if (avctx->channels == 2) {
             speex_decode_stereo_int(output, s->frame_size, &s->stereo);
+        }
 
         output += num_samples;
     }

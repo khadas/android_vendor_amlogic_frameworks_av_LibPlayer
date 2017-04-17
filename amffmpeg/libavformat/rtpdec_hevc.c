@@ -56,8 +56,9 @@ static av_cold int hevc_init(AVFormatContext *ctx, int st_index,
 {
     av_dlog(ctx, "hevc_init() for stream %d\n", st_index);
 
-    if (st_index < 0)
+    if (st_index < 0) {
         return 0;
+    }
 
     ctx->streams[st_index]->need_parsing = AVSTREAM_PARSE_FULL;
 
@@ -65,8 +66,8 @@ static av_cold int hevc_init(AVFormatContext *ctx, int st_index,
 }
 
 static av_cold int hevc_sdp_parse_fmtp_config(AVStream *stream,
-                                              PayloadContext *hevc_data,
-                                              char *attr, char *value)
+        PayloadContext *hevc_data,
+        char *attr, char *value)
 {
     /* profile-space: 0-3 */
     /* profile-id: 0-31 */
@@ -117,8 +118,9 @@ static av_cold int hevc_sdp_parse_fmtp_config(AVStream *stream,
             }
             *dst++ = '\0';
 
-            if (*value == ',')
+            if (*value == ',') {
                 value++;
+            }
 
             decoded_packet_size = av_base64_decode(decoded_packet, base64packet,
                                                    sizeof(decoded_packet));
@@ -152,18 +154,20 @@ static av_cold int hevc_sdp_parse_fmtp_config(AVStream *stream,
          value MUST be greater than 0.
     */
     if (!strcmp(attr, "sprop-max-don-diff")) {
-        if (atoi(value) > 0)
+        if (atoi(value) > 0) {
             hevc_data->using_donl_field = 1;
+        }
         av_log(NULL, AV_LOG_INFO, "Found sprop-max-don-diff in SDP, DON field usage is: %d\n",
-                hevc_data->using_donl_field);
+               hevc_data->using_donl_field);
     }
 
     /* sprop-depack-buf-nalus: 0-32767 */
     if (!strcmp(attr, "sprop-depack-buf-nalus")) {
-        if (atoi(value) > 0)
+        if (atoi(value) > 0) {
             hevc_data->using_donl_field = 1;
+        }
         av_log(NULL, AV_LOG_INFO, "Found sprop-depack-buf-nalus in SDP, DON field usage is: %d\n",
-                hevc_data->using_donl_field);
+               hevc_data->using_donl_field);
     }
 
     /* sprop-depack-buf-bytes: 0-4294967295 */
@@ -183,8 +187,9 @@ static av_cold int hevc_parse_sdp_line(AVFormatContext *ctx, int st_index,
     AVCodecContext *codec;
     const char *sdp_line_ptr = line;
 
-    if (st_index < 0)
+    if (st_index < 0) {
         return 0;
+    }
 
     current_stream = ctx->streams[st_index];
     codec  = current_stream->codec;
@@ -198,18 +203,22 @@ static av_cold int hevc_parse_sdp_line(AVFormatContext *ctx, int st_index,
          */
 
         /* ignore spaces */
-        while (*sdp_line_ptr && *sdp_line_ptr == ' ')
+        while (*sdp_line_ptr && *sdp_line_ptr == ' ') {
             sdp_line_ptr++;
+        }
         /* ignore RTP payload ID */
-        while (*sdp_line_ptr && *sdp_line_ptr != ' ')
+        while (*sdp_line_ptr && *sdp_line_ptr != ' ') {
             sdp_line_ptr++;
+        }
         /* ignore spaces */
-        while (*sdp_line_ptr && *sdp_line_ptr == ' ')
+        while (*sdp_line_ptr && *sdp_line_ptr == ' ') {
             sdp_line_ptr++;
+        }
         /* extract the actual video resolution description */
         while (*sdp_line_ptr && *sdp_line_ptr != '-' &&
-               (str_video_width_ptr - str_video_width) < sizeof(str_video_width) - 1)
+               (str_video_width_ptr - str_video_width) < sizeof(str_video_width) - 1) {
             *str_video_width_ptr++ = *sdp_line_ptr++;
+        }
         /* add trailing zero byte */
         *str_video_width_ptr = '\0';
 
@@ -289,7 +298,7 @@ static int hevc_handle_packet(AVFormatContext *ctx, PayloadContext *rtp_hevc_ctx
            NUH layer ID (LayerId): 6 bits
            NUH temporal ID plus 1 (TID): 3 bits
     */
-    nal_type =  (buf[0] >> 1) & 0x3f;
+    nal_type = (buf[0] >> 1) & 0x3f;
     lid  = ((buf[0] << 5) & 0x20) | ((buf[1] >> 3) & 0x1f);
     tid  =   buf[1] & 0x07;
 
@@ -324,31 +333,33 @@ static int hevc_handle_packet(AVFormatContext *ctx, PayloadContext *rtp_hevc_ctx
             len -= RTP_HEVC_DONL_FIELD_SIZE;
         }
         {
-            int nal_size =0 ;
-            int pasered_len=0;
-            int data_off=0;
+            int nal_size = 0 ;
+            int pasered_len = 0;
+            int data_off = 0;
             int nalu_num = 0;
             int nalu_num_max = 4;
-            if ((res = av_new_packet(pkt, sizeof(start_sequence) + len + nalu_num_max * 2)) < 0)
+            if ((res = av_new_packet(pkt, sizeof(start_sequence) + len + nalu_num_max * 2)) < 0) {
                 return res;
-            while ( pasered_len < len - 2 ) {
+            }
+            while (pasered_len < len - 2) {
                 if (nalu_num >= nalu_num_max) {/*echo nalu,need 00000001 &del nalu_size,+2*/
                     nalu_num_max = nalu_num_max << 1;
                     if ((res = av_grow_packet(pkt, nalu_num_max)) < 0) {
-                        av_log(ctx, AV_LOG_ERROR, "av_grow_packet failed (%d) grow(%d)\n", res,nalu_num_max);
+                        av_log(ctx, AV_LOG_ERROR, "av_grow_packet failed (%d) grow(%d)\n", res, nalu_num_max);
                         av_free_packet(pkt);
                         return res;
                     }
                 }
-                if (rtp_hevc_ctx->using_donl_field && nalu_num >0) {
-                   buf += 1;
-                   pasered_len += 1;
+                if (rtp_hevc_ctx->using_donl_field && nalu_num > 0) {
+                    buf += 1;
+                    pasered_len += 1;
                 }
-                nal_size= ((buf[0] << 8) | buf[1]);
+                nal_size = ((buf[0] << 8) | buf[1]);
                 buf += 2;
                 pasered_len += 2;
-                if (nal_size >= len - pasered_len )
+                if (nal_size >= len - pasered_len) {
                     nal_size = len - pasered_len;
+                }
                 if (nal_size <= 0) {
                     av_log(ctx, AV_LOG_ERROR, "hevc parser error  nal_size (%d)\n", nal_size);
                     break;
@@ -384,8 +395,9 @@ static int hevc_handle_packet(AVFormatContext *ctx, PayloadContext *rtp_hevc_ctx
             return AVERROR_INVALIDDATA;
         }
         /* create A/V packet */
-        if ((res = av_new_packet(pkt, sizeof(start_sequence) + len)) < 0)
+        if ((res = av_new_packet(pkt, sizeof(start_sequence) + len)) < 0) {
             return res;
+        }
         /* A/V packet: copy start sequence */
         memcpy(pkt->data, start_sequence, sizeof(start_sequence));
         /* A/V packet: copy NAL unit data */
@@ -397,8 +409,9 @@ static int hevc_handle_packet(AVFormatContext *ctx, PayloadContext *rtp_hevc_ctx
         buf += RTP_HEVC_PAYLOAD_HEADER_SIZE;
         len -= RTP_HEVC_PAYLOAD_HEADER_SIZE;
 
-        if (len < 1)
+        if (len < 1) {
             return AVERROR_INVALIDDATA;
+        }
         /*
              decode the FU header
 
@@ -435,8 +448,9 @@ static int hevc_handle_packet(AVFormatContext *ctx, PayloadContext *rtp_hevc_ctx
             if (first_fragment) {
                 if (!last_fragment) {
                     /* create A/V packet which is big enough */
-                    if ((res = av_new_packet(pkt, sizeof(start_sequence) + sizeof(new_nal_header) + len)) < 0)
+                    if ((res = av_new_packet(pkt, sizeof(start_sequence) + sizeof(new_nal_header) + len)) < 0) {
                         return res;
+                    }
                     /* A/V packet: copy start sequence */
                     memcpy(pkt->data, start_sequence, sizeof(start_sequence));
                     /* A/V packet: copy new NAL header */
@@ -449,17 +463,18 @@ static int hevc_handle_packet(AVFormatContext *ctx, PayloadContext *rtp_hevc_ctx
                 }
             } else {
                 /* create A/V packet */
-                if ((res = av_new_packet(pkt, len)) < 0)
+                if ((res = av_new_packet(pkt, len)) < 0) {
                     return res;
+                }
                 /* A/V packet: copy NAL unit data */
                 memcpy(pkt->data, buf, len);
             }
         } else {
             if (len < 0) {
-            av_log(ctx, AV_LOG_ERROR,
-                   "Too short RTP/HEVC packet, got %d bytes of NAL unit type %d\n",
-                   len, nal_type);
-            res = AVERROR_INVALIDDATA;
+                av_log(ctx, AV_LOG_ERROR,
+                       "Too short RTP/HEVC packet, got %d bytes of NAL unit type %d\n",
+                       len, nal_type);
+                res = AVERROR_INVALIDDATA;
             } else {
                 res = AVERROR(EAGAIN);
             }

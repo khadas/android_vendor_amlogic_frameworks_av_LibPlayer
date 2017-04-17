@@ -25,7 +25,7 @@
 #include "aacps_tablegen.h"
 #include "tableprint.h"
 
-void write_float_3d_array (const void *p, int b, int c, int d)
+void write_float_3d_array(const void *p, int b, int c, int d)
 {
     int i;
     const float *f = p;
@@ -37,7 +37,7 @@ void write_float_3d_array (const void *p, int b, int c, int d)
     }
 }
 
-void write_float_4d_array (const void *p, int a, int b, int c, int d)
+void write_float_4d_array(const void *p, int a, int b, int c, int d)
 {
     int i;
     const float *f = p;
@@ -56,10 +56,10 @@ int main(void)
     write_fileheader();
 
     printf("static const float pd_re_smooth[8*8*8] = {\n");
-    write_float_array(pd_re_smooth, 8*8*8);
+    write_float_array(pd_re_smooth, 8 * 8 * 8);
     printf("};\n");
     printf("static const float pd_im_smooth[8*8*8] = {\n");
-    write_float_array(pd_im_smooth, 8*8*8);
+    write_float_array(pd_im_smooth, 8 * 8 * 8);
     printf("};\n");
 
     printf("static const float HA[46][8][4] = {\n");

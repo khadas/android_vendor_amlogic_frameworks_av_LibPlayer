@@ -29,21 +29,25 @@ extern "C" {
 #endif /* __cplusplus */
 
 
-    int hls_simple_cache_alloc(int size_max, void** handle);
+int hls_simple_cache_alloc(int size_max, void** handle);
 
-    int hls_simple_cache_get_free_space(void* handle);
-    int hls_simple_cache_get_data_size(void* handle);
-    int hls_simple_cache_reset(void* handle);
-    int hls_simple_cache_revert(void* handle);
-    int hls_simple_cache_write(void* handle, void* data, int size);
+int hls_simple_cache_get_free_space(void* handle);
+int hls_simple_cache_get_data_size(void* handle);
+int hls_simple_cache_reset(void* handle);
+int hls_simple_cache_revert(void* handle);
+int hls_simple_cache_write(void* handle, void* data, int size);
 
-    int hls_simple_cache_read(void* handle, void* buffer, int size);
-    int hls_simple_cache_free(void* handle);
+int hls_simple_cache_read(void* handle, void* buffer, int size);
+int hls_simple_cache_free(void* handle);
 
-    int hls_simple_cache_grow_space(void* handle, int size);
+int hls_simple_cache_grow_space(void* handle, int size);
 
-    int hls_simple_cache_move_to_pos(void* handle, int pos);
-    int hls_simple_cache_block_read(void* handle, void* buffer, int size, int wait_us);
+int hls_simple_cache_move_to_pos(void* handle, int pos);
+
+int hls_simple_cache_get_cache_size(void* handle);
+
+int hls_simple_cache_block_read(void* handle, void* buffer, int size, int wait_us);
+
 #ifdef __cplusplus
 #if __cplusplus
 }

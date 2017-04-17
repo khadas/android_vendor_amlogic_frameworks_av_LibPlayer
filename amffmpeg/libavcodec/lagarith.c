@@ -106,12 +106,14 @@ static int lag_decode_prob(GetBitContext *gb, uint32_t *value)
     unsigned val;
 
     for (i = 0; i < 7; i++) {
-        if (prevbit && bit)
+        if (prevbit && bit) {
             break;
+        }
         prevbit = bit;
         bit = get_bits1(gb);
-        if (bit && !prevbit)
+        if (bit && !prevbit) {
             bits += series[i];
+        }
     }
     bits--;
     if (bits < 0 || bits > 31) {
@@ -155,10 +157,12 @@ static int lag_read_prob_header(lag_rac *rac, GetBitContext *gb)
                 av_log(rac->avctx, AV_LOG_ERROR, "Invalid probability run encountered.\n");
                 return -1;
             }
-            if (prob > 257 - i)
+            if (prob > 257 - i) {
                 prob = 257 - i;
-            for (j = 0; j < prob; j++)
+            }
+            for (j = 0; j < prob; j++) {
                 rac->prob[++i] = 0;
+            }
         }
     }
 
@@ -210,8 +214,9 @@ static int lag_read_prob_header(lag_rac *rac, GetBitContext *gb)
     rac->scale = scale_factor;
 
     /* Fill probability array with cumulative probability for each symbol. */
-    for (i = 1; i < 257; i++)
+    for (i = 1; i < 257; i++) {
         rac->prob[i] += rac->prob[i - 1];
+    }
 
     return 0;
 }
@@ -272,8 +277,9 @@ static int lag_decode_line(LagarithContext *l, lag_rac *rac,
     int i = 0;
     int ret = 0;
 
-    if (!esc_count)
+    if (!esc_count) {
         esc_count = -1;
+    }
 
     /* Output any zeros remaining from the previous run */
 handle_zeros:
@@ -288,10 +294,11 @@ handle_zeros:
         dst[i] = lag_get_rac(rac);
         ret++;
 
-        if (dst[i])
+        if (dst[i]) {
             l->zeros = 0;
-        else
+        } else {
             l->zeros++;
+        }
 
         i++;
         if (l->zeros == esc_count) {
@@ -377,8 +384,9 @@ static int lag_decode_arith_plane(LagarithContext *l, uint8_t *dst,
 
         init_get_bits(&gb, src + offset, src_size * 8);
 
-        if (lag_read_prob_header(&rac, &gb) < 0)
+        if (lag_read_prob_header(&rac, &gb) < 0) {
             return -1;
+        }
 
         lag_rac_init(&rac, &gb, length - stride);
 
@@ -406,8 +414,9 @@ static int lag_decode_arith_plane(LagarithContext *l, uint8_t *dst,
         }
     } else if (esc_count == 0xff) {
         /* Plane is a solid run of given value */
-        for (i = 0; i < height; i++)
+        for (i = 0; i < height; i++) {
             memset(dst + i * stride, src[1], width);
+        }
         /* Do not apply prediction.
            Note: memset to 0 above, setting first value to src[1]
            and applying prediction gives the same result. */
@@ -446,8 +455,9 @@ static int lag_decode_frame(AVCodecContext *avctx,
 
     AVFrame *picture = data;
 
-    if (p->data[0])
+    if (p->data[0]) {
         avctx->release_buffer(avctx, p);
+    }
 
     p->reference = 0;
     p->key_frame = 1;
@@ -502,8 +512,9 @@ static av_cold int lag_decode_end(AVCodecContext *avctx)
 {
     LagarithContext *l = avctx->priv_data;
 
-    if (l->picture.data[0])
+    if (l->picture.data[0]) {
         avctx->release_buffer(avctx, &l->picture);
+    }
 
     return 0;
 }

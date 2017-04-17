@@ -46,10 +46,11 @@ typedef struct ThpDemuxContext {
 static int thp_probe(AVProbeData *p)
 {
     /* check file header */
-    if (AV_RL32(p->buf) == MKTAG('T', 'H', 'P', '\0'))
+    if (AV_RL32(p->buf) == MKTAG('T', 'H', 'P', '\0')) {
         return AVPROBE_SCORE_MAX;
-    else
+    } else {
         return 0;
+    }
 }
 
 static int thp_read_header(AVFormatContext *s,
@@ -61,19 +62,19 @@ static int thp_read_header(AVFormatContext *s,
     int i;
 
     /* Read the file header.  */
-                           avio_rb32(pb); /* Skip Magic.  */
+    avio_rb32(pb); /* Skip Magic.  */
     thp->version         = avio_rb32(pb);
 
-                           avio_rb32(pb); /* Max buf size.  */
-                           avio_rb32(pb); /* Max samples.  */
+    avio_rb32(pb); /* Max buf size.  */
+    avio_rb32(pb); /* Max samples.  */
 
     thp->fps             = av_d2q(av_int2flt(avio_rb32(pb)), INT_MAX);
     thp->framecnt        = avio_rb32(pb);
     thp->first_framesz   = avio_rb32(pb);
-                           avio_rb32(pb); /* Data size.  */
+    avio_rb32(pb); /* Data size.  */
 
     thp->compoff         = avio_rb32(pb);
-                           avio_rb32(pb); /* offsetDataOffset.  */
+    avio_rb32(pb); /* offsetDataOffset.  */
     thp->first_frame     = avio_rb32(pb);
     thp->last_frame      = avio_rb32(pb);
 
@@ -81,7 +82,7 @@ static int thp_read_header(AVFormatContext *s,
     thp->next_frame      = thp->first_frame;
 
     /* Read the component structure.  */
-    avio_seek (pb, thp->compoff, SEEK_SET);
+    avio_seek(pb, thp->compoff, SEEK_SET);
     thp->compcount       = avio_rb32(pb);
 
     /* Read the list of component types.  */
@@ -89,13 +90,15 @@ static int thp_read_header(AVFormatContext *s,
 
     for (i = 0; i < thp->compcount; i++) {
         if (thp->components[i] == 0) {
-            if (thp->vst != 0)
+            if (thp->vst != 0) {
                 break;
+            }
 
             /* Video component.  */
             st = av_new_stream(s, 0);
-            if (!st)
+            if (!st) {
                 return AVERROR(ENOMEM);
+            }
 
             /* The denominator and numerator are switched because 1/fps
                is required.  */
@@ -109,16 +112,19 @@ static int thp_read_header(AVFormatContext *s,
             thp->vst = st;
             thp->video_stream_index = st->index;
 
-            if (thp->version == 0x11000)
-                avio_rb32(pb); /* Unknown.  */
+            if (thp->version == 0x11000) {
+                avio_rb32(pb);    /* Unknown.  */
+            }
         } else if (thp->components[i] == 1) {
-            if (thp->has_audio != 0)
+            if (thp->has_audio != 0) {
                 break;
+            }
 
             /* Audio component.  */
             st = av_new_stream(s, 0);
-            if (!st)
+            if (!st) {
                 return AVERROR(ENOMEM);
+            }
 
             st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
             st->codec->codec_id = CODEC_ID_ADPCM_THP;
@@ -137,7 +143,7 @@ static int thp_read_header(AVFormatContext *s,
 }
 
 static int thp_read_packet(AVFormatContext *s,
-                            AVPacket *pkt)
+                           AVPacket *pkt)
 {
     ThpDemuxContext *thp = s->priv_data;
     AVIOContext *pb = s->pb;
@@ -146,8 +152,9 @@ static int thp_read_packet(AVFormatContext *s,
 
     if (thp->audiosize == 0) {
         /* Terminate when last frame is reached.  */
-        if (thp->frame >= thp->framecnt)
+        if (thp->frame >= thp->framecnt) {
             return AVERROR(EIO);
+        }
 
         avio_seek(pb, thp->next_frame, SEEK_SET);
 
@@ -155,15 +162,16 @@ static int thp_read_packet(AVFormatContext *s,
         thp->next_frame += thp->next_framesz;
         thp->next_framesz = avio_rb32(pb);
 
-                        avio_rb32(pb); /* Previous total size.  */
+        avio_rb32(pb); /* Previous total size.  */
         size          = avio_rb32(pb); /* Total size of this frame.  */
 
         /* Store the audiosize so the next time this function is called,
            the audio can be read.  */
-        if (thp->has_audio)
-            thp->audiosize = avio_rb32(pb); /* Audio size.  */
-        else
+        if (thp->has_audio) {
+            thp->audiosize = avio_rb32(pb);    /* Audio size.  */
+        } else {
             thp->frame++;
+        }
 
         ret = av_get_packet(pb, pkt, size);
         if (ret != size) {

@@ -25,23 +25,23 @@
 #include <inttypes.h>
 #include "pixfmt.h"
 
-typedef struct AVComponentDescriptor{
-    uint16_t plane        :2;            ///< which of the 4 planes contains the component
+typedef struct AVComponentDescriptor {
+    uint16_t plane        : 2;           ///< which of the 4 planes contains the component
 
     /**
      * Number of elements between 2 horizontally consecutive pixels minus 1.
      * Elements are bits for bitstream formats, bytes otherwise.
      */
-    uint16_t step_minus1  :3;
+    uint16_t step_minus1  : 3;
 
     /**
      * Number of elements before the component of the first pixel plus 1.
      * Elements are bits for bitstream formats, bytes otherwise.
      */
-    uint16_t offset_plus1 :3;
-    uint16_t shift        :3;            ///< number of least significant bits that must be shifted away to get the value
-    uint16_t depth_minus1 :4;            ///< number of bits in the component minus 1
-}AVComponentDescriptor;
+    uint16_t offset_plus1 : 3;
+    uint16_t shift        : 3;           ///< number of least significant bits that must be shifted away to get the value
+    uint16_t depth_minus1 : 4;           ///< number of bits in the component minus 1
+} AVComponentDescriptor;
 
 /**
  * Descriptor that unambiguously describes how the bits of a pixel are
@@ -52,7 +52,7 @@ typedef struct AVComponentDescriptor{
  *       and all the YUV variants) AVPixFmtDescriptor just stores how values
  *       are stored not what these values represent.
  */
-typedef struct AVPixFmtDescriptor{
+typedef struct AVPixFmtDescriptor {
     const char *name;
     uint8_t nb_components;      ///< The number of components each pixel has, (1-4)
 
@@ -81,7 +81,7 @@ typedef struct AVPixFmtDescriptor{
      * comp[2].
      */
     AVComponentDescriptor comp[4];
-}AVPixFmtDescriptor;
+} AVPixFmtDescriptor;
 
 #define PIX_FMT_BE        1 ///< Pixel format is big-endian.
 #define PIX_FMT_PAL       2 ///< Pixel format has a palette in data[1], values are indexes in this palette.
@@ -166,7 +166,7 @@ const AVPixFmtDescriptor *av_pix_fmt_desc_get(enum PixelFormat pix_fmt);
  * corresponding info string, or a negative value to print the
  * corresponding header.
  */
-char *av_get_pix_fmt_string (char *buf, int buf_size, enum PixelFormat pix_fmt);
+char *av_get_pix_fmt_string(char *buf, int buf_size, enum PixelFormat pix_fmt);
 
 /**
  * Return the number of bits per pixel used by the pixel format

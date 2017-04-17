@@ -119,8 +119,9 @@ static void update_md5_strings(struct AVMD5 *md5ctx, ...)
     va_start(vl, md5ctx);
     while (1) {
         const char* str = va_arg(vl, const char*);
-        if (!str)
+        if (!str) {
             break;
+        }
         av_md5_update(md5ctx, str, strlen(str));
     }
     va_end(vl);
@@ -146,14 +147,16 @@ static char *make_digest_auth(HTTPAuthState *state, const char *username,
     snprintf(nc, sizeof(nc), "%08x", digest->nc);
 
     /* Generate a client nonce. */
-    for (i = 0; i < 2; i++)
+    for (i = 0; i < 2; i++) {
         cnonce_buf[i] = av_get_random_seed();
+    }
     ff_data_to_hex(cnonce, (const uint8_t*) cnonce_buf, sizeof(cnonce_buf), 1);
-    cnonce[2*sizeof(cnonce_buf)] = 0;
+    cnonce[2 * sizeof(cnonce_buf)] = 0;
 
     md5ctx = av_malloc(av_md5_size);
-    if (!md5ctx)
+    if (!md5ctx) {
         return NULL;
+    }
 
     av_md5_init(md5ctx);
     update_md5_strings(md5ctx, username, ":", state->realm, ":", password, NULL);
@@ -202,13 +205,14 @@ static char *make_digest_auth(HTTPAuthState *state, const char *username,
     }
 
     len = strlen(username) + strlen(state->realm) + strlen(digest->nonce) +
-              strlen(uri) + strlen(response) + strlen(digest->algorithm) +
-              strlen(digest->opaque) + strlen(digest->qop) + strlen(cnonce) +
-              strlen(nc) + 150;
+          strlen(uri) + strlen(response) + strlen(digest->algorithm) +
+          strlen(digest->opaque) + strlen(digest->qop) + strlen(cnonce) +
+          strlen(nc) + 150;
 
     authstr = av_malloc(len);
-    if (!authstr)
+    if (!authstr) {
         return NULL;
+    }
     snprintf(authstr, len, "Authorization: Digest ");
 
     /* TODO: Escape the quoted strings properly. */
@@ -217,10 +221,12 @@ static char *make_digest_auth(HTTPAuthState *state, const char *username,
     av_strlcatf(authstr, len, ",nonce=\"%s\"",     digest->nonce);
     av_strlcatf(authstr, len, ",uri=\"%s\"",       uri);
     av_strlcatf(authstr, len, ",response=\"%s\"",  response);
-    if (digest->algorithm[0])
+    if (digest->algorithm[0]) {
         av_strlcatf(authstr, len, ",algorithm=%s",  digest->algorithm);
-    if (digest->opaque[0])
+    }
+    if (digest->opaque[0]) {
         av_strlcatf(authstr, len, ",opaque=\"%s\"", digest->opaque);
+    }
     if (digest->qop[0]) {
         av_strlcatf(authstr, len, ",qop=\"%s\"",    digest->qop);
         av_strlcatf(authstr, len, ",cnonce=\"%s\"", cnonce);
@@ -237,16 +243,18 @@ char *ff_http_auth_create_response(HTTPAuthState *state, const char *auth,
 {
     char *authstr = NULL;
 
-    if (!auth || !strchr(auth, ':'))
+    if (!auth || !strchr(auth, ':')) {
         return NULL;
+    }
 
     if (state->auth_type == HTTP_AUTH_BASIC) {
         int auth_b64_len = AV_BASE64_SIZE(strlen(auth));
         int len = auth_b64_len + 30;
         char *ptr;
         authstr = av_malloc(len);
-        if (!authstr)
+        if (!authstr) {
             return NULL;
+        }
         snprintf(authstr, len, "Authorization: Basic ");
         ptr = authstr + strlen(authstr);
         av_base64_encode(ptr, auth_b64_len, auth, strlen(auth));
@@ -254,8 +262,9 @@ char *ff_http_auth_create_response(HTTPAuthState *state, const char *auth,
     } else if (state->auth_type == HTTP_AUTH_DIGEST) {
         char *username = av_strdup(auth), *password;
 
-        if (!username)
+        if (!username) {
             return NULL;
+        }
 
         if ((password = strchr(username, ':'))) {
             *password++ = 0;

@@ -78,7 +78,7 @@ static int celt_header(AVFormatContext *s, int idx)
         st->codec->extradata_size = 2 * sizeof(uint32_t);
         return 1;
 
-    } else if(priv && priv->extra_headers_left) {
+    } else if (priv && priv->extra_headers_left) {
 
         /* Extra headers (vorbiscomment) */
 

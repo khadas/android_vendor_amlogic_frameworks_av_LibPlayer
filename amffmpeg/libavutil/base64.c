@@ -28,8 +28,7 @@
 #include "base64.h"
 
 /* ---------------- private code */
-static const uint8_t map2[] =
-{
+static const uint8_t map2[] = {
     0x3e, 0xff, 0xff, 0xff, 0x3f, 0x34, 0x35, 0x36,
     0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0xff,
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x01,
@@ -49,9 +48,10 @@ int av_base64_decode(uint8_t *out, const char *in, int out_size)
 
     v = 0;
     for (i = 0; in[i] && in[i] != '='; i++) {
-        unsigned int index= in[i]-43;
-        if (index>=FF_ARRAY_ELEMS(map2) || map2[index] == 0xff)
+        unsigned int index = in[i] - 43;
+        if (index >= FF_ARRAY_ELEMS(map2) || map2[index] == 0xff) {
             return -1;
+        }
         v = (v << 6) + map2[index];
         if (i & 3) {
             if (dst - out < out_size) {
@@ -79,8 +79,9 @@ char *av_base64_encode(char *out, int out_size, const uint8_t *in, int in_size)
     int bytes_remaining = in_size;
 
     if (in_size >= UINT_MAX / 4 ||
-        out_size < AV_BASE64_SIZE(in_size))
+        out_size < AV_BASE64_SIZE(in_size)) {
         return NULL;
+    }
     ret = dst = out;
     while (bytes_remaining) {
         i_bits = (i_bits << 8) + *in++;
@@ -92,8 +93,9 @@ char *av_base64_encode(char *out, int out_size, const uint8_t *in, int in_size)
             i_shift -= 6;
         } while (i_shift > 6 || (bytes_remaining == 0 && i_shift > 0));
     }
-    while ((dst - ret) & 3)
+    while ((dst - ret) & 3) {
         *dst++ = '=';
+    }
     *dst = '\0';
 
     return ret;
@@ -155,8 +157,9 @@ int main(void)
     };
 
     printf("Encoding/decoding tests\n");
-    for (i = 0; i < FF_ARRAY_ELEMS(tests); i++)
+    for (i = 0; i < FF_ARRAY_ELEMS(tests); i++) {
         error_count += test_encode_decode(tests[i].data, strlen(tests[i].data), tests[i].encoded_ref);
+    }
 
     return error_count;
 }

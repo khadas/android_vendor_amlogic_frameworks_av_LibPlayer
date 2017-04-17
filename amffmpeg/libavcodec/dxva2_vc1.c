@@ -41,33 +41,37 @@ static void fill_picture_parameters(AVCodecContext *avctx,
 
     memset(pp, 0, sizeof(*pp));
     pp->wDecodedPictureIndex    =
-    pp->wDeblockedPictureIndex  = ff_dxva2_get_surface_index(ctx, current_picture);
-    if (s->pict_type != AV_PICTURE_TYPE_I)
+        pp->wDeblockedPictureIndex  = ff_dxva2_get_surface_index(ctx, current_picture);
+    if (s->pict_type != AV_PICTURE_TYPE_I) {
         pp->wForwardRefPictureIndex = ff_dxva2_get_surface_index(ctx, &s->last_picture);
-    else
+    } else {
         pp->wForwardRefPictureIndex = 0xffff;
-    if (s->pict_type == AV_PICTURE_TYPE_B)
+    }
+    if (s->pict_type == AV_PICTURE_TYPE_B) {
         pp->wBackwardRefPictureIndex = ff_dxva2_get_surface_index(ctx, &s->next_picture);
-    else
+    } else {
         pp->wBackwardRefPictureIndex = 0xffff;
+    }
     if (v->profile == PROFILE_ADVANCED) {
         /* It is the cropped width/height -1 of the frame */
         pp->wPicWidthInMBminus1 = avctx->width  - 1;
-        pp->wPicHeightInMBminus1= avctx->height - 1;
+        pp->wPicHeightInMBminus1 = avctx->height - 1;
     } else {
         /* It is the coded width/height in macroblock -1 of the frame */
         pp->wPicWidthInMBminus1 = s->mb_width  - 1;
-        pp->wPicHeightInMBminus1= s->mb_height - 1;
+        pp->wPicHeightInMBminus1 = s->mb_height - 1;
     }
     pp->bMacroblockWidthMinus1  = 15;
     pp->bMacroblockHeightMinus1 = 15;
     pp->bBlockWidthMinus1       = 7;
     pp->bBlockHeightMinus1      = 7;
     pp->bBPPminus1              = 7;
-    if (s->picture_structure & PICT_TOP_FIELD)
+    if (s->picture_structure & PICT_TOP_FIELD) {
         pp->bPicStructure      |= 0x01;
-    if (s->picture_structure & PICT_BOTTOM_FIELD)
+    }
+    if (s->picture_structure & PICT_BOTTOM_FIELD) {
         pp->bPicStructure      |= 0x02;
+    }
     pp->bSecondField            = v->interlace && v->fcm != 0x03 && !s->first_field;
     pp->bPicIntra               = s->pict_type == AV_PICTURE_TYPE_I;
     pp->bPicBackwardPrediction  = s->pict_type == AV_PICTURE_TYPE_B;
@@ -79,11 +83,12 @@ static void fill_picture_parameters(AVCodecContext *avctx,
     pp->bMVprecisionAndChromaRelation = ((v->mv_mode == MV_PMODE_1MV_HPEL_BILIN) << 3) |
                                         (1                                       << 2) |
                                         (0                                       << 1) |
-                                        (!s->quarter_sample                          );
+                                        (!s->quarter_sample);
     pp->bChromaFormat           = v->chromaformat;
     ctx->report_id++;
-    if (ctx->report_id >= (1 << 16))
+    if (ctx->report_id >= (1 << 16)) {
         ctx->report_id = 1;
+    }
     pp->bPicScanFixed           = ctx->report_id >> 8;
     pp->bPicScanMethod          = ctx->report_id & 0xff;
     pp->bPicReadbackRequests    = 0;
@@ -94,12 +99,12 @@ static void fill_picture_parameters(AVCodecContext *avctx,
                                   (v->fastuvmc     << 4) |
                                   (v->extended_mv  << 3) |
                                   (v->dquant       << 1) |
-                                  (v->vstransform      );
+                                  (v->vstransform);
     pp->bPicOverflowBlocks      = (v->quantizer_mode << 6) |
                                   (v->multires       << 5) |
                                   (s->resync_marker  << 4) |
                                   (v->rangered       << 3) |
-                                  (s->max_b_frames       );
+                                  (s->max_b_frames);
     pp->bPicExtrapolation       = (!v->interlace || v->fcm == 0x00) ? 1 : 2;
     pp->bPicDeblocked           = ((v->profile != PROFILE_ADVANCED && v->rangeredfrm) << 5) |
                                   (s->loop_filter                                     << 1);
@@ -110,7 +115,7 @@ static void fill_picture_parameters(AVCodecContext *avctx,
                                   (v->finterpflag              << 3) |
                                   ((s->pict_type != AV_PICTURE_TYPE_B) << 2) |
                                   (v->psf                      << 1) |
-                                  (v->extended_dmv                 );
+                                  (v->extended_dmv);
     if (s->pict_type != AV_PICTURE_TYPE_I)
         pp->bPic4MVallowed      = v->mv_mode == MV_PMODE_MIXED_MV ||
                                   (v->mv_mode == MV_PMODE_INTENSITY_COMP &&
@@ -119,7 +124,7 @@ static void fill_picture_parameters(AVCodecContext *avctx,
         pp->bPicOBMC            = (v->range_mapy_flag  << 7) |
                                   (v->range_mapy       << 4) |
                                   (v->range_mapuv_flag << 3) |
-                                  (v->range_mapuv          );
+                                  (v->range_mapuv);
     pp->bPicBinPB               = 0;
     pp->bMV_RPS                 = 0;
     pp->bReservedBits           = 0;
@@ -155,8 +160,8 @@ static void fill_slice(AVCodecContext *avctx, DXVA_SliceInfo *slice,
 }
 
 static int commit_bitstream_and_slice_buffer(AVCodecContext *avctx,
-                                             DXVA2_DecodeBufferDesc *bs,
-                                             DXVA2_DecodeBufferDesc *sc)
+        DXVA2_DecodeBufferDesc *bs,
+        DXVA2_DecodeBufferDesc *sc)
 {
     const VC1Context *v = avctx->priv_data;
     struct dxva_context *ctx = avctx->hwaccel_context;
@@ -176,25 +181,30 @@ static int commit_bitstream_and_slice_buffer(AVCodecContext *avctx,
     int result;
 
     if (FAILED(IDirectXVideoDecoder_GetBuffer(ctx->decoder,
-                                              DXVA2_BitStreamDateBufferType,
-                                              &dxva_data, &dxva_size)))
+               DXVA2_BitStreamDateBufferType,
+               &dxva_data, &dxva_size))) {
         return -1;
+    }
 
     result = data_size <= dxva_size ? 0 : -1;
     if (!result) {
-        if (start_code_size > 0)
+        if (start_code_size > 0) {
             memcpy(dxva_data, start_code, start_code_size);
+        }
         memcpy(dxva_data + start_code_size,
                ctx_pic->bitstream + slice->dwSliceDataLocation, slice_size);
-        if (padding > 0)
+        if (padding > 0) {
             memset(dxva_data + start_code_size + slice_size, 0, padding);
+        }
         slice->dwSliceBitsInBuffer = 8 * data_size;
     }
     if (FAILED(IDirectXVideoDecoder_ReleaseBuffer(ctx->decoder,
-                                                  DXVA2_BitStreamDateBufferType)))
+               DXVA2_BitStreamDateBufferType))) {
         return -1;
-    if (result)
+    }
+    if (result) {
         return result;
+    }
 
     memset(bs, 0, sizeof(*bs));
     bs->CompressedBufferType = DXVA2_BitStreamDateBufferType;
@@ -215,8 +225,9 @@ static int start_frame(AVCodecContext *avctx,
     struct dxva_context *ctx = avctx->hwaccel_context;
     struct dxva2_picture_context *ctx_pic = v->s.current_picture_ptr->hwaccel_picture_private;
 
-    if (!ctx->decoder || !ctx->cfg || ctx->surface_count <= 0)
+    if (!ctx->decoder || !ctx->cfg || ctx->surface_count <= 0) {
         return -1;
+    }
     assert(ctx_pic);
 
     fill_picture_parameters(avctx, ctx, v, &ctx_pic->pp);
@@ -233,8 +244,9 @@ static int decode_slice(AVCodecContext *avctx,
     const Picture *current_picture = v->s.current_picture_ptr;
     struct dxva2_picture_context *ctx_pic = current_picture->hwaccel_picture_private;
 
-    if (ctx_pic->bitstream_size > 0)
+    if (ctx_pic->bitstream_size > 0) {
         return -1;
+    }
 
     if (avctx->codec_id == CODEC_ID_VC1 &&
         size >= 4 && IS_MARKER(AV_RB32(buffer))) {
@@ -254,8 +266,9 @@ static int end_frame(AVCodecContext *avctx)
     VC1Context *v = avctx->priv_data;
     struct dxva2_picture_context *ctx_pic = v->s.current_picture_ptr->hwaccel_picture_private;
 
-    if (ctx_pic->bitstream_size <= 0)
+    if (ctx_pic->bitstream_size <= 0) {
         return -1;
+    }
 
     return ff_dxva2_common_end_frame(avctx, &v->s,
                                      &ctx_pic->pp, sizeof(ctx_pic->pp),

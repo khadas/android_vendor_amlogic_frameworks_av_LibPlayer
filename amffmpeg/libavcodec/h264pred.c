@@ -39,210 +39,222 @@
 #include "h264pred_template.c"
 #undef BIT_DEPTH
 
-static void pred4x4_vertical_vp8_c(uint8_t *src, const uint8_t *topright, int stride){
-    const int lt= src[-1-1*stride];
+static void pred4x4_vertical_vp8_c(uint8_t *src, const uint8_t *topright, int stride)
+{
+    const int lt = src[-1 - 1 * stride];
     LOAD_TOP_EDGE
     LOAD_TOP_RIGHT_EDGE
-    uint32_t v = PACK_4U8((lt + 2*t0 + t1 + 2) >> 2,
-                          (t0 + 2*t1 + t2 + 2) >> 2,
-                          (t1 + 2*t2 + t3 + 2) >> 2,
-                          (t2 + 2*t3 + t4 + 2) >> 2);
+    uint32_t v = PACK_4U8((lt + 2 * t0 + t1 + 2) >> 2,
+                          (t0 + 2 * t1 + t2 + 2) >> 2,
+                          (t1 + 2 * t2 + t3 + 2) >> 2,
+                          (t2 + 2 * t3 + t4 + 2) >> 2);
 
-    AV_WN32A(src+0*stride, v);
-    AV_WN32A(src+1*stride, v);
-    AV_WN32A(src+2*stride, v);
-    AV_WN32A(src+3*stride, v);
+    AV_WN32A(src + 0 * stride, v);
+    AV_WN32A(src + 1 * stride, v);
+    AV_WN32A(src + 2 * stride, v);
+    AV_WN32A(src + 3 * stride, v);
 }
 
-static void pred4x4_horizontal_vp8_c(uint8_t *src, const uint8_t *topright, int stride){
-    const int lt= src[-1-1*stride];
+static void pred4x4_horizontal_vp8_c(uint8_t *src, const uint8_t *topright, int stride)
+{
+    const int lt = src[-1 - 1 * stride];
     LOAD_LEFT_EDGE
 
-    AV_WN32A(src+0*stride, ((lt + 2*l0 + l1 + 2) >> 2)*0x01010101);
-    AV_WN32A(src+1*stride, ((l0 + 2*l1 + l2 + 2) >> 2)*0x01010101);
-    AV_WN32A(src+2*stride, ((l1 + 2*l2 + l3 + 2) >> 2)*0x01010101);
-    AV_WN32A(src+3*stride, ((l2 + 2*l3 + l3 + 2) >> 2)*0x01010101);
+    AV_WN32A(src + 0 * stride, ((lt + 2 * l0 + l1 + 2) >> 2) * 0x01010101);
+    AV_WN32A(src + 1 * stride, ((l0 + 2 * l1 + l2 + 2) >> 2) * 0x01010101);
+    AV_WN32A(src + 2 * stride, ((l1 + 2 * l2 + l3 + 2) >> 2) * 0x01010101);
+    AV_WN32A(src + 3 * stride, ((l2 + 2 * l3 + l3 + 2) >> 2) * 0x01010101);
 }
 
-static void pred4x4_down_left_svq3_c(uint8_t *src, const uint8_t *topright, int stride){
+static void pred4x4_down_left_svq3_c(uint8_t *src, const uint8_t *topright, int stride)
+{
     LOAD_TOP_EDGE
     LOAD_LEFT_EDGE
-    const av_unused int unu0= t0;
-    const av_unused int unu1= l0;
+    const av_unused int unu0 = t0;
+    const av_unused int unu1 = l0;
 
-    src[0+0*stride]=(l1 + t1)>>1;
-    src[1+0*stride]=
-    src[0+1*stride]=(l2 + t2)>>1;
-    src[2+0*stride]=
-    src[1+1*stride]=
-    src[0+2*stride]=
-    src[3+0*stride]=
-    src[2+1*stride]=
-    src[1+2*stride]=
-    src[0+3*stride]=
-    src[3+1*stride]=
-    src[2+2*stride]=
-    src[1+3*stride]=
-    src[3+2*stride]=
-    src[2+3*stride]=
-    src[3+3*stride]=(l3 + t3)>>1;
+    src[0 + 0 * stride] = (l1 + t1) >> 1;
+    src[1 + 0 * stride] =
+        src[0 + 1 * stride] = (l2 + t2) >> 1;
+    src[2 + 0 * stride] =
+        src[1 + 1 * stride] =
+            src[0 + 2 * stride] =
+                src[3 + 0 * stride] =
+                    src[2 + 1 * stride] =
+                        src[1 + 2 * stride] =
+                            src[0 + 3 * stride] =
+                                src[3 + 1 * stride] =
+                                    src[2 + 2 * stride] =
+                                        src[1 + 3 * stride] =
+                                            src[3 + 2 * stride] =
+                                                    src[2 + 3 * stride] =
+                                                            src[3 + 3 * stride] = (l3 + t3) >> 1;
 }
 
-static void pred4x4_down_left_rv40_c(uint8_t *src, const uint8_t *topright, int stride){
+static void pred4x4_down_left_rv40_c(uint8_t *src, const uint8_t *topright, int stride)
+{
     LOAD_TOP_EDGE
     LOAD_TOP_RIGHT_EDGE
     LOAD_LEFT_EDGE
     LOAD_DOWN_LEFT_EDGE
 
-    src[0+0*stride]=(t0 + t2 + 2*t1 + 2 + l0 + l2 + 2*l1 + 2)>>3;
-    src[1+0*stride]=
-    src[0+1*stride]=(t1 + t3 + 2*t2 + 2 + l1 + l3 + 2*l2 + 2)>>3;
-    src[2+0*stride]=
-    src[1+1*stride]=
-    src[0+2*stride]=(t2 + t4 + 2*t3 + 2 + l2 + l4 + 2*l3 + 2)>>3;
-    src[3+0*stride]=
-    src[2+1*stride]=
-    src[1+2*stride]=
-    src[0+3*stride]=(t3 + t5 + 2*t4 + 2 + l3 + l5 + 2*l4 + 2)>>3;
-    src[3+1*stride]=
-    src[2+2*stride]=
-    src[1+3*stride]=(t4 + t6 + 2*t5 + 2 + l4 + l6 + 2*l5 + 2)>>3;
-    src[3+2*stride]=
-    src[2+3*stride]=(t5 + t7 + 2*t6 + 2 + l5 + l7 + 2*l6 + 2)>>3;
-    src[3+3*stride]=(t6 + t7 + 1 + l6 + l7 + 1)>>2;
+    src[0 + 0 * stride] = (t0 + t2 + 2 * t1 + 2 + l0 + l2 + 2 * l1 + 2) >> 3;
+    src[1 + 0 * stride] =
+        src[0 + 1 * stride] = (t1 + t3 + 2 * t2 + 2 + l1 + l3 + 2 * l2 + 2) >> 3;
+    src[2 + 0 * stride] =
+        src[1 + 1 * stride] =
+            src[0 + 2 * stride] = (t2 + t4 + 2 * t3 + 2 + l2 + l4 + 2 * l3 + 2) >> 3;
+    src[3 + 0 * stride] =
+        src[2 + 1 * stride] =
+            src[1 + 2 * stride] =
+                src[0 + 3 * stride] = (t3 + t5 + 2 * t4 + 2 + l3 + l5 + 2 * l4 + 2) >> 3;
+    src[3 + 1 * stride] =
+        src[2 + 2 * stride] =
+            src[1 + 3 * stride] = (t4 + t6 + 2 * t5 + 2 + l4 + l6 + 2 * l5 + 2) >> 3;
+    src[3 + 2 * stride] =
+        src[2 + 3 * stride] = (t5 + t7 + 2 * t6 + 2 + l5 + l7 + 2 * l6 + 2) >> 3;
+    src[3 + 3 * stride] = (t6 + t7 + 1 + l6 + l7 + 1) >> 2;
 }
 
-static void pred4x4_down_left_rv40_nodown_c(uint8_t *src, const uint8_t *topright, int stride){
+static void pred4x4_down_left_rv40_nodown_c(uint8_t *src, const uint8_t *topright, int stride)
+{
     LOAD_TOP_EDGE
     LOAD_TOP_RIGHT_EDGE
     LOAD_LEFT_EDGE
 
-    src[0+0*stride]=(t0 + t2 + 2*t1 + 2 + l0 + l2 + 2*l1 + 2)>>3;
-    src[1+0*stride]=
-    src[0+1*stride]=(t1 + t3 + 2*t2 + 2 + l1 + l3 + 2*l2 + 2)>>3;
-    src[2+0*stride]=
-    src[1+1*stride]=
-    src[0+2*stride]=(t2 + t4 + 2*t3 + 2 + l2 + 3*l3 + 2)>>3;
-    src[3+0*stride]=
-    src[2+1*stride]=
-    src[1+2*stride]=
-    src[0+3*stride]=(t3 + t5 + 2*t4 + 2 + l3*4 + 2)>>3;
-    src[3+1*stride]=
-    src[2+2*stride]=
-    src[1+3*stride]=(t4 + t6 + 2*t5 + 2 + l3*4 + 2)>>3;
-    src[3+2*stride]=
-    src[2+3*stride]=(t5 + t7 + 2*t6 + 2 + l3*4 + 2)>>3;
-    src[3+3*stride]=(t6 + t7 + 1 + 2*l3 + 1)>>2;
+    src[0 + 0 * stride] = (t0 + t2 + 2 * t1 + 2 + l0 + l2 + 2 * l1 + 2) >> 3;
+    src[1 + 0 * stride] =
+        src[0 + 1 * stride] = (t1 + t3 + 2 * t2 + 2 + l1 + l3 + 2 * l2 + 2) >> 3;
+    src[2 + 0 * stride] =
+        src[1 + 1 * stride] =
+            src[0 + 2 * stride] = (t2 + t4 + 2 * t3 + 2 + l2 + 3 * l3 + 2) >> 3;
+    src[3 + 0 * stride] =
+        src[2 + 1 * stride] =
+            src[1 + 2 * stride] =
+                src[0 + 3 * stride] = (t3 + t5 + 2 * t4 + 2 + l3 * 4 + 2) >> 3;
+    src[3 + 1 * stride] =
+        src[2 + 2 * stride] =
+            src[1 + 3 * stride] = (t4 + t6 + 2 * t5 + 2 + l3 * 4 + 2) >> 3;
+    src[3 + 2 * stride] =
+        src[2 + 3 * stride] = (t5 + t7 + 2 * t6 + 2 + l3 * 4 + 2) >> 3;
+    src[3 + 3 * stride] = (t6 + t7 + 1 + 2 * l3 + 1) >> 2;
 }
 
 static void pred4x4_vertical_left_rv40(uint8_t *src, const uint8_t *topright, int stride,
-                                       const int l0, const int l1, const int l2, const int l3, const int l4){
+                                       const int l0, const int l1, const int l2, const int l3, const int l4)
+{
     LOAD_TOP_EDGE
     LOAD_TOP_RIGHT_EDGE
 
-    src[0+0*stride]=(2*t0 + 2*t1 + l1 + 2*l2 + l3 + 4)>>3;
-    src[1+0*stride]=
-    src[0+2*stride]=(t1 + t2 + 1)>>1;
-    src[2+0*stride]=
-    src[1+2*stride]=(t2 + t3 + 1)>>1;
-    src[3+0*stride]=
-    src[2+2*stride]=(t3 + t4+ 1)>>1;
-    src[3+2*stride]=(t4 + t5+ 1)>>1;
-    src[0+1*stride]=(t0 + 2*t1 + t2 + l2 + 2*l3 + l4 + 4)>>3;
-    src[1+1*stride]=
-    src[0+3*stride]=(t1 + 2*t2 + t3 + 2)>>2;
-    src[2+1*stride]=
-    src[1+3*stride]=(t2 + 2*t3 + t4 + 2)>>2;
-    src[3+1*stride]=
-    src[2+3*stride]=(t3 + 2*t4 + t5 + 2)>>2;
-    src[3+3*stride]=(t4 + 2*t5 + t6 + 2)>>2;
+    src[0 + 0 * stride] = (2 * t0 + 2 * t1 + l1 + 2 * l2 + l3 + 4) >> 3;
+    src[1 + 0 * stride] =
+        src[0 + 2 * stride] = (t1 + t2 + 1) >> 1;
+    src[2 + 0 * stride] =
+        src[1 + 2 * stride] = (t2 + t3 + 1) >> 1;
+    src[3 + 0 * stride] =
+        src[2 + 2 * stride] = (t3 + t4 + 1) >> 1;
+    src[3 + 2 * stride] = (t4 + t5 + 1) >> 1;
+    src[0 + 1 * stride] = (t0 + 2 * t1 + t2 + l2 + 2 * l3 + l4 + 4) >> 3;
+    src[1 + 1 * stride] =
+        src[0 + 3 * stride] = (t1 + 2 * t2 + t3 + 2) >> 2;
+    src[2 + 1 * stride] =
+        src[1 + 3 * stride] = (t2 + 2 * t3 + t4 + 2) >> 2;
+    src[3 + 1 * stride] =
+        src[2 + 3 * stride] = (t3 + 2 * t4 + t5 + 2) >> 2;
+    src[3 + 3 * stride] = (t4 + 2 * t5 + t6 + 2) >> 2;
 }
 
-static void pred4x4_vertical_left_rv40_c(uint8_t *src, const uint8_t *topright, int stride){
+static void pred4x4_vertical_left_rv40_c(uint8_t *src, const uint8_t *topright, int stride)
+{
     LOAD_LEFT_EDGE
     LOAD_DOWN_LEFT_EDGE
 
     pred4x4_vertical_left_rv40(src, topright, stride, l0, l1, l2, l3, l4);
 }
 
-static void pred4x4_vertical_left_rv40_nodown_c(uint8_t *src, const uint8_t *topright, int stride){
+static void pred4x4_vertical_left_rv40_nodown_c(uint8_t *src, const uint8_t *topright, int stride)
+{
     LOAD_LEFT_EDGE
 
     pred4x4_vertical_left_rv40(src, topright, stride, l0, l1, l2, l3, l3);
 }
 
-static void pred4x4_vertical_left_vp8_c(uint8_t *src, const uint8_t *topright, int stride){
+static void pred4x4_vertical_left_vp8_c(uint8_t *src, const uint8_t *topright, int stride)
+{
     LOAD_TOP_EDGE
     LOAD_TOP_RIGHT_EDGE
 
-    src[0+0*stride]=(t0 + t1 + 1)>>1;
-    src[1+0*stride]=
-    src[0+2*stride]=(t1 + t2 + 1)>>1;
-    src[2+0*stride]=
-    src[1+2*stride]=(t2 + t3 + 1)>>1;
-    src[3+0*stride]=
-    src[2+2*stride]=(t3 + t4 + 1)>>1;
-    src[0+1*stride]=(t0 + 2*t1 + t2 + 2)>>2;
-    src[1+1*stride]=
-    src[0+3*stride]=(t1 + 2*t2 + t3 + 2)>>2;
-    src[2+1*stride]=
-    src[1+3*stride]=(t2 + 2*t3 + t4 + 2)>>2;
-    src[3+1*stride]=
-    src[2+3*stride]=(t3 + 2*t4 + t5 + 2)>>2;
-    src[3+2*stride]=(t4 + 2*t5 + t6 + 2)>>2;
-    src[3+3*stride]=(t5 + 2*t6 + t7 + 2)>>2;
+    src[0 + 0 * stride] = (t0 + t1 + 1) >> 1;
+    src[1 + 0 * stride] =
+        src[0 + 2 * stride] = (t1 + t2 + 1) >> 1;
+    src[2 + 0 * stride] =
+        src[1 + 2 * stride] = (t2 + t3 + 1) >> 1;
+    src[3 + 0 * stride] =
+        src[2 + 2 * stride] = (t3 + t4 + 1) >> 1;
+    src[0 + 1 * stride] = (t0 + 2 * t1 + t2 + 2) >> 2;
+    src[1 + 1 * stride] =
+        src[0 + 3 * stride] = (t1 + 2 * t2 + t3 + 2) >> 2;
+    src[2 + 1 * stride] =
+        src[1 + 3 * stride] = (t2 + 2 * t3 + t4 + 2) >> 2;
+    src[3 + 1 * stride] =
+        src[2 + 3 * stride] = (t3 + 2 * t4 + t5 + 2) >> 2;
+    src[3 + 2 * stride] = (t4 + 2 * t5 + t6 + 2) >> 2;
+    src[3 + 3 * stride] = (t5 + 2 * t6 + t7 + 2) >> 2;
 }
 
-static void pred4x4_horizontal_up_rv40_c(uint8_t *src, const uint8_t *topright, int stride){
+static void pred4x4_horizontal_up_rv40_c(uint8_t *src, const uint8_t *topright, int stride)
+{
     LOAD_LEFT_EDGE
     LOAD_DOWN_LEFT_EDGE
     LOAD_TOP_EDGE
     LOAD_TOP_RIGHT_EDGE
 
-    src[0+0*stride]=(t1 + 2*t2 + t3 + 2*l0 + 2*l1 + 4)>>3;
-    src[1+0*stride]=(t2 + 2*t3 + t4 + l0 + 2*l1 + l2 + 4)>>3;
-    src[2+0*stride]=
-    src[0+1*stride]=(t3 + 2*t4 + t5 + 2*l1 + 2*l2 + 4)>>3;
-    src[3+0*stride]=
-    src[1+1*stride]=(t4 + 2*t5 + t6 + l1 + 2*l2 + l3 + 4)>>3;
-    src[2+1*stride]=
-    src[0+2*stride]=(t5 + 2*t6 + t7 + 2*l2 + 2*l3 + 4)>>3;
-    src[3+1*stride]=
-    src[1+2*stride]=(t6 + 3*t7 + l2 + 3*l3 + 4)>>3;
-    src[3+2*stride]=
-    src[1+3*stride]=(l3 + 2*l4 + l5 + 2)>>2;
-    src[0+3*stride]=
-    src[2+2*stride]=(t6 + t7 + l3 + l4 + 2)>>2;
-    src[2+3*stride]=(l4 + l5 + 1)>>1;
-    src[3+3*stride]=(l4 + 2*l5 + l6 + 2)>>2;
+    src[0 + 0 * stride] = (t1 + 2 * t2 + t3 + 2 * l0 + 2 * l1 + 4) >> 3;
+    src[1 + 0 * stride] = (t2 + 2 * t3 + t4 + l0 + 2 * l1 + l2 + 4) >> 3;
+    src[2 + 0 * stride] =
+        src[0 + 1 * stride] = (t3 + 2 * t4 + t5 + 2 * l1 + 2 * l2 + 4) >> 3;
+    src[3 + 0 * stride] =
+        src[1 + 1 * stride] = (t4 + 2 * t5 + t6 + l1 + 2 * l2 + l3 + 4) >> 3;
+    src[2 + 1 * stride] =
+        src[0 + 2 * stride] = (t5 + 2 * t6 + t7 + 2 * l2 + 2 * l3 + 4) >> 3;
+    src[3 + 1 * stride] =
+        src[1 + 2 * stride] = (t6 + 3 * t7 + l2 + 3 * l3 + 4) >> 3;
+    src[3 + 2 * stride] =
+        src[1 + 3 * stride] = (l3 + 2 * l4 + l5 + 2) >> 2;
+    src[0 + 3 * stride] =
+        src[2 + 2 * stride] = (t6 + t7 + l3 + l4 + 2) >> 2;
+    src[2 + 3 * stride] = (l4 + l5 + 1) >> 1;
+    src[3 + 3 * stride] = (l4 + 2 * l5 + l6 + 2) >> 2;
 }
 
-static void pred4x4_horizontal_up_rv40_nodown_c(uint8_t *src, const uint8_t *topright, int stride){
+static void pred4x4_horizontal_up_rv40_nodown_c(uint8_t *src, const uint8_t *topright, int stride)
+{
     LOAD_LEFT_EDGE
     LOAD_TOP_EDGE
     LOAD_TOP_RIGHT_EDGE
 
-    src[0+0*stride]=(t1 + 2*t2 + t3 + 2*l0 + 2*l1 + 4)>>3;
-    src[1+0*stride]=(t2 + 2*t3 + t4 + l0 + 2*l1 + l2 + 4)>>3;
-    src[2+0*stride]=
-    src[0+1*stride]=(t3 + 2*t4 + t5 + 2*l1 + 2*l2 + 4)>>3;
-    src[3+0*stride]=
-    src[1+1*stride]=(t4 + 2*t5 + t6 + l1 + 2*l2 + l3 + 4)>>3;
-    src[2+1*stride]=
-    src[0+2*stride]=(t5 + 2*t6 + t7 + 2*l2 + 2*l3 + 4)>>3;
-    src[3+1*stride]=
-    src[1+2*stride]=(t6 + 3*t7 + l2 + 3*l3 + 4)>>3;
-    src[3+2*stride]=
-    src[1+3*stride]=l3;
-    src[0+3*stride]=
-    src[2+2*stride]=(t6 + t7 + 2*l3 + 2)>>2;
-    src[2+3*stride]=
-    src[3+3*stride]=l3;
+    src[0 + 0 * stride] = (t1 + 2 * t2 + t3 + 2 * l0 + 2 * l1 + 4) >> 3;
+    src[1 + 0 * stride] = (t2 + 2 * t3 + t4 + l0 + 2 * l1 + l2 + 4) >> 3;
+    src[2 + 0 * stride] =
+        src[0 + 1 * stride] = (t3 + 2 * t4 + t5 + 2 * l1 + 2 * l2 + 4) >> 3;
+    src[3 + 0 * stride] =
+        src[1 + 1 * stride] = (t4 + 2 * t5 + t6 + l1 + 2 * l2 + l3 + 4) >> 3;
+    src[2 + 1 * stride] =
+        src[0 + 2 * stride] = (t5 + 2 * t6 + t7 + 2 * l2 + 2 * l3 + 4) >> 3;
+    src[3 + 1 * stride] =
+        src[1 + 2 * stride] = (t6 + 3 * t7 + l2 + 3 * l3 + 4) >> 3;
+    src[3 + 2 * stride] =
+        src[1 + 3 * stride] = l3;
+    src[0 + 3 * stride] =
+        src[2 + 2 * stride] = (t6 + t7 + 2 * l3 + 2) >> 2;
+    src[2 + 3 * stride] =
+        src[3 + 3 * stride] = l3;
 }
 
-static void pred4x4_tm_vp8_c(uint8_t *src, const uint8_t *topright, int stride){
-    uint8_t *cm = ff_cropTbl + MAX_NEG_CROP - src[-1-stride];
-    uint8_t *top = src-stride;
+static void pred4x4_tm_vp8_c(uint8_t *src, const uint8_t *topright, int stride)
+{
+    uint8_t *cm = ff_cropTbl + MAX_NEG_CROP - src[-1 - stride];
+    uint8_t *top = src - stride;
     int y;
 
     for (y = 0; y < 4; y++) {
@@ -255,17 +267,20 @@ static void pred4x4_tm_vp8_c(uint8_t *src, const uint8_t *topright, int stride){
     }
 }
 
-static void pred16x16_plane_svq3_c(uint8_t *src, int stride){
+static void pred16x16_plane_svq3_c(uint8_t *src, int stride)
+{
     pred16x16_plane_compat_8_c(src, stride, 1, 0);
 }
 
-static void pred16x16_plane_rv40_c(uint8_t *src, int stride){
+static void pred16x16_plane_rv40_c(uint8_t *src, int stride)
+{
     pred16x16_plane_compat_8_c(src, stride, 0, 1);
 }
 
-static void pred16x16_tm_vp8_c(uint8_t *src, int stride){
-    uint8_t *cm = ff_cropTbl + MAX_NEG_CROP - src[-1-stride];
-    uint8_t *top = src-stride;
+static void pred16x16_tm_vp8_c(uint8_t *src, int stride)
+{
+    uint8_t *cm = ff_cropTbl + MAX_NEG_CROP - src[-1 - stride];
+    uint8_t *top = src - stride;
     int y;
 
     for (y = 0; y < 16; y++) {
@@ -290,60 +305,66 @@ static void pred16x16_tm_vp8_c(uint8_t *src, int stride){
     }
 }
 
-static void pred8x8_left_dc_rv40_c(uint8_t *src, int stride){
+static void pred8x8_left_dc_rv40_c(uint8_t *src, int stride)
+{
     int i;
     int dc0;
 
-    dc0=0;
-    for(i=0;i<8; i++)
-        dc0+= src[-1+i*stride];
-    dc0= 0x01010101*((dc0 + 4)>>3);
+    dc0 = 0;
+    for (i = 0; i < 8; i++) {
+        dc0 += src[-1 + i * stride];
+    }
+    dc0 = 0x01010101 * ((dc0 + 4) >> 3);
 
-    for(i=0; i<8; i++){
-        ((uint32_t*)(src+i*stride))[0]=
-        ((uint32_t*)(src+i*stride))[1]= dc0;
+    for (i = 0; i < 8; i++) {
+        ((uint32_t*)(src + i * stride))[0] =
+            ((uint32_t*)(src + i * stride))[1] = dc0;
     }
 }
 
-static void pred8x8_top_dc_rv40_c(uint8_t *src, int stride){
+static void pred8x8_top_dc_rv40_c(uint8_t *src, int stride)
+{
     int i;
     int dc0;
 
-    dc0=0;
-    for(i=0;i<8; i++)
-        dc0+= src[i-stride];
-    dc0= 0x01010101*((dc0 + 4)>>3);
+    dc0 = 0;
+    for (i = 0; i < 8; i++) {
+        dc0 += src[i - stride];
+    }
+    dc0 = 0x01010101 * ((dc0 + 4) >> 3);
 
-    for(i=0; i<8; i++){
-        ((uint32_t*)(src+i*stride))[0]=
-        ((uint32_t*)(src+i*stride))[1]= dc0;
+    for (i = 0; i < 8; i++) {
+        ((uint32_t*)(src + i * stride))[0] =
+            ((uint32_t*)(src + i * stride))[1] = dc0;
     }
 }
 
-static void pred8x8_dc_rv40_c(uint8_t *src, int stride){
+static void pred8x8_dc_rv40_c(uint8_t *src, int stride)
+{
     int i;
-    int dc0=0;
+    int dc0 = 0;
 
-    for(i=0;i<4; i++){
-        dc0+= src[-1+i*stride] + src[i-stride];
-        dc0+= src[4+i-stride];
-        dc0+= src[-1+(i+4)*stride];
+    for (i = 0; i < 4; i++) {
+        dc0 += src[-1 + i * stride] + src[i - stride];
+        dc0 += src[4 + i - stride];
+        dc0 += src[-1 + (i + 4) * stride];
     }
-    dc0= 0x01010101*((dc0 + 8)>>4);
+    dc0 = 0x01010101 * ((dc0 + 8) >> 4);
 
-    for(i=0; i<4; i++){
-        ((uint32_t*)(src+i*stride))[0]= dc0;
-        ((uint32_t*)(src+i*stride))[1]= dc0;
+    for (i = 0; i < 4; i++) {
+        ((uint32_t*)(src + i * stride))[0] = dc0;
+        ((uint32_t*)(src + i * stride))[1] = dc0;
     }
-    for(i=4; i<8; i++){
-        ((uint32_t*)(src+i*stride))[0]= dc0;
-        ((uint32_t*)(src+i*stride))[1]= dc0;
+    for (i = 4; i < 8; i++) {
+        ((uint32_t*)(src + i * stride))[0] = dc0;
+        ((uint32_t*)(src + i * stride))[1] = dc0;
     }
 }
 
-static void pred8x8_tm_vp8_c(uint8_t *src, int stride){
-    uint8_t *cm = ff_cropTbl + MAX_NEG_CROP - src[-1-stride];
-    uint8_t *top = src-stride;
+static void pred8x8_tm_vp8_c(uint8_t *src, int stride)
+{
+    uint8_t *cm = ff_cropTbl + MAX_NEG_CROP - src[-1 - stride];
+    uint8_t *top = src - stride;
     int y;
 
     for (y = 0; y < 8; y++) {
@@ -363,8 +384,9 @@ static void pred8x8_tm_vp8_c(uint8_t *src, int stride){
 /**
  * Set the intra prediction function pointers.
  */
-void ff_h264_pred_init(H264PredContext *h, int codec_id, const int bit_depth){
-//    MpegEncContext * const s = &h->s;
+void ff_h264_pred_init(H264PredContext *h, int codec_id, const int bit_depth)
+{
+    //    MpegEncContext * const s = &h->s;
 
 #undef FUNC
 #undef FUNCC
@@ -495,17 +517,21 @@ void ff_h264_pred_init(H264PredContext *h, int codec_id, const int bit_depth){
     h->pred16x16_add[ HOR_PRED8x8]= FUNCC(pred16x16_horizontal_add        , depth);\
 
     switch (bit_depth) {
-        case 9:
-            H264_PRED(9)
-            break;
-        case 10:
-            H264_PRED(10)
-            break;
-        default:
-            H264_PRED(8)
-            break;
+    case 9:
+        H264_PRED(9)
+        break;
+    case 10:
+        H264_PRED(10)
+        break;
+    default:
+        H264_PRED(8)
+        break;
     }
 
-    if (ARCH_ARM) ff_h264_pred_init_arm(h, codec_id, bit_depth);
-    if (HAVE_MMX) ff_h264_pred_init_x86(h, codec_id, bit_depth);
+    if (ARCH_ARM) {
+        ff_h264_pred_init_arm(h, codec_id, bit_depth);
+    }
+    if (HAVE_MMX) {
+        ff_h264_pred_init_x86(h, codec_id, bit_depth);
+    }
 }

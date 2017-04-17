@@ -46,13 +46,15 @@ static int get_wb_bitrate_mode(int bitrate, void *log_ctx)
 {
     /* make the correspondance between bitrate and mode */
     static const int rates[] = {  6600,  8850, 12650, 14250, 15850, 18250,
-                                 19850, 23050, 23850 };
+                                  19850, 23050, 23850
+                               };
     int i, best = -1, min_diff = 0;
     char log_buf[200];
 
     for (i = 0; i < 9; i++) {
-        if (rates[i] == bitrate)
+        if (rates[i] == bitrate) {
             return i;
+        }
         if (best < 0 || abs(rates[i] - bitrate) < min_diff) {
             best     = i;
             min_diff = abs(rates[i] - bitrate);
@@ -60,8 +62,9 @@ static int get_wb_bitrate_mode(int bitrate, void *log_ctx)
     }
     /* no bitrate matching exactly, log a warning */
     snprintf(log_buf, sizeof(log_buf), "bitrate not supported: use one of ");
-    for (i = 0; i < 9; i++)
+    for (i = 0; i < 9; i++) {
         av_strlcatf(log_buf, sizeof(log_buf), "%.2fk, ", rates[i]    / 1000.f);
+    }
     av_strlcatf(log_buf, sizeof(log_buf), "using %.2fk", rates[best] / 1000.f);
     av_log(log_ctx, AV_LOG_WARNING, "%s\n", log_buf);
 
@@ -126,9 +129,9 @@ AVCodec ff_libvo_amrwbenc_encoder = {
     amr_wb_encode_frame,
     amr_wb_encode_close,
     NULL,
-    .sample_fmts = (const enum AVSampleFormat[]){AV_SAMPLE_FMT_S16,AV_SAMPLE_FMT_NONE},
+    .sample_fmts = (const enum AVSampleFormat[]){AV_SAMPLE_FMT_S16, AV_SAMPLE_FMT_NONE},
     .long_name = NULL_IF_CONFIG_SMALL("Android VisualOn Adaptive Multi-Rate "
-                                      "(AMR) Wide-Band"),
+    "(AMR) Wide-Band"),
     .priv_class = &class,
 };
 

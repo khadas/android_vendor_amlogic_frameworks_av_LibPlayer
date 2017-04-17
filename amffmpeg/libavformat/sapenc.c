@@ -44,8 +44,9 @@ static int sap_write_close(AVFormatContext *s)
 
     for (i = 0; i < s->nb_streams; i++) {
         AVFormatContext *rtpctx = s->streams[i]->priv_data;
-        if (!rtpctx)
+        if (!rtpctx) {
             continue;
+        }
         av_write_trailer(rtpctx);
         avio_close(rtpctx->pb);
         avformat_free_context(rtpctx);
@@ -58,8 +59,9 @@ static int sap_write_close(AVFormatContext *s)
     }
 
     av_freep(&sap->ann);
-    if (sap->ann_fd)
+    if (sap->ann_fd) {
         ffurl_close(sap->ann_fd);
+    }
     ff_network_close();
     return 0;
 }
@@ -76,14 +78,16 @@ static int sap_write_header(AVFormatContext *s)
     socklen_t addrlen = sizeof(localaddr);
     int udp_fd;
 
-    if (!ff_network_init())
+    if (!ff_network_init()) {
         return AVERROR(EIO);
+    }
 
     /* extract hostname and port */
     av_url_split(NULL, 0, NULL, 0, host, sizeof(host), &base_port,
                  path, sizeof(path), s->filename);
-    if (base_port < 0)
+    if (base_port < 0) {
         base_port = 5004;
+    }
 
     /* search for options */
     option_list = strrchr(path, '?');
@@ -106,9 +110,10 @@ static int sap_write_header(AVFormatContext *s)
     if (!announce_addr[0]) {
         struct addrinfo hints, *ai = NULL;
         memset(&hints, 0, sizeof(hints));
-	 hints.ai_family = AF_UNSPEC;	
-	 if(am_getconfig_bool_def("media.libplayer.ipv4only",1))		
-        	hints.ai_family = AF_INET;
+        hints.ai_family = AF_UNSPEC;
+        if (am_getconfig_bool_def("media.libplayer.ipv4only", 1)) {
+            hints.ai_family = AF_INET;
+        }
         if (getaddrinfo(host, NULL, &hints, &ai)) {
             av_log(s, AV_LOG_ERROR, "Unable to resolve %s\n", host);
             ret = AVERROR(EIO);
@@ -127,7 +132,7 @@ static int sap_write_header(AVFormatContext *s)
         } else {
             freeaddrinfo(ai);
             av_log(s, AV_LOG_ERROR, "Host %s resolved to unsupported "
-                                    "address family\n", host);
+                   "address family\n", host);
             ret = AVERROR(EIO);
             goto fail;
         }
@@ -146,15 +151,16 @@ static int sap_write_header(AVFormatContext *s)
 
         ff_url_join(url, sizeof(url), "rtp", NULL, host, base_port,
                     "?ttl=%d", ttl);
-        if (!same_port)
+        if (!same_port) {
             base_port += 2;
+        }
         ret = ffurl_open(&fd, url, AVIO_FLAG_WRITE);
         if (ret) {
             ret = AVERROR(EIO);
             goto fail;
         }
         s->streams[i]->priv_data = contexts[i] =
-            ff_rtp_chain_mux_open(s, s->streams[i], fd, 0);
+                                       ff_rtp_chain_mux_open(s, s->streams[i], fd, 0);
         av_strlcpy(contexts[i]->filename, url, sizeof(contexts[i]->filename));
     }
 
@@ -175,7 +181,7 @@ static int sap_write_header(AVFormatContext *s)
 #if HAVE_STRUCT_SOCKADDR_IN6
         && localaddr.ss_family != AF_INET6
 #endif
-        ) {
+       ) {
         av_log(s, AV_LOG_ERROR, "Unsupported protocol family\n");
         ret = AVERROR(EIO);
         goto fail;
@@ -188,8 +194,9 @@ static int sap_write_header(AVFormatContext *s)
     }
     sap->ann[pos] = (1 << 5);
 #if HAVE_STRUCT_SOCKADDR_IN6
-    if (localaddr.ss_family == AF_INET6)
+    if (localaddr.ss_family == AF_INET6) {
         sap->ann[pos] |= 0x10;
+    }
 #endif
     pos++;
     sap->ann[pos++] = 0; /* Authentication length */
@@ -211,7 +218,7 @@ static int sap_write_header(AVFormatContext *s)
     pos += strlen(&sap->ann[pos]) + 1;
 
     if (av_sdp_create(contexts, s->nb_streams, &sap->ann[pos],
-                       sap->ann_size - pos)) {
+                      sap->ann_size - pos)) {
         ret = AVERROR_INVALIDDATA;
         goto fail;
     }
@@ -222,7 +229,7 @@ static int sap_write_header(AVFormatContext *s)
 
     if (sap->ann_size > sap->ann_fd->max_packet_size) {
         av_log(s, AV_LOG_ERROR, "Announcement too large to send in one "
-                                "packet\n");
+               "packet\n");
         goto fail;
     }
 
@@ -243,8 +250,9 @@ static int sap_write_packet(AVFormatContext *s, AVPacket *pkt)
     if (!sap->last_time || now - sap->last_time > 5000000) {
         int ret = ffurl_write(sap->ann_fd, sap->ann, sap->ann_size);
         /* Don't abort even if we get "Destination unreachable" */
-        if (ret < 0 && ret != AVERROR(ECONNREFUSED))
+        if (ret < 0 && ret != AVERROR(ECONNREFUSED)) {
             return ret;
+        }
         sap->last_time = now;
     }
     rtpctx = s->streams[pkt->stream_index]->priv_data;

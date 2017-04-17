@@ -59,15 +59,17 @@ static av_cold int decode_end(AVCodecContext *avctx)
 {
     C93DecoderContext * const c93 = avctx->priv_data;
 
-    if (c93->pictures[0].data[0])
+    if (c93->pictures[0].data[0]) {
         avctx->release_buffer(avctx, &c93->pictures[0]);
-    if (c93->pictures[1].data[0])
+    }
+    if (c93->pictures[1].data[0]) {
         avctx->release_buffer(avctx, &c93->pictures[1]);
+    }
     return 0;
 }
 
 static inline int copy_block(AVCodecContext *avctx, uint8_t *to,
-        uint8_t *from, int offset, int height, int stride)
+                             uint8_t *from, int offset, int height, int stride)
 {
     int i;
     int width = height;
@@ -89,41 +91,43 @@ static inline int copy_block(AVCodecContext *avctx, uint8_t *to,
     if (overflow > 0) {
         width -= overflow;
         for (i = 0; i < height; i++) {
-            memcpy(&to[i*stride+width], &from[(from_y+i)*stride], overflow);
+            memcpy(&to[i * stride + width], &from[(from_y + i)*stride], overflow);
         }
     }
 
     for (i = 0; i < height; i++) {
-        memcpy(&to[i*stride], &from[(from_y+i)*stride+from_x], width);
+        memcpy(&to[i * stride], &from[(from_y + i)*stride + from_x], width);
     }
 
     return 0;
 }
 
 static inline void draw_n_color(uint8_t *out, int stride, int width,
-         int height, int bpp, uint8_t cols[4], uint8_t grps[4], uint32_t col)
+                                int height, int bpp, uint8_t cols[4], uint8_t grps[4], uint32_t col)
 {
     int x, y;
     for (y = 0; y < height; y++) {
-        if (grps)
+        if (grps) {
             cols[0] = grps[3 * (y >> 1)];
+        }
         for (x = 0; x < width; x++) {
-            if (grps)
-                cols[1]= grps[(x >> 1) + 1];
-            out[x + y*stride] = cols[col & ((1 << bpp) - 1)];
+            if (grps) {
+                cols[1] = grps[(x >> 1) + 1];
+            }
+            out[x + y * stride] = cols[col & ((1 << bpp) - 1)];
             col >>= bpp;
         }
     }
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data,
-                            int *data_size, AVPacket *avpkt)
+                        int *data_size, AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;
     C93DecoderContext * const c93 = avctx->priv_data;
     AVFrame * const newpic = &c93->pictures[c93->currentpic];
-    AVFrame * const oldpic = &c93->pictures[c93->currentpic^1];
+    AVFrame * const oldpic = &c93->pictures[c93->currentpic ^ 1];
     AVFrame *picture = data;
     uint8_t *out;
     int stride, i, x, y, bt = 0;
@@ -132,7 +136,7 @@ static int decode_frame(AVCodecContext *avctx, void *data,
 
     newpic->reference = 1;
     newpic->buffer_hints = FF_BUFFER_HINTS_VALID | FF_BUFFER_HINTS_PRESERVE |
-                         FF_BUFFER_HINTS_REUSABLE | FF_BUFFER_HINTS_READABLE;
+                           FF_BUFFER_HINTS_REUSABLE | FF_BUFFER_HINTS_READABLE;
     if (avctx->reget_buffer(avctx, newpic)) {
         av_log(avctx, AV_LOG_ERROR, "reget_buffer() failed\n");
         return -1;
@@ -155,8 +159,9 @@ static int decode_frame(AVCodecContext *avctx, void *data,
             palette[i] = bytestream_get_be24(&palbuf);
         }
     } else {
-        if (oldpic->data[1])
+        if (oldpic->data[1]) {
             memcpy(newpic->data[1], oldpic->data[1], 256 * 4);
+        }
     }
 
     for (y = 0; y < HEIGHT; y += 8) {
@@ -167,15 +172,17 @@ static int decode_frame(AVCodecContext *avctx, void *data,
             uint8_t cols[4], grps[4];
             C93BlockType block_type;
 
-            if (!bt)
+            if (!bt) {
                 bt = *buf++;
+            }
 
-            block_type= bt & 0x0F;
+            block_type = bt & 0x0F;
             switch (block_type) {
             case C93_8X8_FROM_PREV:
                 offset = bytestream_get_le16(&buf);
-                if (copy_block(avctx, out, copy_from, offset, 8, stride))
+                if (copy_block(avctx, out, copy_from, offset, 8, stride)) {
                     return -1;
+                }
                 break;
 
             case C93_4X4_FROM_CURR:
@@ -184,9 +191,10 @@ static int decode_frame(AVCodecContext *avctx, void *data,
                 for (j = 0; j < 8; j += 4) {
                     for (i = 0; i < 8; i += 4) {
                         offset = bytestream_get_le16(&buf);
-                        if (copy_block(avctx, &out[j*stride+i],
-                                           copy_from, offset, 4, stride))
+                        if (copy_block(avctx, &out[j * stride + i],
+                                       copy_from, offset, 4, stride)) {
                             return -1;
+                        }
                     }
                 }
                 break;
@@ -194,8 +202,8 @@ static int decode_frame(AVCodecContext *avctx, void *data,
             case C93_8X8_2COLOR:
                 bytestream_get_buffer(&buf, cols, 2);
                 for (i = 0; i < 8; i++) {
-                    draw_n_color(out + i*stride, stride, 8, 1, 1, cols,
-                                     NULL, *buf++);
+                    draw_n_color(out + i * stride, stride, 8, 1, 1, cols,
+                                 NULL, *buf++);
                 }
 
                 break;
@@ -207,16 +215,16 @@ static int decode_frame(AVCodecContext *avctx, void *data,
                     for (i = 0; i < 8; i += 4) {
                         if (block_type == C93_4X4_2COLOR) {
                             bytestream_get_buffer(&buf, cols, 2);
-                            draw_n_color(out + i + j*stride, stride, 4, 4,
-                                    1, cols, NULL, bytestream_get_le16(&buf));
+                            draw_n_color(out + i + j * stride, stride, 4, 4,
+                                         1, cols, NULL, bytestream_get_le16(&buf));
                         } else if (block_type == C93_4X4_4COLOR) {
                             bytestream_get_buffer(&buf, cols, 4);
-                            draw_n_color(out + i + j*stride, stride, 4, 4,
-                                    2, cols, NULL, bytestream_get_le32(&buf));
+                            draw_n_color(out + i + j * stride, stride, 4, 4,
+                                         2, cols, NULL, bytestream_get_le32(&buf));
                         } else {
                             bytestream_get_buffer(&buf, grps, 4);
-                            draw_n_color(out + i + j*stride, stride, 4, 4,
-                                    1, cols, grps, bytestream_get_le16(&buf));
+                            draw_n_color(out + i + j * stride, stride, 4, 4,
+                                         1, cols, grps, bytestream_get_le16(&buf));
                         }
                     }
                 }
@@ -226,8 +234,9 @@ static int decode_frame(AVCodecContext *avctx, void *data,
                 break;
 
             case C93_8X8_INTRA:
-                for (j = 0; j < 8; j++)
-                    bytestream_get_buffer(&buf, out + j*stride, 8);
+                for (j = 0; j < 8; j++) {
+                    bytestream_get_buffer(&buf, out + j * stride, 8);
+                }
                 break;
 
             default:

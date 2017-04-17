@@ -43,9 +43,6 @@ static int stream_ps_init(play_para_t *p_para)
             codec->am_sysinfo.rate = vinfo->video_rate;
             codec->am_sysinfo.ratio = vinfo->video_ratio;
         }
-        if (codec->video_type == VFORMAT_MPEG12) {
-            codec->am_sysinfo.rate = vinfo->video_rate;
-        }
     }
     codec->noblock = !!p_para->buffering_enable;
     if (ainfo->has_audio) {
@@ -90,7 +87,7 @@ static int stream_ps_init(play_para_t *p_para)
             codec->dspdec_not_supported = 1;
             log_print("main profile aac not supported by dsp decoder,so set dspdec_not_supported flag\n");
         }
-        log_print("[%s:%d]audio bitrate=%d sample_rate=%d channels=%d codec_id=%x block_align=%d,extra size %d\n",
+        log_print("[%s:%d]audio bitrate=%d sample_rate=%d channels=%d codec_id=%x block_align=%d,extra size=%d\n",
                   __FUNCTION__, __LINE__, codec->audio_info.bitrate, codec->audio_info.sample_rate, codec->audio_info.channels,
                   codec->audio_info.codec_id, codec->audio_info.block_align, codec->audio_info.extradata_size);
     }
@@ -99,7 +96,16 @@ static int stream_ps_init(play_para_t *p_para)
         codec->sub_pid = sinfo->sub_pid;
         codec->sub_type = sinfo->sub_type;
     }
+
+
     codec->stream_type = stream_type_convert(p_para->stream_type, codec->has_video, codec->has_audio);
+#if 0
+    if (p_para->pFormatCtx && p_para->pFormatCtx->pb && p_para->pFormatCtx->pb->local_playback == 1) {
+        codec->localplay_flag = 1;
+    } else {
+        codec->localplay_flag = 0;
+    }
+#endif
     ret = codec_init(codec);
     if (ret != CODEC_ERROR_NONE) {
         log_print("codec_init failed 0x%x\n", ret);

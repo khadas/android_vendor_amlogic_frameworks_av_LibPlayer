@@ -51,7 +51,7 @@ typedef struct {
     int    num_env_old;
     int    num_env;
     int    enable_ipdopd;
-    int    border_position[PS_MAX_NUM_ENV+1];
+    int    border_position[PS_MAX_NUM_ENV + 1];
     int8_t iid_par[PS_MAX_NUM_ENV][PS_MAX_NR_IIDICC]; //<Inter-channel Intensity Difference Parameters
     int8_t icc_par[PS_MAX_NUM_ENV][PS_MAX_NR_IIDICC]; //<Inter-Channel Coherence Parameters
     /* ipd/opd is iid/icc sized so that the same functions can handle both */
@@ -66,10 +66,10 @@ typedef struct {
     float  peak_decay_nrg[34];
     float  power_smooth[34];
     float  peak_decay_diff_smooth[34];
-    float  H11[2][PS_MAX_NUM_ENV+1][PS_MAX_NR_IIDICC];
-    float  H12[2][PS_MAX_NUM_ENV+1][PS_MAX_NR_IIDICC];
-    float  H21[2][PS_MAX_NUM_ENV+1][PS_MAX_NR_IIDICC];
-    float  H22[2][PS_MAX_NUM_ENV+1][PS_MAX_NR_IIDICC];
+    float  H11[2][PS_MAX_NUM_ENV + 1][PS_MAX_NR_IIDICC];
+    float  H12[2][PS_MAX_NUM_ENV + 1][PS_MAX_NR_IIDICC];
+    float  H21[2][PS_MAX_NUM_ENV + 1][PS_MAX_NR_IIDICC];
+    float  H22[2][PS_MAX_NUM_ENV + 1][PS_MAX_NR_IIDICC];
     int8_t opd_hist[PS_MAX_NR_IIDICC];
     int8_t ipd_hist[PS_MAX_NR_IIDICC];
 } PSContext;

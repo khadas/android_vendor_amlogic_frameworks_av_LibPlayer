@@ -58,7 +58,7 @@
  *       this allows simpler detection of big vs little endian.
  */
 enum PixelFormat {
-    PIX_FMT_NONE= -1,
+    PIX_FMT_NONE = -1,
     PIX_FMT_YUV420P,   ///< planar YUV 4:2:0, 12bpp, (1 Cr & Cb sample per 2x2 Y samples)
     PIX_FMT_YUYV422,   ///< packed YUV 4:2:2, 16bpp, Y0 Cb Y1 Cr
     PIX_FMT_RGB24,     ///< packed RGB 8:8:8, 24bpp, RGBRGB...

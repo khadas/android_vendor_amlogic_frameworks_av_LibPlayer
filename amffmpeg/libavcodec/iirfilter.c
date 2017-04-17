@@ -30,19 +30,19 @@
 /**
  * IIR filter global parameters
  */
-typedef struct FFIIRFilterCoeffs{
+typedef struct FFIIRFilterCoeffs {
     int   order;
     float gain;
     int   *cx;
     float *cy;
-}FFIIRFilterCoeffs;
+} FFIIRFilterCoeffs;
 
 /**
  * IIR filter state
  */
-typedef struct FFIIRFilterState{
+typedef struct FFIIRFilterState {
     float x[1];
-}FFIIRFilterState;
+} FFIIRFilterState;
 
 /// maximum supported filter order
 #define MAXORDER 30
@@ -70,14 +70,16 @@ static int butterworth_init_coeffs(void *avc, struct FFIIRFilterCoeffs *c,
     wa = 2 * tan(M_PI * 0.5 * cutoff_ratio);
 
     c->cx[0] = 1;
-    for(i = 1; i < (order >> 1) + 1; i++)
+    for (i = 1; i < (order >> 1) + 1; i++) {
         c->cx[i] = c->cx[i - 1] * (order - i + 1LL) / i;
+    }
 
     p[0][0] = 1.0;
     p[0][1] = 0.0;
-    for(i = 1; i <= order; i++)
+    for (i = 1; i <= order; i++) {
         p[i][0] = p[i][1] = 0.0;
-    for(i = 0; i < order; i++){
+    }
+    for (i = 0; i < order; i++) {
         double zp[2];
         double th = (i + (order >> 1) + 0.5) * M_PI / order;
         double a_re, a_im, c_re, c_im;
@@ -86,23 +88,22 @@ static int butterworth_init_coeffs(void *avc, struct FFIIRFilterCoeffs *c,
         a_re = zp[0] + 2.0;
         c_re = zp[0] - 2.0;
         a_im =
-        c_im = zp[1];
+            c_im = zp[1];
         zp[0] = (a_re * c_re + a_im * c_im) / (c_re * c_re + c_im * c_im);
         zp[1] = (a_im * c_re - a_re * c_im) / (c_re * c_re + c_im * c_im);
 
-        for(j = order; j >= 1; j--)
-        {
+        for (j = order; j >= 1; j--) {
             a_re = p[j][0];
             a_im = p[j][1];
-            p[j][0] = a_re*zp[0] - a_im*zp[1] + p[j-1][0];
-            p[j][1] = a_re*zp[1] + a_im*zp[0] + p[j-1][1];
+            p[j][0] = a_re * zp[0] - a_im * zp[1] + p[j - 1][0];
+            p[j][1] = a_re * zp[1] + a_im * zp[0] + p[j - 1][1];
         }
-        a_re    = p[0][0]*zp[0] - p[0][1]*zp[1];
-        p[0][1] = p[0][0]*zp[1] + p[0][1]*zp[0];
+        a_re    = p[0][0] * zp[0] - p[0][1] * zp[1];
+        p[0][1] = p[0][0] * zp[1] + p[0][1] * zp[0];
         p[0][0] = a_re;
     }
     c->gain = p[order][0];
-    for(i = 0; i < order; i++){
+    for (i = 0; i < order; i++) {
         c->gain += p[i][0];
         c->cy[i] = (-p[i][0] * p[order][0] + -p[i][1] * p[order][1]) /
                    (p[order][0] * p[order][0] + p[order][1] * p[order][1]);
@@ -136,16 +137,16 @@ static int biquad_init_coeffs(void *avc, struct FFIIRFilterCoeffs *c,
     a0 = 1.0 + (sin_w0 / 2.0);
 
     if (filt_mode == FF_FILTER_MODE_HIGHPASS) {
-        c->gain  =  ((1.0 + cos_w0) / 2.0)  / a0;
-        x0       =  ((1.0 + cos_w0) / 2.0)  / a0;
+        c->gain  = ((1.0 + cos_w0) / 2.0)  / a0;
+        x0       = ((1.0 + cos_w0) / 2.0)  / a0;
         x1       = (-(1.0 + cos_w0))        / a0;
     } else { // FF_FILTER_MODE_LOWPASS
-        c->gain  =  ((1.0 - cos_w0) / 2.0)  / a0;
-        x0       =  ((1.0 - cos_w0) / 2.0)  / a0;
-        x1       =   (1.0 - cos_w0)         / a0;
+        c->gain  = ((1.0 - cos_w0) / 2.0)  / a0;
+        x0       = ((1.0 - cos_w0) / 2.0)  / a0;
+        x1       = (1.0 - cos_w0)         / a0;
     }
     c->cy[0] = (-1.0 + (sin_w0 / 2.0)) / a0;
-    c->cy[1] =  (2.0 *  cos_w0)        / a0;
+    c->cy[1] = (2.0 *  cos_w0)        / a0;
 
     // divide by gain to make the x coeffs integers.
     // during filtering, the delay state will include the gain multiplication
@@ -156,23 +157,24 @@ static int biquad_init_coeffs(void *avc, struct FFIIRFilterCoeffs *c,
 }
 
 av_cold struct FFIIRFilterCoeffs* ff_iir_filter_init_coeffs(void *avc,
-                                                enum IIRFilterType filt_type,
-                                                enum IIRFilterMode filt_mode,
-                                                int order, float cutoff_ratio,
-                                                float stopband, float ripple)
+        enum IIRFilterType filt_type,
+        enum IIRFilterMode filt_mode,
+        int order, float cutoff_ratio,
+        float stopband, float ripple)
 {
     FFIIRFilterCoeffs *c;
     int ret = 0;
 
-    if (order <= 0 || order > MAXORDER || cutoff_ratio >= 1.0)
+    if (order <= 0 || order > MAXORDER || cutoff_ratio >= 1.0) {
         return NULL;
+    }
 
     FF_ALLOCZ_OR_GOTO(avc, c,     sizeof(FFIIRFilterCoeffs),
                       init_fail);
-    FF_ALLOC_OR_GOTO (avc, c->cx, sizeof(c->cx[0]) * ((order >> 1) + 1),
-                      init_fail);
-    FF_ALLOC_OR_GOTO (avc, c->cy, sizeof(c->cy[0]) * order,
-                      init_fail);
+    FF_ALLOC_OR_GOTO(avc, c->cx, sizeof(c->cx[0]) * ((order >> 1) + 1),
+                     init_fail);
+    FF_ALLOC_OR_GOTO(avc, c->cy, sizeof(c->cy[0]) * order,
+                     init_fail);
     c->order = order;
 
     switch (filt_type) {
@@ -189,8 +191,9 @@ av_cold struct FFIIRFilterCoeffs* ff_iir_filter_init_coeffs(void *avc,
         goto init_fail;
     }
 
-    if (!ret)
+    if (!ret) {
         return c;
+    }
 
 init_fail:
     ff_iir_filter_free_coeffs(c);
@@ -303,7 +306,7 @@ av_cold void ff_iir_filter_free_state(struct FFIIRFilterState *state)
 
 av_cold void ff_iir_filter_free_coeffs(struct FFIIRFilterCoeffs *coeffs)
 {
-    if(coeffs){
+    if (coeffs) {
         av_free(coeffs->cx);
         av_free(coeffs->cy);
     }
@@ -328,7 +331,7 @@ int main(void)
     fstate  = ff_iir_filter_init_state(FILT_ORDER);
 
     for (i = 0; i < SIZE; i++) {
-        x[i] = lrint(0.75 * INT16_MAX * sin(0.5*M_PI*i*i/SIZE));
+        x[i] = lrint(0.75 * INT16_MAX * sin(0.5 * M_PI * i * i / SIZE));
     }
 
     ff_iir_filter(fcoeffs, fstate, SIZE, x, 1, y, 1);

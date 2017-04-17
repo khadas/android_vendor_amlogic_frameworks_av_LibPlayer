@@ -22,7 +22,8 @@
 #define CLOCK_FREQ INT64_C(1000000)
 typedef int64_t mtime_t;
 
-static struct timespec mtime_to_ts(mtime_t date) {
+static struct timespec mtime_to_ts(mtime_t date)
+{
     lldiv_t d = lldiv(date, CLOCK_FREQ);
     struct timespec ts = { d.quot, d.rem * (1000000000 / CLOCK_FREQ) };
 
@@ -142,7 +143,7 @@ int fetchFile(const char *url, unsigned char **out, int *size)
     if (!strncmp(url, "http", strlen("http"))) {
         void* bp = NULL;
         char* redirectUrl = NULL;
-        fetchHttpSmallFile(url, NULL, &bp, size, &redirectUrl, NULL);
+        fetchHttpSmallFile(url, NULL, &bp, size, &redirectUrl, NULL, NULL);
         if (redirectUrl) {
             LOGV("RedirectUrl :%s\n", redirectUrl);
             free(redirectUrl);

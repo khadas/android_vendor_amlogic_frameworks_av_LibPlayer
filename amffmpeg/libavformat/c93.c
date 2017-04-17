@@ -46,18 +46,20 @@ static int probe(AVProbeData *p)
 {
     int i;
     int index = 1;
-    if (p->buf_size < 16)
+    if (p->buf_size < 16) {
         return 0;
+    }
     for (i = 0; i < 16; i += 4) {
-        if (AV_RL16(p->buf + i) != index || !p->buf[i + 2] || !p->buf[i + 3])
+        if (AV_RL16(p->buf + i) != index || !p->buf[i + 2] || !p->buf[i + 3]) {
             return 0;
+        }
         index += p->buf[i + 2];
     }
     return AVPROBE_SCORE_MAX;
 }
 
 static int read_header(AVFormatContext *s,
-                           AVFormatParameters *ap)
+                       AVFormatParameters *ap)
 {
     AVStream *video;
     AVIOContext *pb = s->pb;
@@ -80,15 +82,18 @@ static int read_header(AVFormatContext *s,
     s->ctx_flags |= AVFMTCTX_NOHEADER;
 
     video = av_new_stream(s, 0);
-    if (!video)
+    if (!video) {
         return AVERROR(ENOMEM);
+    }
 
     video->codec->codec_type = AVMEDIA_TYPE_VIDEO;
     video->codec->codec_id = CODEC_ID_C93;
     video->codec->width = 320;
     video->codec->height = 192;
     /* 4:3 320x200 with 8 empty lines */
-    video->sample_aspect_ratio = (AVRational) { 5, 6 };
+    video->sample_aspect_ratio = (AVRational) {
+        5, 6
+    };
     av_set_pts_info(video, 64, 2, 25);
     video->nb_frames = framecount;
     video->duration = framecount;
@@ -118,8 +123,9 @@ static int read_packet(AVFormatContext *s, AVPacket *pkt)
         if (datasize > 42) {
             if (!c93->audio) {
                 c93->audio = av_new_stream(s, 1);
-                if (!c93->audio)
+                if (!c93->audio) {
                     return AVERROR(ENOMEM);
+                }
                 c93->audio->codec->codec_type = AVMEDIA_TYPE_AUDIO;
             }
             avio_skip(pb, 26); /* VOC header */
@@ -132,8 +138,9 @@ static int read_packet(AVFormatContext *s, AVPacket *pkt)
         }
     }
     if (c93->current_frame >= br->frames) {
-        if (c93->current_block >= 511 || !br[1].length)
+        if (c93->current_block >= 511 || !br[1].length) {
             return AVERROR(EIO);
+        }
         br++;
         c93->current_block++;
         c93->current_frame = 0;
@@ -146,13 +153,14 @@ static int read_packet(AVFormatContext *s, AVPacket *pkt)
         }
     }
 
-    avio_seek(pb,br->index * 2048 +
-            c93->frame_offsets[c93->current_frame], SEEK_SET);
+    avio_seek(pb, br->index * 2048 +
+              c93->frame_offsets[c93->current_frame], SEEK_SET);
     datasize = avio_rl16(pb); /* video frame size */
 
     ret = av_new_packet(pkt, datasize + 768 + 1);
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
+    }
     pkt->data[0] = 0;
     pkt->size = datasize + 1;
 
@@ -187,7 +195,7 @@ static int read_packet(AVFormatContext *s, AVPacket *pkt)
     }
     return 0;
 
-    fail:
+fail:
     av_free_packet(pkt);
     return ret;
 }

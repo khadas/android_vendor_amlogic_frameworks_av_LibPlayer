@@ -32,7 +32,7 @@
 struct FFIIRFilterCoeffs;
 struct FFIIRFilterState;
 
-enum IIRFilterType{
+enum IIRFilterType {
     FF_FILTER_TYPE_BESSEL,
     FF_FILTER_TYPE_BIQUAD,
     FF_FILTER_TYPE_BUTTERWORTH,
@@ -40,7 +40,7 @@ enum IIRFilterType{
     FF_FILTER_TYPE_ELLIPTIC,
 };
 
-enum IIRFilterMode{
+enum IIRFilterMode {
     FF_FILTER_MODE_LOWPASS,
     FF_FILTER_MODE_HIGHPASS,
     FF_FILTER_MODE_BANDPASS,
@@ -62,10 +62,10 @@ enum IIRFilterMode{
  * @return pointer to filter coefficients structure or NULL if filter cannot be created
  */
 struct FFIIRFilterCoeffs* ff_iir_filter_init_coeffs(void *avc,
-                                                enum IIRFilterType filt_type,
-                                                enum IIRFilterMode filt_mode,
-                                                int order, float cutoff_ratio,
-                                                float stopband, float ripple);
+        enum IIRFilterType filt_type,
+        enum IIRFilterMode filt_mode,
+        int order, float cutoff_ratio,
+        float stopband, float ripple);
 
 /**
  * Create new filter state.

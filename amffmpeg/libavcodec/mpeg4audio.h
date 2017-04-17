@@ -53,7 +53,7 @@ int ff_mpeg4audio_get_config(MPEG4AudioConfig *c, const uint8_t *buf, int buf_si
 
 enum AudioObjectType {
     AOT_NULL,
-                               // Support?                Name
+    // Support?                Name
     AOT_AAC_MAIN,              ///< Y                       Main
     AOT_AAC_LC,                ///< Y                       Low Complexity
     AOT_AAC_SSR,               ///< N (code in SoC repo)    Scalable Sample Rate
@@ -99,7 +99,7 @@ enum AudioObjectType {
 };
 
 #define MAX_PCE_SIZE 304 ///<Maximum size of a PCE including the 3-bit ID_PCE
-                         ///<marker and the comment
+///<marker and the comment
 
 int ff_copy_pce_data(PutBitContext *pb, GetBitContext *gb);
 

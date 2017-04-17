@@ -33,8 +33,9 @@
 static av_cold int gsm_init(AVCodecContext *avctx)
 {
     avctx->channels = 1;
-    if (!avctx->sample_rate)
+    if (!avctx->sample_rate) {
         avctx->sample_rate = 8000;
+    }
     avctx->sample_fmt = AV_SAMPLE_FMT_S16;
 
     switch (avctx->codec_id) {
@@ -60,25 +61,30 @@ static int gsm_decode_frame(AVCodecContext *avctx, void *data,
     int16_t *samples = data;
     int frame_bytes = 2 * avctx->frame_size;
 
-    if (*data_size < frame_bytes)
+    if (*data_size < frame_bytes) {
         return -1;
+    }
     *data_size = 0;
-    if(buf_size < avctx->block_align)
+    if (buf_size < avctx->block_align) {
         return AVERROR_INVALIDDATA;
+    }
 
     switch (avctx->codec_id) {
     case CODEC_ID_GSM:
         init_get_bits(&gb, buf, buf_size * 8);
-        if (get_bits(&gb, 4) != 0xd)
+        if (get_bits(&gb, 4) != 0xd) {
             av_log(avctx, AV_LOG_WARNING, "Missing GSM magic!\n");
+        }
         res = gsm_decode_block(avctx, samples, &gb);
-        if (res < 0)
+        if (res < 0) {
             return res;
+        }
         break;
     case CODEC_ID_GSM_MS:
         res = ff_msgsm_decode_block(avctx, samples, buf);
-        if (res < 0)
+        if (res < 0) {
             return res;
+        }
     }
     *data_size = frame_bytes;
     return avctx->block_align;

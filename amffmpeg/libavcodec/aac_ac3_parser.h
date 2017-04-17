@@ -42,7 +42,7 @@ typedef struct AACAC3ParseContext {
     int frame_size;
     int header_size;
     int (*sync)(uint64_t state, struct AACAC3ParseContext *hdr_info,
-            int *need_next_header, int *new_frame_start);
+                int *need_next_header, int *new_frame_start);
 
     int channels;
     int sample_rate;

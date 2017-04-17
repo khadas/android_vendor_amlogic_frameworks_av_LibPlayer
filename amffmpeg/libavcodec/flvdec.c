@@ -22,11 +22,12 @@
 #include "flv.h"
 #include "libavutil/imgutils.h"
 
-void ff_flv2_decode_ac_esc(GetBitContext *gb, int *level, int *run, int *last){
+void ff_flv2_decode_ac_esc(GetBitContext *gb, int *level, int *run, int *last)
+{
     int is11 = get_bits1(gb);
     *last = get_bits1(gb);
     *run = get_bits(gb, 6);
-    if(is11){
+    if (is11) {
         *level = get_sbits(gb, 11);
     } else {
         *level = get_sbits(gb, 7);
@@ -47,7 +48,7 @@ int ff_flv_decode_picture_header(MpegEncContext *s)
         av_log(s->avctx, AV_LOG_ERROR, "Bad picture format\n");
         return -1;
     }
-    s->h263_flv = format+1;
+    s->h263_flv = format + 1;
     s->picture_number = get_bits(&s->gb, 8); /* picture timestamp */
     format = get_bits(&s->gb, 3);
     switch (format) {
@@ -83,18 +84,20 @@ int ff_flv_decode_picture_header(MpegEncContext *s)
         width = height = 0;
         break;
     }
-    if(av_image_check_size(width, height, 0, s->avctx))
+    if (av_image_check_size(width, height, 0, s->avctx)) {
         return -1;
+    }
     s->width = width;
     s->height = height;
 
     s->pict_type = AV_PICTURE_TYPE_I + get_bits(&s->gb, 2);
-    s->dropable= s->pict_type > AV_PICTURE_TYPE_P;
-    if (s->dropable)
+    s->dropable = s->pict_type > AV_PICTURE_TYPE_P;
+    if (s->dropable) {
         s->pict_type = AV_PICTURE_TYPE_P;
+    }
 
     skip_bits1(&s->gb); /* deblocking flag */
-    s->chroma_qscale= s->qscale = get_bits(&s->gb, 5);
+    s->chroma_qscale = s->qscale = get_bits(&s->gb, 5);
 
     s->h263_plus = 0;
 
@@ -107,13 +110,13 @@ int ff_flv_decode_picture_header(MpegEncContext *s)
     }
     s->f_code = 1;
 
-    if(s->avctx->debug & FF_DEBUG_PICT_INFO){
+    if (s->avctx->debug & FF_DEBUG_PICT_INFO) {
         av_log(s->avctx, AV_LOG_DEBUG, "%c esc_type:%d, qp:%d num:%d\n",
-               s->dropable ? 'D' : av_get_picture_type_char(s->pict_type), s->h263_flv-1, s->qscale, s->picture_number);
+               s->dropable ? 'D' : av_get_picture_type_char(s->pict_type), s->h263_flv - 1, s->qscale, s->picture_number);
     }
 
-    s->y_dc_scale_table=
-    s->c_dc_scale_table= ff_mpeg1_dc_scale_table;
+    s->y_dc_scale_table =
+        s->c_dc_scale_table = ff_mpeg1_dc_scale_table;
 
     return 0;
 }
@@ -128,7 +131,7 @@ AVCodec ff_flv_decoder = {
     ff_h263_decode_end,
     ff_h263_decode_frame,
     CODEC_CAP_DRAW_HORIZ_BAND | CODEC_CAP_DR1,
-    .max_lowres= 3,
-    .long_name= NULL_IF_CONFIG_SMALL("Flash Video (FLV) / Sorenson Spark / Sorenson H.263"),
-    .pix_fmts= ff_pixfmt_list_420,
+    .max_lowres = 3,
+    .long_name = NULL_IF_CONFIG_SMALL("Flash Video (FLV) / Sorenson Spark / Sorenson H.263"),
+    .pix_fmts = ff_pixfmt_list_420,
 };

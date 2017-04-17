@@ -1,7 +1,8 @@
 #ifndef PLAYER_MESSAGE_H
 #define PLAYER_MESSAGE_H
 
-#define MESSAGE_MAX 8
+//#define MESSAGE_MAX 8
+#define MESSAGE_MAX 64
 
 #define CTRL_CMD_RESPONSE   (0xffff)
 
@@ -20,7 +21,7 @@ typedef enum {
     CMD_FB              = (1 << 11),
     CMD_SWITCH_AID      = (1 << 12),
     CMD_SWITCH_SID      = (1 << 13),
-    CMD_SWITCH_TSPROGRAM= (1 << 14),
+    CMD_SWITCH_TSPROGRAM = (1 << 14),
     CMD_CTRL_MAX        = (1 << 31),
 } ctrl_cmd_t;
 

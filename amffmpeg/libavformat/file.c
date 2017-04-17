@@ -55,11 +55,12 @@ static int file_check(URLContext *h, int mask)
 {
     struct stat st;
     int ret = stat(h->filename, &st);
-    if (ret < 0)
+    if (ret < 0) {
         return AVERROR(errno);
+    }
 
-    ret |= st.st_mode&S_IRUSR ? mask&AVIO_FLAG_READ  : 0;
-    ret |= st.st_mode&S_IWUSR ? mask&AVIO_FLAG_WRITE : 0;
+    ret |= st.st_mode & S_IRUSR ? mask & AVIO_FLAG_READ  : 0;
+    ret |= st.st_mode & S_IWUSR ? mask & AVIO_FLAG_WRITE : 0;
 
     return ret;
 }
@@ -84,10 +85,11 @@ static int file_open(URLContext *h, const char *filename, int flags)
     access |= O_BINARY;
 #endif
     fd = open(filename, access, 0666);
-    if (fd == -1)
+    if (fd == -1) {
         return AVERROR(errno);
-    h->priv_data = (void *) (intptr_t) fd;
-    h->priv_flags|=FLAGS_LOCALMEDIA;
+    }
+    h->priv_data = (void *)(intptr_t) fd;
+    h->priv_flags |= FLAGS_LOCALMEDIA;
     return 0;
 }
 
@@ -131,7 +133,7 @@ static int pipe_open(URLContext *h, const char *filename, int flags)
     av_strstart(filename, "pipe:", &filename);
 
     fd = strtol(filename, &final, 10);
-    if((filename == final) || *final ) {/* No digits found, or something like 10ab */
+    if ((filename == final) || *final) {/* No digits found, or something like 10ab */
         if (flags & AVIO_FLAG_WRITE) {
             fd = 1;
         } else {
@@ -141,7 +143,7 @@ static int pipe_open(URLContext *h, const char *filename, int flags)
 #if HAVE_SETMODE
     setmode(fd, O_BINARY);
 #endif
-    h->priv_data = (void *) (intptr_t) fd;
+    h->priv_data = (void *)(intptr_t) fd;
     h->is_streamed = 1;
     return 0;
 }

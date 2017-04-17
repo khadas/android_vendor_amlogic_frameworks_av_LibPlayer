@@ -32,8 +32,9 @@ static void apcm_dequant_add(GetBitContext *gb, int16_t *dst)
     int i;
     int maxidx = get_bits(gb, 6);
     const int16_t *tab = ff_gsm_dequant_tab[maxidx];
-    for (i = 0; i < 13; i++)
-        dst[3*i] += tab[get_bits(gb, 3)];
+    for (i = 0; i < 13; i++) {
+        dst[3 * i] += tab[get_bits(gb, 3)];
+    }
 }
 
 static inline int gsm_mult(int a, int b)
@@ -46,8 +47,9 @@ static void long_term_synth(int16_t *dst, int lag, int gain_idx)
     int i;
     const int16_t *src = dst - lag;
     uint16_t gain = ff_gsm_long_term_gain_tab[gain_idx];
-    for (i = 0; i < 40; i++)
+    for (i = 0; i < 40; i++) {
         dst[i] = gsm_mult(gain, src[i]);
+    }
 }
 
 static inline int decode_log_area(int coded, int factor, int offset)
@@ -60,9 +62,13 @@ static inline int decode_log_area(int coded, int factor, int offset)
 static av_noinline int get_rrp(int filtered)
 {
     int abs = FFABS(filtered);
-    if      (abs < 11059) abs <<= 1;
-    else if (abs < 20070) abs += 11059;
-    else                  abs = (abs >> 2) + 26112;
+    if (abs < 11059) {
+        abs <<= 1;
+    } else if (abs < 20070) {
+        abs += 11059;
+    } else {
+        abs = (abs >> 2) + 26112;
+    }
     return filtered < 0 ? -abs : abs;
 }
 
@@ -83,25 +89,33 @@ static void short_term_synth(GSMContext *ctx, int16_t *dst, const int16_t *src)
     int rrp[8];
     int *lar = ctx->lar[ctx->lar_idx];
     int *lar_prev = ctx->lar[ctx->lar_idx ^ 1];
-    for (i = 0; i < 8; i++)
+    for (i = 0; i < 8; i++) {
         rrp[i] = get_rrp((lar_prev[i] >> 2) + (lar_prev[i] >> 1) + (lar[i] >> 2));
-    for (i = 0; i < 13; i++)
+    }
+    for (i = 0; i < 13; i++) {
         dst[i] = filter_value(src[i], rrp, ctx->v);
+    }
 
-    for (i = 0; i < 8; i++)
+    for (i = 0; i < 8; i++) {
         rrp[i] = get_rrp((lar_prev[i] >> 1) + (lar     [i] >> 1));
-    for (i = 13; i < 27; i++)
+    }
+    for (i = 13; i < 27; i++) {
         dst[i] = filter_value(src[i], rrp, ctx->v);
+    }
 
-    for (i = 0; i < 8; i++)
+    for (i = 0; i < 8; i++) {
         rrp[i] = get_rrp((lar_prev[i] >> 2) + (lar     [i] >> 1) + (lar[i] >> 2));
-    for (i = 27; i < 40; i++)
+    }
+    for (i = 27; i < 40; i++) {
         dst[i] = filter_value(src[i], rrp, ctx->v);
+    }
 
-    for (i = 0; i < 8; i++)
+    for (i = 0; i < 8; i++) {
         rrp[i] = get_rrp(lar[i]);
-    for (i = 40; i < 160; i++)
+    }
+    for (i = 40; i < 160; i++) {
         dst[i] = filter_value(src[i], rrp, ctx->v);
+    }
 
     ctx->lar_idx ^= 1;
 }
@@ -125,12 +139,12 @@ static int gsm_decode_block(AVCodecContext *avctx, int16_t *samples,
     int *lar = ctx->lar[ctx->lar_idx];
     lar[0] = decode_log_area(get_bits(gb, 6), 13107,  1 << 15);
     lar[1] = decode_log_area(get_bits(gb, 6), 13107,  1 << 15);
-    lar[2] = decode_log_area(get_bits(gb, 5), 13107, (1 << 14) + 2048*2);
-    lar[3] = decode_log_area(get_bits(gb, 5), 13107, (1 << 14) - 2560*2);
-    lar[4] = decode_log_area(get_bits(gb, 4), 19223, (1 << 13) +   94*2);
-    lar[5] = decode_log_area(get_bits(gb, 4), 17476, (1 << 13) - 1792*2);
-    lar[6] = decode_log_area(get_bits(gb, 3), 31454, (1 << 12) -  341*2);
-    lar[7] = decode_log_area(get_bits(gb, 3), 29708, (1 << 12) - 1144*2);
+    lar[2] = decode_log_area(get_bits(gb, 5), 13107, (1 << 14) + 2048 * 2);
+    lar[3] = decode_log_area(get_bits(gb, 5), 13107, (1 << 14) - 2560 * 2);
+    lar[4] = decode_log_area(get_bits(gb, 4), 19223, (1 << 13) +   94 * 2);
+    lar[5] = decode_log_area(get_bits(gb, 4), 17476, (1 << 13) - 1792 * 2);
+    lar[6] = decode_log_area(get_bits(gb, 3), 31454, (1 << 12) -  341 * 2);
+    lar[7] = decode_log_area(get_bits(gb, 3), 29708, (1 << 12) - 1144 * 2);
 
     for (i = 0; i < 4; i++) {
         int lag      = get_bits(gb, 7);

@@ -41,8 +41,9 @@ static int yop_probe(AVProbeData *probe_packet)
         probe_packet->buf[6]                         &&
         probe_packet->buf[7]                         &&
         !(probe_packet->buf[8] & 1)                  &&
-        !(probe_packet->buf[10] & 1))
+        !(probe_packet->buf[10] & 1)) {
         return AVPROBE_SCORE_MAX * 3 / 4;
+    }
 
     return 0;
 }
@@ -64,10 +65,11 @@ static int yop_read_header(AVFormatContext *s, AVFormatParameters *ap)
     video_stream->codec->extradata_size = 8;
 
     video_stream->codec->extradata = av_mallocz(video_stream->codec->extradata_size +
-                                                FF_INPUT_BUFFER_PADDING_SIZE);
+                                     FF_INPUT_BUFFER_PADDING_SIZE);
 
-    if (!video_stream->codec->extradata)
+    if (!video_stream->codec->extradata) {
         return AVERROR(ENOMEM);
+    }
 
     // Audio
     audio_dec               = audio_stream->codec;
@@ -88,11 +90,14 @@ static int yop_read_header(AVFormatContext *s, AVFormatParameters *ap)
     video_dec->width        = avio_rl16(pb);
     video_dec->height       = avio_rl16(pb);
 
-    video_stream->sample_aspect_ratio = (AVRational){1, 2};
+    video_stream->sample_aspect_ratio = (AVRational) {
+        1, 2
+    };
 
     ret = avio_read(pb, video_dec->extradata, 8);
-    if (ret < 8)
+    if (ret < 8) {
         return ret < 0 ? ret : AVERROR_EOF;
+    }
 
     yop->palette_size       = video_dec->extradata[0] * 3 + 4;
     yop->audio_block_length = AV_RL16(video_dec->extradata + 6);
@@ -133,22 +138,24 @@ static int yop_read_packet(AVFormatContext *s, AVPacket *pkt)
     }
     ret = av_new_packet(&yop->video_packet,
                         yop->frame_size - yop->audio_block_length);
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
+    }
 
     yop->video_packet.pos = avio_tell(pb);
 
     ret = avio_read(pb, yop->video_packet.data, yop->palette_size);
     if (ret < 0) {
         goto err_out;
-    }else if (ret < yop->palette_size) {
+    } else if (ret < yop->palette_size) {
         ret = AVERROR_EOF;
         goto err_out;
     }
 
     ret = av_get_packet(pb, pkt, 920);
-    if (ret < 0)
+    if (ret < 0) {
         goto err_out;
+    }
 
     // Set position to the start of the frame
     pkt->pos = yop->video_packet.pos;
@@ -156,11 +163,12 @@ static int yop_read_packet(AVFormatContext *s, AVPacket *pkt)
     avio_skip(pb, yop->audio_block_length - ret);
 
     ret = avio_read(pb, yop->video_packet.data + yop->palette_size,
-                     actual_video_data_size);
-    if (ret < 0)
+                    actual_video_data_size);
+    if (ret < 0) {
         goto err_out;
-    else if (ret < actual_video_data_size)
+    } else if (ret < actual_video_data_size) {
         av_shrink_packet(&yop->video_packet, yop->palette_size + ret);
+    }
 
     // Arbitrarily return the audio data first
     return yop->audio_block_length;
@@ -186,8 +194,9 @@ static int yop_read_seek(AVFormatContext *s, int stream_index,
 
     av_free_packet(&yop->video_packet);
 
-    if (!stream_index)
+    if (!stream_index) {
         return -1;
+    }
 
     pos_min        = s->data_offset;
     pos_max        = avio_size(s->pb) - yop->frame_size;

@@ -46,7 +46,7 @@ static int s302m_parse_frame_header(AVCodecContext *avctx, const uint8_t *buf,
      */
 
     h = AV_RB32(buf);
-    frame_size =  (h >> 16) & 0xffff;
+    frame_size = (h >> 16) & 0xffff;
     channels   = ((h >> 14) & 0x0003) * 2 +  2;
     bits       = ((h >>  4) & 0x0003) * 4 + 16;
 
@@ -57,21 +57,22 @@ static int s302m_parse_frame_header(AVCodecContext *avctx, const uint8_t *buf,
 
     /* Set output properties */
     avctx->bits_per_coded_sample = bits;
-    if (bits > 16)
+    if (bits > 16) {
         avctx->sample_fmt = SAMPLE_FMT_S32;
-    else
+    } else {
         avctx->sample_fmt = SAMPLE_FMT_S16;
+    }
 
     avctx->channels    = channels;
-    switch(channels) {
-        case 2:
-            avctx->channel_layout = AV_CH_LAYOUT_STEREO;
-            break;
-        case 4:
-            avctx->channel_layout = AV_CH_LAYOUT_QUAD;
-            break;
-        case 8:
-            avctx->channel_layout = AV_CH_LAYOUT_5POINT1_BACK | AV_CH_LAYOUT_STEREO_DOWNMIX;
+    switch (channels) {
+    case 2:
+        avctx->channel_layout = AV_CH_LAYOUT_STEREO;
+        break;
+    case 4:
+        avctx->channel_layout = AV_CH_LAYOUT_QUAD;
+        break;
+    case 8:
+        avctx->channel_layout = AV_CH_LAYOUT_5POINT1_BACK | AV_CH_LAYOUT_STEREO_DOWNMIX;
     }
     avctx->sample_rate = 48000;
     avctx->bit_rate    = 48000 * avctx->channels * (avctx->bits_per_coded_sample + 4) +
@@ -89,14 +90,16 @@ static int s302m_decode_frame(AVCodecContext *avctx, void *data,
     int buf_size       = avpkt->size;
 
     int frame_size = s302m_parse_frame_header(avctx, buf, buf_size);
-    if (frame_size < 0)
+    if (frame_size < 0) {
         return frame_size;
+    }
 
     buf_size -= AES3_HEADER_LEN;
     buf      += AES3_HEADER_LEN;
 
-    if (*data_size < 4 * buf_size * 8 / (avctx->bits_per_coded_sample + 4))
+    if (*data_size < 4 * buf_size * 8 / (avctx->bits_per_coded_sample + 4)) {
         return -1;
+    }
 
     if (avctx->bits_per_coded_sample == 24) {
         uint32_t *o = data;
@@ -127,7 +130,7 @@ static int s302m_decode_frame(AVCodecContext *avctx, void *data,
         uint16_t *o = data;
         for (; buf_size > 4; buf_size -= 5) {
             *o++ = (av_reverse[buf[1]]        <<  8) |
-                    av_reverse[buf[0]];
+                   av_reverse[buf[0]];
             *o++ = (av_reverse[buf[4] & 0xf0] << 12) |
                    (av_reverse[buf[3]]        <<  4) |
                    (av_reverse[buf[2]]        >>  4);

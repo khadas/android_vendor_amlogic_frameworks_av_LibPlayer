@@ -40,7 +40,9 @@ struct PayloadContext {
 static PayloadContext *amr_new_context(void)
 {
     PayloadContext *data = av_mallocz(sizeof(PayloadContext));
-    if(!data) return data;
+    if (!data) {
+        return data;
+    }
     data->channels = 1;
     return data;
 }
@@ -149,17 +151,18 @@ static int amr_parse_fmtp(AVStream *stream, PayloadContext *data,
      */
     if (!strcmp(value, "")) {
         av_log(NULL, AV_LOG_WARNING, "AMR fmtp attribute %s had "
-                                     "nonstandard empty value\n", attr);
+               "nonstandard empty value\n", attr);
         strcpy(value, "1");
     }
-    if (!strcmp(attr, "octet-align"))
+    if (!strcmp(attr, "octet-align")) {
         data->octet_align = atoi(value);
-    else if (!strcmp(attr, "crc"))
+    } else if (!strcmp(attr, "crc")) {
         data->crc = atoi(value);
-    else if (!strcmp(attr, "interleaving"))
+    } else if (!strcmp(attr, "interleaving")) {
         data->interleaving = atoi(value);
-    else if (!strcmp(attr, "channels"))
+    } else if (!strcmp(attr, "channels")) {
         data->channels = atoi(value);
+    }
     return 0;
 }
 

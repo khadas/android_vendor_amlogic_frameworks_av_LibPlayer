@@ -47,8 +47,9 @@ const uint8_t ff_png_pass_mask[NB_PASSES] = {
 
 void *ff_png_zalloc(void *opaque, unsigned int items, unsigned int size)
 {
-    if(items >= UINT_MAX / size)
+    if (items >= UINT_MAX / size) {
         return NULL;
+    }
     return av_malloc(items * size);
 }
 
@@ -62,10 +63,12 @@ int ff_png_get_nb_channels(int color_type)
     int channels;
     channels = 1;
     if ((color_type & (PNG_COLOR_MASK_COLOR | PNG_COLOR_MASK_PALETTE)) ==
-        PNG_COLOR_MASK_COLOR)
+        PNG_COLOR_MASK_COLOR) {
         channels = 3;
-    if (color_type & PNG_COLOR_MASK_ALPHA)
+    }
+    if (color_type & PNG_COLOR_MASK_ALPHA) {
         channels++;
+    }
     return channels;
 }
 
@@ -75,8 +78,9 @@ int ff_png_pass_row_size(int pass, int bits_per_pixel, int width)
     int shift, xmin, pass_width;
 
     xmin = ff_png_pass_xmin[pass];
-    if (width <= xmin)
+    if (width <= xmin) {
         return 0;
+    }
     shift = ff_png_pass_xshift[pass];
     pass_width = (width - xmin + (1 << shift) - 1) >> shift;
     return (pass_width * bits_per_pixel + 7) >> 3;

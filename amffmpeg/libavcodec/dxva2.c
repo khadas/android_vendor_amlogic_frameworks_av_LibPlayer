@@ -34,8 +34,9 @@ unsigned ff_dxva2_get_surface_index(const struct dxva_context *ctx,
     unsigned i;
 
     for (i = 0; i < ctx->surface_count; i++)
-        if (ctx->surface[i] == surface)
+        if (ctx->surface[i] == surface) {
             return i;
+        }
 
     assert(0);
     return 0;
@@ -52,7 +53,7 @@ int ff_dxva2_commit_buffer(AVCodecContext *avctx,
     int      result;
 
     if (FAILED(IDirectXVideoDecoder_GetBuffer(ctx->decoder, type,
-                                              &dxva_data, &dxva_size))) {
+               &dxva_data, &dxva_size))) {
         av_log(avctx, AV_LOG_ERROR, "Failed to get a buffer for %d\n", type);
         return -1;
     }
@@ -80,8 +81,8 @@ int ff_dxva2_common_end_frame(AVCodecContext *avctx, MpegEncContext *s,
                               const void *pp, unsigned pp_size,
                               const void *qm, unsigned qm_size,
                               int (*commit_bs_si)(AVCodecContext *,
-                                                  DXVA2_DecodeBufferDesc *bs,
-                                                  DXVA2_DecodeBufferDesc *slice))
+                                      DXVA2_DecodeBufferDesc *bs,
+                                      DXVA2_DecodeBufferDesc *slice))
 {
     struct dxva_context *ctx = avctx->hwaccel_context;
     unsigned               buffer_count = 0;
@@ -90,8 +91,8 @@ int ff_dxva2_common_end_frame(AVCodecContext *avctx, MpegEncContext *s,
     int      result;
 
     if (FAILED(IDirectXVideoDecoder_BeginFrame(ctx->decoder,
-                                               ff_dxva2_get_surface(s->current_picture_ptr),
-                                               NULL))) {
+               ff_dxva2_get_surface(s->current_picture_ptr),
+               NULL))) {
         av_log(avctx, AV_LOG_ERROR, "Failed to begin frame\n");
         return -1;
     }
@@ -147,8 +148,9 @@ end:
         result = -1;
     }
 
-    if (!result)
+    if (!result) {
         ff_draw_horiz_band(s, 0, s->avctx->height);
+    }
     return result;
 }
 

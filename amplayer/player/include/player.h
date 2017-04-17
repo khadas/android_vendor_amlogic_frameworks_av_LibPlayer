@@ -22,7 +22,7 @@ int     player_resume(int pid);
 int     player_timesearch(int pid, float s_time);
 int     player_forward(int pid, int speed);
 int     player_backward(int pid, int speed);
-int     player_aid(int pid, int audio_id);
+int     player_aid(int pid, int audio_id, int audio_idx);
 int     player_sid(int pid, int sub_id);
 int     player_switch_program(int pid, int video_pid, int audio_pid);
 int     player_progress_exit(void);
@@ -43,11 +43,6 @@ int     audio_set_mute(int pid, int mute);
 int     audio_get_volume_range(int pid, float *min, float *max);
 int     audio_set_volume(int pid, float val);
 int     audio_get_volume(int pid, float *val);
-// set audio adec pre_gain dB format
-int     audio_set_pre_gain(int pid, float gain);
-int     audio_get_pre_gain(int pid, float *gain);
-int     audio_set_pre_mute(int pid, uint mute);
-int     audio_get_pre_mute(int pid, uint *mute);
 
 int     audio_set_lrvolume(int pid, float lvol, float rvol);
 int     audio_get_lrvolume(int pid, float* lvol, float* rvol);
@@ -58,13 +53,14 @@ int     audio_left_mono(int pid);
 int     audio_right_mono(int pid);
 int     audio_stereo(int pid);
 int     audio_lr_mix_set(int pid, int enable);
-int     audio_cur_pcmpara_Applied_get(int pid, int *pfs, int *pch,int *lfepresent);
+int     audio_cur_pcmpara_Applied_get(int pid, int *pfs, int *pch);
 
 int     audio_set_spectrum_switch(int pid, int isStart, int interval);
 int     player_register_update_callback(callback_t *cb, update_state_fun_t up_fn, int interval_s);
 char *player_status2str(player_status status);
 char *player_value2str(char *key, int value);
 int     player_cache_system_init(int enable, const char*dir, int max_size, int block_size);
+int     resume_auto_refresh_rate();
 //control interface
 int     player_loop(int pid);
 int     player_noloop(int pid);
@@ -89,19 +85,20 @@ int64_t player_get_lpbufbuffedsize(int pid);
 int64_t player_get_streambufbuffedsize(int pid);
 int audio_get_decoder_enable(int pid);
 int player_closeCodec(int pid);
-int player_get_sub_odata(int pid, amsub_info_t *amsub_info);
-int player_get_sub_start_pts(int pid, unsigned int *start_pts);
 int player_set_sub_filename(int pid, const char* filename);
 int player_get_current_time(int pid, unsigned int* curr_timeMs);
 int player_get_curr_sub_id(int pid, int *curr_sub_id);
-
 // streaming protocol api, hls/dash etc.
 int player_get_source_type(int pid);
 int player_get_streaming_track_count(int pid, int * trackNum);
 int player_get_streaming_track_info(int pid, int * info_num, AVStreamInfo *** info_t);
 int player_select_streaming_track(int pid, int index, int select);
 int player_get_streaming_selected_track(int pid, int type, int * selected_track);
-int audio_set_playback_rate(int pid,void *rate);
+int audio_set_playback_rate(int pid, void *rate);
+int player_get_play_mode(int pid);
+int player_set_inner_exit(int pid);
+int player_is_inner_exit(int pid);
+
 #ifdef  __cplusplus
 }
 #endif

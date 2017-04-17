@@ -55,39 +55,42 @@ static int getframelength(char* inbuf)
     long bit4frmlen = 0;
     int frmlen = 0;
     unsigned short temp;
-    memcpy(&temp,inbuf+2, 2);
-    #if 1
-    temp = (temp >> 8)|(temp << 8);
-    #endif
-    bit4frmlen = ((temp&0x8000)==0) ? 10 : 13;
-    frmlen = temp<<1;
-    frmlen = (frmlen>>(16-bit4frmlen)) * 4;
-    if (frmlen > 4096)
-       return 0;
+    memcpy(&temp, inbuf + 2, 2);
+#if 1
+    temp = (temp >> 8) | (temp << 8);
+#endif
+    bit4frmlen = ((temp & 0x8000) == 0) ? 10 : 13;
+    frmlen = temp << 1;
+    frmlen = (frmlen >> (16 - bit4frmlen)) * 4;
+    if (frmlen > 4096) {
+        return 0;
+    }
     return frmlen;
 }
 
 
 static int dra_probe(AVProbeData *p)
 {
-    const int size= p->buf_size;
-    char *ppbuf=p->buf;
-    int framelength=getframelength(ppbuf);
-    if (ppbuf[0] == 0x7f && ppbuf[1] == 0xff && ppbuf[framelength] == 0x7f && ppbuf[framelength+1] == 0xff)
+    const int size = p->buf_size;
+    char *ppbuf = p->buf;
+    int framelength = getframelength(ppbuf);
+    if (ppbuf[0] == 0x7f && ppbuf[1] == 0xff && ppbuf[framelength] == 0x7f && ppbuf[framelength + 1] == 0xff) {
         return AVPROBE_SCORE_MAX;
+    }
     return -1;
 
 }
 
 static int dra_read_header(AVFormatContext *s,
-                              AVFormatParameters *ap)
+                           AVFormatParameters *ap)
 {
     AVStream *st;
     int err;
-    uint8_t *buf=s->pb->buffer;
+    uint8_t *buf = s->pb->buffer;
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
 
     st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
     st->codec->codec_id = s->iformat->value;
@@ -97,7 +100,7 @@ static int dra_read_header(AVFormatContext *s,
 }
 
 static int dra_read_packet(AVFormatContext *s,
-                              AVPacket *pkt)
+                           AVPacket *pkt)
 {
 
     int ret;
@@ -120,7 +123,7 @@ AVInputFormat ff_dra_demuxer = {
     dra_read_header,
     ff_raw_read_partial_packet,
     dra_read_close,
-    .flags= AVFMT_GENERIC_INDEX,
+    .flags = AVFMT_GENERIC_INDEX,
     .extensions = "dra",
     .value = CODEC_ID_DRA,
 };

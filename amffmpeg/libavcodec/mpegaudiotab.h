@@ -97,7 +97,7 @@ static unsigned short total_quant_bits[17];
    computed from quant_steps[]). The values are dB multiplied by 10
 */
 static const unsigned short quant_snr[17] = {
-     70, 110, 160, 208,
+    70, 110, 160, 208,
     253, 316, 378, 439,
     499, 559, 620, 680,
     740, 800, 861, 920,

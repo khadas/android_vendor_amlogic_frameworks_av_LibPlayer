@@ -35,33 +35,35 @@
 static const int8_t ws_adpcm_2bit[] = { -2, -1, 0, 1};
 static const int8_t ws_adpcm_4bit[] = {
     -9, -8, -6, -5, -4, -3, -2, -1,
-     0,  1,  2,  3,  4,  5,  6,  8 };
+    0,  1,  2,  3,  4,  5,  6,  8
+};
 
 #define CLIP8(a) if(a>127)a=127;if(a<-128)a=-128;
 
 static av_cold int ws_snd_decode_init(AVCodecContext * avctx)
 {
-//    WSSNDContext *c = avctx->priv_data;
+    //    WSSNDContext *c = avctx->priv_data;
 
     avctx->sample_fmt = AV_SAMPLE_FMT_S16;
     return 0;
 }
 
 static int ws_snd_decode_frame(AVCodecContext *avctx,
-                void *data, int *data_size,
-                AVPacket *avpkt)
+                               void *data, int *data_size,
+                               AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;
-//    WSSNDContext *c = avctx->priv_data;
+    //    WSSNDContext *c = avctx->priv_data;
 
     int in_size, out_size;
     int sample = 0;
     int i;
     short *samples = data;
 
-    if (!buf_size)
+    if (!buf_size) {
         return 0;
+    }
 
     out_size = AV_RL16(&buf[0]);
     *data_size = out_size * 2;
@@ -77,8 +79,9 @@ static int ws_snd_decode_frame(AVCodecContext *avctx,
         return -1;
     }
     if (in_size == out_size) {
-        for (i = 0; i < out_size; i++)
+        for (i = 0; i < out_size; i++) {
             *samples++ = (*buf++ - 0x80) << 8;
+        }
         return buf_size;
     }
 
@@ -88,7 +91,7 @@ static int ws_snd_decode_frame(AVCodecContext *avctx,
         code = (*buf) >> 6;
         count = (*buf) & 0x3F;
         buf++;
-        switch(code) {
+        switch (code) {
         case 0: /* ADPCM 2-bit */
             for (count++; count > 0; count--) {
                 code = *buf++;
@@ -136,7 +139,7 @@ static int ws_snd_decode_frame(AVCodecContext *avctx,
             }
             break;
         default: /* run */
-            for(count++; count > 0; count--) {
+            for (count++; count > 0; count--) {
                 *samples++ = sample << 8;
                 out_size--;
             }

@@ -142,12 +142,12 @@ static void init_blocks(FlashSV2Context * s, Block * blocks,
         for (row = 0; row < s->rows; row++) {
             b = blocks + (col + row * s->cols);
             b->width = (col < s->cols - 1) ?
-                s->block_width :
-                s->image_width - col * s->block_width;
+                       s->block_width :
+                       s->image_width - col * s->block_width;
 
             b->height = (row < s->rows - 1) ?
-                s->block_height :
-                s->image_height - row * s->block_height;
+                        s->block_height :
+                        s->image_height - row * s->block_height;
 
             b->row   = row;
             b->col   = col;
@@ -177,8 +177,9 @@ static av_cold int flashsv2_encode_init(AVCodecContext * avctx)
     s->avctx = avctx;
 
     s->comp = avctx->compression_level;
-    if (s->comp == -1)
+    if (s->comp == -1) {
         s->comp = 9;
+    }
     if (s->comp < 0 || s->comp > 9) {
         av_log(avctx, AV_LOG_ERROR,
                "Compression level should be 0-9, not %d\n", s->comp);
@@ -192,8 +193,9 @@ static av_cold int flashsv2_encode_init(AVCodecContext * avctx)
         return -1;
     }
 
-    if (av_image_check_size(avctx->width, avctx->height, 0, avctx) < 0)
+    if (av_image_check_size(avctx->width, avctx->height, 0, avctx) < 0) {
         return -1;
+    }
 
 
     s->last_key_frame = 0;
@@ -267,8 +269,9 @@ static int write_header(FlashSV2Context * s, uint8_t * buf, int buf_size)
     PutBitContext pb;
     int buf_pos, len;
 
-    if (buf_size < 5)
+    if (buf_size < 5) {
         return -1;
+    }
 
     init_put_bits(&pb, buf, buf_size * 8);
 
@@ -284,8 +287,9 @@ static int write_header(FlashSV2Context * s, uint8_t * buf, int buf_size)
 
     if (s->flags & HAS_PALLET_INFO) {
         len = write_palette(s, buf + buf_pos, buf_size - buf_pos);
-        if (len < 0)
+        if (len < 0) {
             return -1;
+        }
         buf_pos += len;
     }
 
@@ -297,20 +301,25 @@ static int write_block(Block * b, uint8_t * buf, int buf_size)
     int buf_pos = 0;
     unsigned block_size = b->data_size;
 
-    if (b->flags & HAS_DIFF_BLOCKS)
+    if (b->flags & HAS_DIFF_BLOCKS) {
         block_size += 2;
-    if (b->flags & ZLIB_PRIME_COMPRESS_CURRENT)
+    }
+    if (b->flags & ZLIB_PRIME_COMPRESS_CURRENT) {
         block_size += 2;
-    if (block_size > 0)
+    }
+    if (block_size > 0) {
         block_size += 1;
-    if (buf_size < block_size + 2)
+    }
+    if (buf_size < block_size + 2) {
         return -1;
+    }
 
     buf[buf_pos++] = block_size >> 8;
     buf[buf_pos++] = block_size;
 
-    if (block_size == 0)
+    if (block_size == 0) {
         return buf_pos;
+    }
 
     buf[buf_pos++] = b->flags;
 
@@ -347,8 +356,9 @@ static int encode_zlibprime(Block * b, Block * prime, uint8_t * buf,
     s.zfree  = NULL;
     s.opaque = NULL;
     res = deflateInit(&s, comp);
-    if (res < 0)
+    if (res < 0) {
         return -1;
+    }
 
     s.next_in  = prime->enc;
     s.avail_in = prime->enc_size;
@@ -356,8 +366,9 @@ static int encode_zlibprime(Block * b, Block * prime, uint8_t * buf,
         s.next_out  = buf;
         s.avail_out = *buf_size;
         res = deflate(&s, Z_SYNC_FLUSH);
-        if (res < 0)
+        if (res < 0) {
             return -1;
+        }
     }
 
     s.next_in   = b->sl_begin;
@@ -367,8 +378,9 @@ static int encode_zlibprime(Block * b, Block * prime, uint8_t * buf,
     res = deflate(&s, Z_FINISH);
     deflateEnd(&s);
     *buf_size -= s.avail_out;
-    if (res != Z_STREAM_END)
+    if (res != Z_STREAM_END) {
         return -1;
+    }
     return 0;
 }
 
@@ -376,14 +388,17 @@ static int encode_bgr(Block * b, const uint8_t * src, int stride)
 {
     int i;
     uint8_t *ptr = b->enc;
-    for (i = 0; i < b->start; i++)
+    for (i = 0; i < b->start; i++) {
         memcpy(ptr + i * b->width * 3, src + i * stride, b->width * 3);
+    }
     b->sl_begin = ptr + i * b->width * 3;
-    for (; i < b->start + b->len; i++)
+    for (; i < b->start + b->len; i++) {
         memcpy(ptr + i * b->width * 3, src + i * stride, b->width * 3);
+    }
     b->sl_end = ptr + i * b->width * 3;
-    for (; i < b->height; i++)
+    for (; i < b->height; i++) {
         memcpy(ptr + i * b->width * 3, src + i * stride, b->width * 3);
+    }
     b->enc_size = ptr + i * b->width * 3 - b->enc;
     return b->enc_size;
 }
@@ -399,8 +414,8 @@ static inline unsigned int chroma_diff(unsigned int c1, unsigned int c2)
     unsigned int t2 = (c2 & 0x000000ff) + ((c2 & 0x0000ff00) >> 8) + ((c2 & 0x00ff0000) >> 16);
 
     return abs(t1 - t2) + abs((c1 & 0x000000ff) - (c2 & 0x000000ff)) +
-        abs(((c1 & 0x0000ff00) >> 8) - ((c2 & 0x0000ff00) >> 8)) +
-        abs(((c1 & 0x00ff0000) >> 16) - ((c2 & 0x00ff0000) >> 16));
+           abs(((c1 & 0x0000ff00) >> 8) - ((c2 & 0x0000ff00) >> 8)) +
+           abs(((c1 & 0x00ff0000) >> 16) - ((c2 & 0x00ff0000) >> 16));
 }
 
 static inline int pixel_color7_fast(Palette * palette, unsigned c15)
@@ -498,7 +513,7 @@ static int generate_default_palette(Palette * palette)
 }
 
 static int generate_optimum_palette(Palette * palette, const uint8_t * image,
-                                   int width, int height, int stride)
+                                    int width, int height, int stride)
 {
     //this isn't implemented yet!  Default palette only!
     return -1;
@@ -519,14 +534,17 @@ static int encode_15_7(Palette * palette, Block * b, const uint8_t * src,
 {
     int i;
     uint8_t *ptr = b->enc;
-    for (i = 0; i < b->start; i++)
+    for (i = 0; i < b->start; i++) {
         ptr += encode_15_7_sl(palette, ptr, src + i * stride, b->width, dist);
+    }
     b->sl_begin = ptr;
-    for (; i < b->start + b->len; i++)
+    for (; i < b->start + b->len; i++) {
         ptr += encode_15_7_sl(palette, ptr, src + i * stride, b->width, dist);
+    }
     b->sl_end = ptr;
-    for (; i < b->height; i++)
+    for (; i < b->height; i++) {
         ptr += encode_15_7_sl(palette, ptr, src + i * stride, b->width, dist);
+    }
     b->enc_size = ptr - b->enc;
     return b->enc_size;
 }
@@ -547,13 +565,15 @@ static int encode_block(Palette * palette, Block * b, Block * prev,
     if (b->len > 0) {
         b->data_size = buf_size;
         res = encode_zlib(b, b->data, &b->data_size, comp);
-        if (res)
+        if (res) {
             return res;
+        }
 
         if (!keyframe) {
             res = encode_zlibprime(b, prev, buf, &buf_size, comp);
-            if (res)
+            if (res) {
                 return res;
+            }
 
             if (buf_size < b->data_size) {
                 b->data_size = buf_size;
@@ -578,8 +598,9 @@ static int compare_sl(FlashSV2Context * s, Block * b, const uint8_t * src,
 #endif
     }
     if (memcmp(src, key, b->width * 3) != 0) {
-        if (b->len == 0)
+        if (b->len == 0) {
             b->start = y;
+        }
         b->len = y + 1 - b->start;
     }
     return 0;
@@ -631,13 +652,15 @@ static int encode_all_blocks(FlashSV2Context * s, int keyframe)
             data = s->current_frame + s->image_width * 3 * s->block_height * row + s->block_width * col * 3;
             res = encode_block(&s->palette, b, prev, data, s->image_width * 3, s->comp, s->dist, keyframe);
 #ifndef FLASHSV2_DUMB
-            if (b->dirty)
+            if (b->dirty) {
                 s->diff_blocks++;
+            }
             s->comp_size += b->data_size;
             s->uncomp_size += b->enc_size;
 #endif
-            if (res)
+            if (res) {
                 return res;
+            }
         }
     }
 #ifndef FLASHSV2_DUMB
@@ -657,8 +680,9 @@ static int write_all_blocks(FlashSV2Context * s, uint8_t * buf,
             b = s->frame_blocks + row * s->cols + col;
             len = write_block(b, buf + buf_pos, buf_size - buf_pos);
             b->start = b->len = b->dirty = 0;
-            if (len < 0)
+            if (len < 0) {
                 return len;
+            }
             buf_pos += len;
         }
     }
@@ -671,11 +695,13 @@ static int write_bitstream(FlashSV2Context * s, const uint8_t * src, int stride,
     int buf_pos, res;
 
     res = mark_all_blocks(s, src, stride, keyframe);
-    if (res)
+    if (res) {
         return res;
+    }
     res = encode_all_blocks(s, keyframe);
-    if (res)
+    if (res) {
         return res;
+    }
 
     res = write_header(s, buf, buf_size);
     if (res < 0) {
@@ -684,8 +710,9 @@ static int write_bitstream(FlashSV2Context * s, const uint8_t * src, int stride,
         buf_pos = res;
     }
     res = write_all_blocks(s, buf + buf_pos, buf_size - buf_pos);
-    if (res < 0)
+    if (res < 0) {
         return res;
+    }
     buf_pos += res;
 #ifndef FLASHSV2_DUMB
     s->total_bits += ((double) buf_pos) * 8.0;
@@ -719,7 +746,7 @@ static const double block_size_fraction = 1.0 / 300;
 static int optimum_block_width(FlashSV2Context * s)
 {
 #ifndef FLASHSV2_DUMB
-    double save = (1-pow(s->diff_lines/s->diff_blocks/s->block_height, 0.5)) * s->comp_size/s->tot_blocks;
+    double save = (1 - pow(s->diff_lines / s->diff_blocks / s->block_height, 0.5)) * s->comp_size / s->tot_blocks;
     double width = block_size_fraction * sqrt(0.5 * save * s->rows * s->cols) * s->image_width;
     int pwidth = ((int) width);
     return FFCLIP(pwidth & ~15, 256, 16);
@@ -731,7 +758,7 @@ static int optimum_block_width(FlashSV2Context * s)
 static int optimum_block_height(FlashSV2Context * s)
 {
 #ifndef FLASHSV2_DUMB
-    double save = (1-pow(s->diff_lines/s->diff_blocks/s->block_height, 0.5)) * s->comp_size/s->tot_blocks;
+    double save = (1 - pow(s->diff_lines / s->diff_blocks / s->block_height, 0.5)) * s->comp_size / s->tot_blocks;
     double height = block_size_fraction * sqrt(0.5 * save * s->rows * s->cols) * s->image_height;
     int pheight = ((int) height);
     return FFCLIP(pheight & ~15, 256, 16);
@@ -746,7 +773,7 @@ static int optimum_use15_7(FlashSV2Context * s)
 {
 #ifndef FLASHSV2_DUMB
     double ideal = ((double)(s->avctx->bit_rate * s->avctx->time_base.den * s->avctx->ticks_per_frame)) /
-        ((double) s->avctx->time_base.num) * s->avctx->frame_number;
+                   ((double) s->avctx->time_base.num) * s->avctx->frame_number;
     if (ideal + use15_7_threshold < s->total_bits) {
         return 1;
     } else {
@@ -804,14 +831,16 @@ static int reconfigure_at_keyframe(FlashSV2Context * s, const uint8_t * image,
     if (s->use15_7) {
         if ((s->use_custom_palette && s->palette_type != 1) || update_palette) {
             res = generate_optimum_palette(&s->palette, image, s->image_width, s->image_height, stride);
-            if (res)
+            if (res) {
                 return res;
+            }
             s->palette_type = 1;
             av_log(s->avctx, AV_LOG_DEBUG, "Generated optimum palette\n");
         } else if (!s->use_custom_palette && s->palette_type != 0) {
             res = generate_default_palette(&s->palette);
-            if (res)
+            if (res) {
                 return res;
+            }
             s->palette_type = 0;
             av_log(s->avctx, AV_LOG_DEBUG, "Generated default palette\n");
         }
@@ -835,13 +864,15 @@ static int flashsv2_encode_frame(AVCodecContext * avctx, uint8_t * buf,
     *p = *pict;
 
     /* First frame needs to be a keyframe */
-    if (avctx->frame_number == 0)
+    if (avctx->frame_number == 0) {
         keyframe = 1;
+    }
 
     /* Check the placement of keyframes */
     if (avctx->gop_size > 0) {
-        if (avctx->frame_number >= s->last_key_frame + avctx->gop_size)
+        if (avctx->frame_number >= s->last_key_frame + avctx->gop_size) {
             keyframe = 1;
+        }
     }
 
     if (buf_size < s->frame_size) {
@@ -853,18 +884,21 @@ static int flashsv2_encode_frame(AVCodecContext * avctx, uint8_t * buf,
     if (!keyframe
         && avctx->frame_number > s->last_key_frame + avctx->keyint_min) {
         recommend_keyframe(s, &keyframe);
-        if (keyframe)
+        if (keyframe) {
             av_log(avctx, AV_LOG_DEBUG, "Recommending key frame at frame %d\n", avctx->frame_number);
+        }
     }
 
     if (keyframe) {
         res = reconfigure_at_keyframe(s, p->data[0], p->linesize[0]);
-        if (res)
+        if (res) {
             return res;
+        }
     }
 
-    if (s->use15_7)
+    if (s->use15_7) {
         s->dist = optimum_dist(s);
+    }
 
     res = write_bitstream(s, p->data[0], p->linesize[0], buf, buf_size, keyframe);
 

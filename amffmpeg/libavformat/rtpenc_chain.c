@@ -32,13 +32,15 @@ AVFormatContext *ff_rtp_chain_mux_open(AVFormatContext *s, AVStream *st,
     int ret;
     AVOutputFormat *rtp_format = av_guess_format("rtp", NULL, NULL);
 
-    if (!rtp_format)
+    if (!rtp_format) {
         return NULL;
+    }
 
     /* Allocate an AVFormatContext for each output stream */
     rtpctx = avformat_alloc_context();
-    if (!rtpctx)
+    if (!rtpctx) {
         return NULL;
+    }
 
     rtpctx->oformat = rtp_format;
     if (!av_new_stream(rtpctx, 0)) {
@@ -65,8 +67,9 @@ AVFormatContext *ff_rtp_chain_mux_open(AVFormatContext *s, AVStream *st,
 
     if (handle) {
         ffio_fdopen(&rtpctx->pb, handle);
-    } else
+    } else {
         ffio_open_dyn_packet_buf(&rtpctx->pb, packet_size);
+    }
     ret = avformat_write_header(rtpctx, NULL);
 
     if (ret) {

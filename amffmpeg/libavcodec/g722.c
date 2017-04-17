@@ -91,22 +91,22 @@ static const int16_t high_inv_quant[4] = { -926, -202, 926, 202 };
  * low_log_factor_step[index] == wl[rl42[index]]
  */
 static const int16_t low_log_factor_step[16] = {
-     -60, 3042, 1198, 538, 334, 172,  58, -30,
+    -60, 3042, 1198, 538, 334, 172,  58, -30,
     3042, 1198,  538, 334, 172,  58, -30, -60
 };
 static const int16_t low_inv_quant4[16] = {
-       0, -2557, -1612, -1121,  -786,  -530,  -323,  -150,
+    0, -2557, -1612, -1121,  -786,  -530,  -323,  -150,
     2557,  1612,  1121,   786,   530,   323,   150,     0
 };
 static const int16_t low_inv_quant6[64] = {
-     -17,   -17,   -17,   -17, -3101, -2738, -2376, -2088,
-   -1873, -1689, -1535, -1399, -1279, -1170, -1072,  -982,
+    -17,   -17,   -17,   -17, -3101, -2738, -2376, -2088,
+    -1873, -1689, -1535, -1399, -1279, -1170, -1072,  -982,
     -899,  -822,  -750,  -682,  -618,  -558,  -501,  -447,
     -396,  -347,  -300,  -254,  -211,  -170,  -130,   -91,
     3101,  2738,  2376,  2088,  1873,  1689,  1535,  1399,
     1279,  1170,  1072,   982,   899,   822,   750,   682,
-     618,   558,   501,   447,   396,   347,   300,   254,
-     211,   170,   130,    91,    54,    17,   -54,   -17
+    618,   558,   501,   447,   396,   347,   300,   254,
+    211,   170,   130,    91,    54,    17,   -54,   -17
 };
 
 /**
@@ -145,19 +145,22 @@ static void do_adaptive_prediction(struct G722Band *band, const int cur_diff)
 
     if (cur_diff) {
         for (i = 0; i < 6; i++)
-            band->zero_mem[i] = ((band->zero_mem[i]*255) >> 8) +
-                                ((band->diff_mem[i]^cur_diff) < 0 ? -128 : 128);
+            band->zero_mem[i] = ((band->zero_mem[i] * 255) >> 8) +
+                                ((band->diff_mem[i] ^ cur_diff) < 0 ? -128 : 128);
     } else
-        for (i = 0; i < 6; i++)
-            band->zero_mem[i] = (band->zero_mem[i]*255) >> 8;
+        for (i = 0; i < 6; i++) {
+            band->zero_mem[i] = (band->zero_mem[i] * 255) >> 8;
+        }
 
-    for (i = 5; i > 0; i--)
-        band->diff_mem[i] = band->diff_mem[i-1];
+    for (i = 5; i > 0; i--) {
+        band->diff_mem[i] = band->diff_mem[i - 1];
+    }
     band->diff_mem[0] = av_clip_int16(cur_diff << 1);
 
     band->s_zero = 0;
-    for (i = 5; i >= 0; i--)
-        band->s_zero += (band->zero_mem[i]*band->diff_mem[i]) >> 15;
+    for (i = 5; i >= 0; i--) {
+        band->s_zero += (band->zero_mem[i] * band->diff_mem[i]) >> 15;
+    }
 
 
     cur_qtzd_reconst = av_clip_int16((band->s_predictor + cur_diff) << 1);
@@ -192,7 +195,7 @@ static void update_high_predictor(struct G722Band *band, const int dhigh,
 
     // quantizer adaptation
     band->log_factor   = av_clip((band->log_factor * 127 >> 7) +
-                                 high_log_factor_step[ihigh&1], 0, 22528);
+                                 high_log_factor_step[ihigh & 1], 0, 22528);
     band->scale_factor = linear_scale_factor(band->log_factor - (10 << 11));
 }
 
@@ -203,8 +206,8 @@ static void apply_qmf(const int16_t *prev_samples, int *xout1, int *xout2)
     *xout1 = 0;
     *xout2 = 0;
     for (i = 0; i < 12; i++) {
-        MAC16(*xout2, prev_samples[2*i  ], qmf_coeffs[i   ]);
-        MAC16(*xout1, prev_samples[2*i+1], qmf_coeffs[11-i]);
+        MAC16(*xout2, prev_samples[2 * i  ], qmf_coeffs[i   ]);
+        MAC16(*xout1, prev_samples[2 * i + 1], qmf_coeffs[11 - i]);
     }
 }
 
@@ -225,8 +228,8 @@ static av_cold int g722_init(AVCodecContext * avctx)
         break;
     default:
         av_log(avctx, AV_LOG_WARNING, "Unsupported bits_per_coded_sample [%d], "
-                                      "assuming 8\n",
-                                      avctx->bits_per_coded_sample);
+               "assuming 8\n",
+               avctx->bits_per_coded_sample);
     case 0:
         avctx->bits_per_coded_sample = 8;
         break;
@@ -236,8 +239,9 @@ static av_cold int g722_init(AVCodecContext * avctx)
     c->band[1].scale_factor = 2;
     c->prev_samples_pos = 22;
 
-    if (avctx->lowres)
+    if (avctx->lowres) {
         avctx->sample_rate /= 2;
+    }
 
     if (avctx->trellis) {
         int frontier = 1 << avctx->trellis;
@@ -267,14 +271,15 @@ static av_cold int g722_close(AVCodecContext *avctx)
 
 #if CONFIG_ADPCM_G722_DECODER
 static const int16_t low_inv_quant5[32] = {
-     -35,   -35, -2919, -2195, -1765, -1458, -1219, -1023,
+    -35,   -35, -2919, -2195, -1765, -1458, -1219, -1023,
     -858,  -714,  -587,  -473,  -370,  -276,  -190,  -110,
     2919,  2195,  1765,  1458,  1219,  1023,   858,   714,
-     587,   473,   370,   276,   190,   110,    35,   -35
+    587,   473,   370,   276,   190,   110,    35,   -35
 };
 
 static const int16_t *low_inv_quants[3] = { low_inv_quant6, low_inv_quant5,
-                                 low_inv_quant4 };
+                                            low_inv_quant4
+                                          };
 
 static int g722_decode_frame(AVCodecContext *avctx, void *data,
                              int *data_size, AVPacket *avpkt)
@@ -296,7 +301,7 @@ static int g722_decode_frame(AVCodecContext *avctx, void *data,
         skip_bits(&gb, skip);
 
         rlow = av_clip((c->band[0].scale_factor * quantizer_table[ilow] >> 10)
-                      + c->band[0].s_predictor, -16384, 16383);
+                       + c->band[0].s_predictor, -16384, 16383);
 
         update_low_predictor(&c->band[0], ilow >> (2 - skip));
 
@@ -321,8 +326,9 @@ static int g722_decode_frame(AVCodecContext *avctx, void *data,
                         22 * sizeof(c->prev_samples[0]));
                 c->prev_samples_pos = 22;
             }
-        } else
+        } else {
             out_buf[out_len++] = rlow;
+        }
     }
     *data_size = out_len << 1;
     return avpkt->size;
@@ -342,9 +348,9 @@ AVCodec ff_adpcm_g722_decoder = {
 
 #if CONFIG_ADPCM_G722_ENCODER
 static const int16_t low_quant[33] = {
-      35,   72,  110,  150,  190,  233,  276,  323,
-     370,  422,  473,  530,  587,  650,  714,  786,
-     858,  940, 1023, 1121, 1219, 1339, 1458, 1612,
+    35,   72,  110,  150,  190,  233,  276,  323,
+    370,  422,  473,  530,  587,  650,  714,  786,
+    858,  940, 1023, 1121, 1219, 1339, 1458, 1612,
     1765, 1980, 2195, 2557, 2919
 };
 
@@ -369,21 +375,23 @@ static inline int encode_high(const struct G722Band *state, int xhigh)
 {
     int diff = av_clip_int16(xhigh - state->s_predictor);
     int pred = 141 * state->scale_factor >> 8;
-           /* = diff >= 0 ? (diff < pred) + 2 : diff >= -pred */
-    return ((diff ^ (diff >> (sizeof(diff)*8-1))) < pred) + 2*(diff >= 0);
+    /* = diff >= 0 ? (diff < pred) + 2 : diff >= -pred */
+    return ((diff ^ (diff >> (sizeof(diff) * 8 - 1))) < pred) + 2 * (diff >= 0);
 }
 
 static inline int encode_low(const struct G722Band* state, int xlow)
 {
     int diff  = av_clip_int16(xlow - state->s_predictor);
-           /* = diff >= 0 ? diff : -(diff + 1) */
-    int limit = diff ^ (diff >> (sizeof(diff)*8-1));
+    /* = diff >= 0 ? diff : -(diff + 1) */
+    int limit = diff ^ (diff >> (sizeof(diff) * 8 - 1));
     int i = 0;
     limit = limit + 1 << 10;
-    if (limit > low_quant[8] * state->scale_factor)
+    if (limit > low_quant[8] * state->scale_factor) {
         i = 9;
-    while (i < 29 && limit > low_quant[i] * state->scale_factor)
+    }
+    while (i < 29 && limit > low_quant[i] * state->scale_factor) {
         i++;
+    }
     return (diff < 0 ? (i < 2 ? 63 : 33) : 61) - i;
 }
 
@@ -415,11 +423,11 @@ static int g722_encode_trellis(AVCodecContext *avctx,
         int heap_pos[2] = {0, 0};
 
         for (j = 0; j < 2; j++) {
-            next[j] = c->node_buf[j] + frontier*(i & 1);
+            next[j] = c->node_buf[j] + frontier * (i & 1);
             memset(nodes_next[j], 0, frontier * sizeof(**nodes_next));
         }
 
-        filter_samples(c, &samples[2*i], &xlow, &xhigh);
+        filter_samples(c, &samples[2 * i], &xlow, &xhigh);
 
         for (j = 0; j < frontier && nodes[0][j]; j++) {
             /* Only k >> 2 affects the future adaptive state, therefore testing
@@ -427,7 +435,7 @@ static int g722_encode_trellis(AVCodecContext *avctx,
              * value from encode_low is better than them. Since we step k
              * in steps of 4, make sure range is a multiple of 4, so that
              * we don't miss the original value from encode_low. */
-            int range = j < frontier/2 ? 4 : 0;
+            int range = j < frontier / 2 ? 4 : 0;
             struct TrellisNode *cur_node = nodes[0][j];
 
             int ilow = encode_low(&cur_node->state, xlow);
@@ -437,12 +445,13 @@ static int g722_encode_trellis(AVCodecContext *avctx,
                 uint32_t ssd;
                 struct TrellisNode* node;
 
-                if (k < 0)
+                if (k < 0) {
                     continue;
+                }
 
                 decoded = av_clip((cur_node->state.scale_factor *
-                                  low_inv_quant6[k] >> 10)
-                                + cur_node->state.s_predictor, -16384, 16383);
+                                   low_inv_quant6[k] >> 10)
+                                  + cur_node->state.s_predictor, -16384, 16383);
                 dec_diff = xlow - decoded;
 
 #define STORE_NODE(index, UPDATE, VALUE)\
@@ -511,8 +520,9 @@ static int g722_encode_trellis(AVCodecContext *avctx,
             FFSWAP(struct TrellisNode**, nodes[j], nodes_next[j]);
 
             if (nodes[j][0]->ssd > (1 << 16)) {
-                for (k = 1; k < frontier && nodes[j][k]; k++)
+                for (k = 1; k < frontier && nodes[j][k]; k++) {
                     nodes[j][k]->ssd -= nodes[j][0]->ssd;
+                }
                 nodes[j][0]->ssd = 0;
             }
         }
@@ -552,12 +562,13 @@ static int g722_encode_frame(AVCodecContext *avctx,
     const int16_t *samples = data;
     int i;
 
-    if (avctx->trellis)
+    if (avctx->trellis) {
         return g722_encode_trellis(avctx, dst, buf_size, data);
+    }
 
     for (i = 0; i < buf_size >> 1; i++) {
         int xlow, xhigh, ihigh, ilow;
-        filter_samples(c, &samples[2*i], &xlow, &xhigh);
+        filter_samples(c, &samples[2 * i], &xlow, &xhigh);
         ihigh = encode_high(&c->band[1], xhigh);
         ilow  = encode_low(&c->band[0], xlow);
         update_high_predictor(&c->band[1], c->band[1].scale_factor *
@@ -577,7 +588,7 @@ AVCodec ff_adpcm_g722_encoder = {
     .close          = g722_close,
     .encode         = g722_encode_frame,
     .long_name      = NULL_IF_CONFIG_SMALL("G.722 ADPCM"),
-    .sample_fmts    = (const enum AVSampleFormat[]){AV_SAMPLE_FMT_S16,AV_SAMPLE_FMT_NONE},
+    .sample_fmts    = (const enum AVSampleFormat[]){AV_SAMPLE_FMT_S16, AV_SAMPLE_FMT_NONE},
 };
 #endif
 

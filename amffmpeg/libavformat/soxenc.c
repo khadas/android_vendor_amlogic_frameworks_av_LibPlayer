@@ -48,8 +48,9 @@ static int sox_write_header(AVFormatContext *s)
     size_t comment_len = 0, comment_size;
 
     comment = av_dict_get(s->metadata, "comment", NULL, 0);
-    if (comment)
+    if (comment) {
         comment_len = strlen(comment->value);
+    }
     comment_size = (comment_len + 7) & ~7;
 
     sox->header_size = SOX_FIXED_HDR + comment_size;
@@ -73,11 +74,13 @@ static int sox_write_header(AVFormatContext *s)
         return -1;
     }
 
-    if (comment_len)
+    if (comment_len) {
         avio_write(pb, comment->value, comment_len);
+    }
 
-    for ( ; comment_size > comment_len; comment_len++)
+    for (; comment_size > comment_len; comment_len++) {
         avio_w8(pb, 0);
+    }
 
     avio_flush(pb);
 
@@ -104,8 +107,9 @@ static int sox_write_trailer(AVFormatContext *s)
         avio_seek(pb, 8, SEEK_SET);
         if (enc->codec_id == CODEC_ID_PCM_S32LE) {
             avio_wl64(pb, num_samples);
-        } else
+        } else {
             avio_wb64(pb, num_samples);
+        }
         avio_seek(pb, file_size, SEEK_SET);
 
         avio_flush(pb);

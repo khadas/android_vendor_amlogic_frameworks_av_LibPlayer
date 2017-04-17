@@ -69,6 +69,13 @@ static int stream_rm_init(play_para_t *p_para)
         log_print("audio_type = %d  audio_pid = %d channel= %d rate=%d\n", codec->audio_type, codec->audio_pid, codec->audio_channels, codec->audio_samplerate);
     }
     codec->stream_type = stream_type_convert(p_para->stream_type, codec->has_video, codec->has_audio);
+#if 0
+    if (p_para->pFormatCtx && p_para->pFormatCtx->pb && p_para->pFormatCtx->pb->local_playback == 1) {
+        codec->localplay_flag = 1;
+    } else {
+        codec->localplay_flag = 0;
+    }
+#endif
     ret = codec_init(codec);
     if (ret != CODEC_ERROR_NONE) {
         if (ret != CODEC_OPEN_HANDLE_FAILED) {

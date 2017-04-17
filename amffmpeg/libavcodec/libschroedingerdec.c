@@ -71,7 +71,7 @@ typedef struct FfmpegSchroParseUnitContext {
 
 
 static void libschroedinger_decode_buffer_free(SchroBuffer *schro_buf,
-                                               void *priv);
+        void *priv);
 
 static void FfmpegSchroParseContextInit(FfmpegSchroParseUnitContext *parse_ctx,
                                         const uint8_t *buf, int buf_size)
@@ -90,20 +90,23 @@ static SchroBuffer* FfmpegFindNextSchroParseUnit(FfmpegSchroParseUnitContext *pa
         parse_ctx->buf[0] != 'B' ||
         parse_ctx->buf[1] != 'B' ||
         parse_ctx->buf[2] != 'C' ||
-        parse_ctx->buf[3] != 'D')
+        parse_ctx->buf[3] != 'D') {
         return NULL;
+    }
 
     next_pu_offset = (parse_ctx->buf[5] << 24) +
                      (parse_ctx->buf[6] << 16) +
                      (parse_ctx->buf[7] <<  8) +
-                      parse_ctx->buf[8];
+                     parse_ctx->buf[8];
 
     if (next_pu_offset == 0 &&
-        SCHRO_PARSE_CODE_IS_END_OF_SEQUENCE(parse_ctx->buf[4]))
+        SCHRO_PARSE_CODE_IS_END_OF_SEQUENCE(parse_ctx->buf[4])) {
         next_pu_offset = 13;
+    }
 
-    if (next_pu_offset <= 0 || parse_ctx->buf_size < next_pu_offset)
+    if (next_pu_offset <= 0 || parse_ctx->buf_size < next_pu_offset) {
         return NULL;
+    }
 
     in_buf = av_malloc(next_pu_offset);
     memcpy(in_buf, parse_ctx->buf, next_pu_offset);
@@ -127,8 +130,9 @@ static enum PixelFormat GetFfmpegChromaFormat(SchroChromaFormat schro_pix_fmt)
     int idx;
 
     for (idx = 0; idx < num_formats; ++idx)
-        if (ffmpeg_schro_pixel_format_map[idx].schro_pix_fmt == schro_pix_fmt)
+        if (ffmpeg_schro_pixel_format_map[idx].schro_pix_fmt == schro_pix_fmt) {
             return ffmpeg_schro_pixel_format_map[idx].ff_pix_fmt;
+        }
     return PIX_FMT_NONE;
 }
 
@@ -143,8 +147,9 @@ static av_cold int libschroedinger_decode_init(AVCodecContext *avccontext)
     p_schro_params->decoder = schro_decoder_new();
     schro_decoder_set_skip_ratio(p_schro_params->decoder, 1);
 
-    if (!p_schro_params->decoder)
+    if (!p_schro_params->decoder) {
         return -1;
+    }
 
     /* Initialize the decoded frame queue. */
     ff_dirac_schro_queue_init(&p_schro_params->dec_frame_queue);
@@ -152,7 +157,7 @@ static av_cold int libschroedinger_decode_init(AVCodecContext *avccontext)
 }
 
 static void libschroedinger_decode_buffer_free(SchroBuffer *schro_buf,
-                                               void *priv)
+        void *priv)
 {
     av_freep(&priv);
 }
@@ -232,14 +237,17 @@ static int libschroedinger_decode_frame(AVCodecContext *avccontext,
         if ((enc_buf = FfmpegFindNextSchroParseUnit(&parse_ctx))) {
             /* Push buffer into decoder. */
             if (SCHRO_PARSE_CODE_IS_PICTURE(enc_buf->data[4]) &&
-                SCHRO_PARSE_CODE_NUM_REFS(enc_buf->data[4]) > 0)
+                SCHRO_PARSE_CODE_NUM_REFS(enc_buf->data[4]) > 0) {
                 avccontext->has_b_frames = 1;
+            }
             state = schro_decoder_push(decoder, enc_buf);
-            if (state == SCHRO_DECODER_FIRST_ACCESS_UNIT)
+            if (state == SCHRO_DECODER_FIRST_ACCESS_UNIT) {
                 libschroedinger_handle_first_access_unit(avccontext);
+            }
             go = 1;
-        } else
+        } else {
             outer = 0;
+        }
         format = p_schro_params->format;
 
         while (go) {

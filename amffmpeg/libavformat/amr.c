@@ -38,16 +38,11 @@ static int amr_write_header(AVFormatContext *s)
 
     s->priv_data = NULL;
 
-    if (enc->codec_id == CODEC_ID_AMR_NB)
-    {
+    if (enc->codec_id == CODEC_ID_AMR_NB) {
         avio_write(pb, AMR_header,   sizeof(AMR_header)   - 1); /* magic number */
-    }
-    else if(enc->codec_id == CODEC_ID_AMR_WB)
-    {
+    } else if (enc->codec_id == CODEC_ID_AMR_WB) {
         avio_write(pb, AMRWB_header, sizeof(AMRWB_header) - 1); /* magic number */
-    }
-    else
-    {
+    } else {
         return -1;
     }
     avio_flush(pb);
@@ -68,10 +63,11 @@ static int amr_probe(AVProbeData *p)
     //This will also trigger multichannel files: "#!AMR_MC1.0\n" and
     //"#!AMR-WB_MC1.0\n" (not supported)
 
-    if(memcmp(p->buf,AMR_header,5)==0)
+    if (memcmp(p->buf, AMR_header, 5) == 0) {
         return AVPROBE_SCORE_MAX;
-    else
+    } else {
         return 0;
+    }
 }
 
 /* amr input */
@@ -85,15 +81,12 @@ static int amr_read_header(AVFormatContext *s,
     avio_read(pb, header, 6);
 
     st = av_new_stream(s, 0);
-    if (!st)
-    {
+    if (!st) {
         return AVERROR(ENOMEM);
     }
-    if(memcmp(header,AMR_header,6)!=0)
-    {
-        avio_read(pb, header+6, 3);
-        if(memcmp(header,AMRWB_header,9)!=0)
-        {
+    if (memcmp(header, AMR_header, 6) != 0) {
+        avio_read(pb, header + 6, 3);
+        if (memcmp(header, AMRWB_header, 9) != 0) {
             return -1;
         }
 
@@ -101,9 +94,7 @@ static int amr_read_header(AVFormatContext *s,
         st->codec->codec_id = CODEC_ID_AMR_WB;
         st->codec->sample_rate = 16000;
         st->codec->frame_size = 320;
-    }
-    else
-    {
+    } else {
         st->codec->codec_tag = MKTAG('s', 'a', 'm', 'r');
         st->codec->codec_id = CODEC_ID_AMR_NB;
         st->codec->sample_rate = 8000;
@@ -117,54 +108,46 @@ static int amr_read_header(AVFormatContext *s,
 }
 
 static int amr_read_packet(AVFormatContext *s,
-                          AVPacket *pkt)
+                           AVPacket *pkt)
 {
     AVCodecContext *enc = s->streams[0]->codec;
     int read, size = 0, toc, mode;
     int64_t pos = avio_tell(s->pb);
 
-    if (url_feof(s->pb))
-    {
+    if (url_feof(s->pb)) {
         return AVERROR(EIO);
     }
 
-//FIXME this is wrong, this should rather be in a AVParset
-    toc=avio_r8(s->pb);
+    //FIXME this is wrong, this should rather be in a AVParset
+    toc = avio_r8(s->pb);
     mode = (toc >> 3) & 0x0F;
 
-    if (enc->codec_id == CODEC_ID_AMR_NB)
-    {
+    if (enc->codec_id == CODEC_ID_AMR_NB) {
         static const uint8_t packed_size[16] = {12, 13, 15, 17, 19, 20, 26, 31, 5, 0, 0, 0, 0, 0, 0, 0};
 
-        size=packed_size[mode]+1;
-    }
-    else if(enc->codec_id == CODEC_ID_AMR_WB)
-    {
+        size = packed_size[mode] + 1;
+    } else if (enc->codec_id == CODEC_ID_AMR_WB) {
         static uint8_t packed_size[16] = {18, 24, 33, 37, 41, 47, 51, 59, 61, 6, 6, 0, 0, 0, 1, 1};
 
-        size=packed_size[mode];
-    }
-    else
-    {
+        size = packed_size[mode];
+    } else {
         assert(0);
     }
 
-    if ( (size==0) || av_new_packet(pkt, size))
-    {
+    if ((size == 0) || av_new_packet(pkt, size)) {
         return AVERROR(EIO);
     }
 
     /* Both AMR formats have 50 frames per second */
-    s->streams[0]->codec->bit_rate = size*8*50;
+    s->streams[0]->codec->bit_rate = size * 8 * 50;
 
     pkt->stream_index = 0;
     pkt->pos = pos;
-    pkt->data[0]=toc;
-    pkt->duration= enc->codec_id == CODEC_ID_AMR_NB ? 160 : 320;
-    read = avio_read(s->pb, pkt->data+1, size-1);
+    pkt->data[0] = toc;
+    pkt->duration = enc->codec_id == CODEC_ID_AMR_NB ? 160 : 320;
+    read = avio_read(s->pb, pkt->data + 1, size - 1);
 
-    if (read != size-1)
-    {
+    if (read != size - 1) {
         av_free_packet(pkt);
         return AVERROR(EIO);
     }

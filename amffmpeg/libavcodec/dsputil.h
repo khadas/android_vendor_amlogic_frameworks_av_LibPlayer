@@ -38,15 +38,15 @@
 /* dct code */
 typedef short DCTELEM;
 
-void fdct_ifast (DCTELEM *data);
-void fdct_ifast248 (DCTELEM *data);
-void ff_jpeg_fdct_islow (DCTELEM *data);
-void ff_fdct248_islow (DCTELEM *data);
+void fdct_ifast(DCTELEM *data);
+void fdct_ifast248(DCTELEM *data);
+void ff_jpeg_fdct_islow(DCTELEM *data);
+void ff_fdct248_islow(DCTELEM *data);
 
-void j_rev_dct (DCTELEM *data);
-void j_rev_dct4 (DCTELEM *data);
-void j_rev_dct2 (DCTELEM *data);
-void j_rev_dct1 (DCTELEM *data);
+void j_rev_dct(DCTELEM *data);
+void j_rev_dct4(DCTELEM *data);
+void j_rev_dct2(DCTELEM *data);
+void j_rev_dct1(DCTELEM *data);
 void ff_wmv2_idct_c(DCTELEM *data);
 
 void ff_fdct_mmx(DCTELEM *block);
@@ -67,8 +67,8 @@ void ff_h264_idct_add8_ ## depth ## _c(uint8_t **dest, const int *blockoffset, D
 void ff_h264_luma_dc_dequant_idct_ ## depth ## _c(DCTELEM *output, DCTELEM *input, int qmul);\
 void ff_h264_chroma_dc_dequant_idct_ ## depth ## _c(DCTELEM *block, int qmul);
 
-H264_IDCT( 8)
-H264_IDCT( 9)
+H264_IDCT(8)
+H264_IDCT(9)
 H264_IDCT(10)
 
 void ff_svq3_luma_dc_dequant_idct_c(DCTELEM *output, DCTELEM *input, int qp);
@@ -93,8 +93,8 @@ void ff_avg_pixels8x8_ ## depth ## _c(uint8_t *dst, uint8_t *src, int stride);\
 void ff_put_pixels16x16_ ## depth ## _c(uint8_t *dst, uint8_t *src, int stride);\
 void ff_avg_pixels16x16_ ## depth ## _c(uint8_t *dst, uint8_t *src, int stride);
 
-PUTAVG_PIXELS( 8)
-PUTAVG_PIXELS( 9)
+PUTAVG_PIXELS(8)
+PUTAVG_PIXELS(9)
 PUTAVG_PIXELS(10)
 
 #define ff_put_pixels8x8_c ff_put_pixels8x8_8_c
@@ -112,7 +112,7 @@ void ff_vp3_v_loop_filter_c(uint8_t *src, int stride, int *bounding_values);
 void ff_vp3_h_loop_filter_c(uint8_t *src, int stride, int *bounding_values);
 
 /* Bink functions */
-void ff_bink_idct_c    (DCTELEM *block);
+void ff_bink_idct_c(DCTELEM *block);
 void ff_bink_idct_add_c(uint8_t *dest, int linesize, DCTELEM *block);
 void ff_bink_idct_put_c(uint8_t *dest, int linesize, DCTELEM *block);
 
@@ -190,12 +190,12 @@ typedef int (*me_cmp_func)(void /*MpegEncContext*/ *s, uint8_t *blk1/*align widt
 /**
  * Scantable.
  */
-typedef struct ScanTable{
+typedef struct ScanTable {
     const uint8_t *scantable;
     uint8_t permutated[64];
     uint8_t raster_end[64];
 #if ARCH_PPC
-                /** Used by dct_quantize_altivec to find last-non-zero */
+    /** Used by dct_quantize_altivec to find last-non-zero */
     DECLARE_ALIGNED(16, uint8_t, inverse)[64];
 #endif
 } ScanTable;
@@ -253,13 +253,13 @@ typedef struct DSPContext {
     /**
      * global motion compensation.
      */
-    void (*gmc )(uint8_t *dst/*align 8*/, uint8_t *src/*align 1*/, int stride, int h, int ox, int oy,
-                    int dxx, int dxy, int dyx, int dyy, int shift, int r, int width, int height);
+    void (*gmc)(uint8_t *dst/*align 8*/, uint8_t *src/*align 1*/, int stride, int h, int ox, int oy,
+                int dxx, int dxy, int dyx, int dyy, int shift, int r, int width, int height);
     void (*clear_block)(DCTELEM *block/*align 16*/);
     void (*clear_blocks)(DCTELEM *blocks/*align 16*/);
     int (*pix_sum)(uint8_t * pix, int line_size);
     int (*pix_norm1)(uint8_t * pix, int line_size);
-// 16x16 8x8 4x4 2x2 16x8 8x4 4x2 8x16 4x8 2x4
+    // 16x16 8x8 4x4 2x2 16x8 8x4 4x2 8x16 4x8 2x4
 
     me_cmp_func sad[6]; /* identical to pix_absAxA except additional void * */
     me_cmp_func sse[6];
@@ -371,14 +371,14 @@ typedef struct DSPContext {
 
     /* huffyuv specific */
     void (*add_bytes)(uint8_t *dst/*align 16*/, uint8_t *src/*align 16*/, int w);
-    void (*diff_bytes)(uint8_t *dst/*align 16*/, uint8_t *src1/*align 16*/, uint8_t *src2/*align 1*/,int w);
+    void (*diff_bytes)(uint8_t *dst/*align 16*/, uint8_t *src1/*align 16*/, uint8_t *src2/*align 1*/, int w);
     /**
      * subtract huffyuv's variant of median prediction
      * note, this might read from src1[-1], src2[-1]
      */
     void (*sub_hfyu_median_prediction)(uint8_t *dst, const uint8_t *src1, const uint8_t *src2, int w, int *left, int *left_top);
     void (*add_hfyu_median_prediction)(uint8_t *dst, const uint8_t *top, const uint8_t *diff, int w, int *left, int *left_top);
-    int  (*add_hfyu_left_prediction)(uint8_t *dst, const uint8_t *src, int w, int left);
+    int (*add_hfyu_left_prediction)(uint8_t *dst, const uint8_t *src, int w, int left);
     void (*add_hfyu_left_prediction_bgr32)(uint8_t *dst, const uint8_t *src, int w, int *red, int *green, int *blue, int *alpha);
     /* this might write to dst[w] */
     void (*bswap_buf)(uint32_t *dst, const uint32_t *src, int w);
@@ -523,7 +523,7 @@ typedef struct DSPContext {
     /* intrax8 functions */
     void (*x8_spatial_compensation[12])(uint8_t *src , uint8_t *dst, int linesize);
     void (*x8_setup_spatial_compensation)(uint8_t *src, uint8_t *dst, int linesize,
-           int * range, int * sum,  int edges);
+                                          int * range, int * sum,  int edges);
 
     /**
      * Calculate scalar product of two vectors.
@@ -604,25 +604,26 @@ static inline uint64_t no_rnd_avg64(uint64_t a, uint64_t b)
     return (a & b) + (((a ^ b) & ~BYTE_VEC64(0x01)) >> 1);
 }
 
-static inline int get_penalty_factor(int lambda, int lambda2, int type){
-    switch(type&0xFF){
+static inline int get_penalty_factor(int lambda, int lambda2, int type)
+{
+    switch (type & 0xFF) {
     default:
     case FF_CMP_SAD:
-        return lambda>>FF_LAMBDA_SHIFT;
+        return lambda >> FF_LAMBDA_SHIFT;
     case FF_CMP_DCT:
-        return (3*lambda)>>(FF_LAMBDA_SHIFT+1);
+        return (3 * lambda) >> (FF_LAMBDA_SHIFT + 1);
     case FF_CMP_W53:
-        return (4*lambda)>>(FF_LAMBDA_SHIFT);
+        return (4 * lambda) >> (FF_LAMBDA_SHIFT);
     case FF_CMP_W97:
-        return (2*lambda)>>(FF_LAMBDA_SHIFT);
+        return (2 * lambda) >> (FF_LAMBDA_SHIFT);
     case FF_CMP_SATD:
     case FF_CMP_DCT264:
-        return (2*lambda)>>FF_LAMBDA_SHIFT;
+        return (2 * lambda) >> FF_LAMBDA_SHIFT;
     case FF_CMP_RD:
     case FF_CMP_PSNR:
     case FF_CMP_SSE:
     case FF_CMP_NSSE:
-        return lambda2>>FF_LAMBDA_SHIFT;
+        return lambda2 >> FF_LAMBDA_SHIFT;
     case FF_CMP_BIT:
         return 1;
     }
@@ -711,76 +712,70 @@ static int name16(void /*MpegEncContext*/ *s, uint8_t *dst, uint8_t *src, int st
 static inline void copy_block2(uint8_t *dst, const uint8_t *src, int dstStride, int srcStride, int h)
 {
     int i;
-    for(i=0; i<h; i++)
-    {
-        AV_WN16(dst   , AV_RN16(src   ));
-        dst+=dstStride;
-        src+=srcStride;
+    for (i = 0; i < h; i++) {
+        AV_WN16(dst   , AV_RN16(src));
+        dst += dstStride;
+        src += srcStride;
     }
 }
 
 static inline void copy_block4(uint8_t *dst, const uint8_t *src, int dstStride, int srcStride, int h)
 {
     int i;
-    for(i=0; i<h; i++)
-    {
-        AV_WN32(dst   , AV_RN32(src   ));
-        dst+=dstStride;
-        src+=srcStride;
+    for (i = 0; i < h; i++) {
+        AV_WN32(dst   , AV_RN32(src));
+        dst += dstStride;
+        src += srcStride;
     }
 }
 
 static inline void copy_block8(uint8_t *dst, const uint8_t *src, int dstStride, int srcStride, int h)
 {
     int i;
-    for(i=0; i<h; i++)
-    {
-        AV_WN32(dst   , AV_RN32(src   ));
-        AV_WN32(dst+4 , AV_RN32(src+4 ));
-        dst+=dstStride;
-        src+=srcStride;
+    for (i = 0; i < h; i++) {
+        AV_WN32(dst   , AV_RN32(src));
+        AV_WN32(dst + 4 , AV_RN32(src + 4));
+        dst += dstStride;
+        src += srcStride;
     }
 }
 
 static inline void copy_block9(uint8_t *dst, const uint8_t *src, int dstStride, int srcStride, int h)
 {
     int i;
-    for(i=0; i<h; i++)
-    {
-        AV_WN32(dst   , AV_RN32(src   ));
-        AV_WN32(dst+4 , AV_RN32(src+4 ));
-        dst[8]= src[8];
-        dst+=dstStride;
-        src+=srcStride;
+    for (i = 0; i < h; i++) {
+        AV_WN32(dst   , AV_RN32(src));
+        AV_WN32(dst + 4 , AV_RN32(src + 4));
+        dst[8] = src[8];
+        dst += dstStride;
+        src += srcStride;
     }
 }
 
 static inline void copy_block16(uint8_t *dst, const uint8_t *src, int dstStride, int srcStride, int h)
 {
     int i;
-    for(i=0; i<h; i++)
-    {
-        AV_WN32(dst   , AV_RN32(src   ));
-        AV_WN32(dst+4 , AV_RN32(src+4 ));
-        AV_WN32(dst+8 , AV_RN32(src+8 ));
-        AV_WN32(dst+12, AV_RN32(src+12));
-        dst+=dstStride;
-        src+=srcStride;
+    for (i = 0; i < h; i++) {
+        AV_WN32(dst   , AV_RN32(src));
+        AV_WN32(dst + 4 , AV_RN32(src + 4));
+        AV_WN32(dst + 8 , AV_RN32(src + 8));
+        AV_WN32(dst + 12, AV_RN32(src + 12));
+        dst += dstStride;
+        src += srcStride;
     }
 }
 
 static inline void copy_block17(uint8_t *dst, const uint8_t *src, int dstStride, int srcStride, int h)
 {
     int i;
-    for(i=0; i<h; i++)
-    {
-        AV_WN32(dst   , AV_RN32(src   ));
-        AV_WN32(dst+4 , AV_RN32(src+4 ));
-        AV_WN32(dst+8 , AV_RN32(src+8 ));
-        AV_WN32(dst+12, AV_RN32(src+12));
-        dst[16]= src[16];
-        dst+=dstStride;
-        src+=srcStride;
+    for (i = 0; i < h; i++) {
+        AV_WN32(dst   , AV_RN32(src));
+        AV_WN32(dst + 4 , AV_RN32(src + 4));
+        AV_WN32(dst + 8 , AV_RN32(src + 8));
+        AV_WN32(dst + 12, AV_RN32(src + 12));
+        dst[16] = src[16];
+        dst += dstStride;
+        src += srcStride;
     }
 }
 

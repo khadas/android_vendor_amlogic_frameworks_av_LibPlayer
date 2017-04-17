@@ -49,7 +49,7 @@ static void dvb_encode_rle2(uint8_t **pq,
 
     q = *pq;
 
-    for(y = 0; y < h; y++) {
+    for (y = 0; y < h; y++) {
         *q++ = 0x10;
         bitbuf = 0;
         bitcnt = 6;
@@ -58,8 +58,9 @@ static void dvb_encode_rle2(uint8_t **pq,
         while (x < w) {
             x1 = x;
             color = bitmap[x1++];
-            while (x1 < w && bitmap[x1] == color)
+            while (x1 < w && bitmap[x1] == color) {
                 x1++;
+            }
             len = x1 - x;
             if (color == 0 && len == 2) {
                 PUTBITS2(0);
@@ -81,8 +82,9 @@ static void dvb_encode_rle2(uint8_t **pq,
                 PUTBITS2(color);
             } else if (len >= 29) {
                 /* length = 29 ... 284 */
-                if (len > 284)
+                if (len > 284) {
                     len = 284;
+                }
                 v = len - 29;
                 PUTBITS2(0);
                 PUTBITS2(0);
@@ -137,7 +139,7 @@ static void dvb_encode_rle4(uint8_t **pq,
 
     q = *pq;
 
-    for(y = 0; y < h; y++) {
+    for (y = 0; y < h; y++) {
         *q++ = 0x11;
         bitbuf = 0;
         bitcnt = 4;
@@ -146,8 +148,9 @@ static void dvb_encode_rle4(uint8_t **pq,
         while (x < w) {
             x1 = x;
             color = bitmap[x1++];
-            while (x1 < w && bitmap[x1] == color)
+            while (x1 < w && bitmap[x1] == color) {
                 x1++;
+            }
             len = x1 - x;
             if (color == 0 && len == 2) {
                 PUTBITS4(0);
@@ -165,8 +168,9 @@ static void dvb_encode_rle4(uint8_t **pq,
                 PUTBITS4(len - 9);
                 PUTBITS4(color);
             } else if (len >= 25) {
-                if (len > 280)
+                if (len > 280) {
                     len = 280;
+                }
                 v = len - 25;
                 PUTBITS4(0);
                 PUTBITS4(0xf);
@@ -205,8 +209,9 @@ static int encode_dvb_subtitles(DVBSubtitleContext *s,
 
     page_id = 1;
 
-    if (h->num_rects == 0 || h->rects == NULL)
+    if (h->num_rects == 0 || h->rects == NULL) {
         return -1;
+    }
 
     *q++ = 0x00; /* subtitle_stream_id */
 
@@ -218,10 +223,11 @@ static int encode_dvb_subtitles(DVBSubtitleContext *s,
     pseg_len = q;
     q += 2; /* segment length */
     *q++ = 30; /* page_timeout (seconds) */
-    if (s->hide_state)
-        page_state = 0; /* normal case */
-    else
-        page_state = 2; /* mode change */
+    if (s->hide_state) {
+        page_state = 0;    /* normal case */
+    } else {
+        page_state = 2;    /* mode change */
+    }
     /* page_version = 0 + page_state */
     *q++ = (s->object_version << 4) | (page_state << 2) | 3;
 
@@ -257,12 +263,12 @@ static int encode_dvb_subtitles(DVBSubtitleContext *s,
             *q++ = clut_id;
             *q++ = (0 << 4) | 0xf; /* version = 0 */
 
-            for(i = 0; i < h->rects[clut_id]->nb_colors; i++) {
+            for (i = 0; i < h->rects[clut_id]->nb_colors; i++) {
                 *q++ = i; /* clut_entry_id */
                 *q++ = (1 << (7 - bpp_index)) | (0xf << 1) | 1; /* 2 bits/pixel full range */
                 {
                     int a, r, g, b;
-                    uint32_t x= ((uint32_t*)h->rects[clut_id]->pict.data[1])[i];
+                    uint32_t x = ((uint32_t*)h->rects[clut_id]->pict.data[1])[i];
                     a = (x >> 24) & 0xff;
                     r = (x >> 16) & 0xff;
                     g = (x >>  8) & 0xff;
@@ -346,25 +352,26 @@ static int encode_dvb_subtitles(DVBSubtitleContext *s,
             {
                 uint8_t *ptop_field_len, *pbottom_field_len, *top_ptr, *bottom_ptr;
                 void (*dvb_encode_rle)(uint8_t **pq,
-                                        const uint8_t *bitmap, int linesize,
-                                        int w, int h);
+                                       const uint8_t *bitmap, int linesize,
+                                       int w, int h);
                 ptop_field_len = q;
                 q += 2;
                 pbottom_field_len = q;
                 q += 2;
 
-                if (bpp_index == 0)
+                if (bpp_index == 0) {
                     dvb_encode_rle = dvb_encode_rle2;
-                else
+                } else {
                     dvb_encode_rle = dvb_encode_rle4;
+                }
 
                 top_ptr = q;
                 dvb_encode_rle(&q, h->rects[object_id]->pict.data[0], h->rects[object_id]->w * 2,
-                                    h->rects[object_id]->w, h->rects[object_id]->h >> 1);
+                               h->rects[object_id]->w, h->rects[object_id]->h >> 1);
                 bottom_ptr = q;
                 dvb_encode_rle(&q, h->rects[object_id]->pict.data[0] + h->rects[object_id]->w,
-                                    h->rects[object_id]->w * 2, h->rects[object_id]->w,
-                                    h->rects[object_id]->h >> 1);
+                               h->rects[object_id]->w * 2, h->rects[object_id]->w,
+                               h->rects[object_id]->h >> 1);
 
                 bytestream_put_be16(&ptop_field_len, bottom_ptr - top_ptr);
                 bytestream_put_be16(&pbottom_field_len, q - bottom_ptr);
@@ -392,7 +399,7 @@ static int encode_dvb_subtitles(DVBSubtitleContext *s,
 }
 
 static int dvbsub_encode(AVCodecContext *avctx,
-                       unsigned char *buf, int buf_size, void *data)
+                         unsigned char *buf, int buf_size, void *data)
 {
     DVBSubtitleContext *s = avctx->priv_data;
     AVSubtitle *sub = data;

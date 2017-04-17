@@ -39,10 +39,12 @@ static int aiff_write_header(AVFormatContext *s)
     int aifc = 0;
 
     /* First verify if format is ok */
-    if (!enc->codec_tag)
+    if (!enc->codec_tag) {
         return -1;
-    if (enc->codec_tag != MKTAG('N','O','N','E'))
+    }
+    if (enc->codec_tag != MKTAG('N', 'O', 'N', 'E')) {
         aifc = 1;
+    }
 
     /* FORM AIFF header */
     ffio_wfourcc(pb, "FORM");
@@ -76,14 +78,16 @@ static int aiff_write_header(AVFormatContext *s)
     aiff->frames = avio_tell(pb);
     avio_wb32(pb, 0);              /* Number of frames */
 
-    if (!enc->bits_per_coded_sample)
+    if (!enc->bits_per_coded_sample) {
         enc->bits_per_coded_sample = av_get_bits_per_sample(enc->codec_id);
+    }
     if (!enc->bits_per_coded_sample) {
         av_log(s, AV_LOG_ERROR, "could not compute bits per sample\n");
         return -1;
     }
-    if (!enc->block_align)
+    if (!enc->block_align) {
         enc->block_align = (enc->bits_per_coded_sample * enc->channels) >> 3;
+    }
 
     avio_wb16(pb, enc->bits_per_coded_sample); /* Sample size */
 
@@ -138,7 +142,7 @@ static int aiff_write_trailer(AVFormatContext *s)
 
         /* Number of sample frames */
         avio_seek(pb, aiff->frames, SEEK_SET);
-        avio_wb32(pb, (file_size-aiff->ssnd-12)/enc->block_align);
+        avio_wb32(pb, (file_size - aiff->ssnd - 12) / enc->block_align);
 
         /* Sound Data chunk size */
         avio_seek(pb, aiff->ssnd, SEEK_SET);
@@ -164,5 +168,5 @@ AVOutputFormat ff_aiff_muxer = {
     aiff_write_header,
     aiff_write_packet,
     aiff_write_trailer,
-    .codec_tag= (const AVCodecTag* const []){ff_codec_aiff_tags, 0},
+    .codec_tag = (const AVCodecTag* const []){ff_codec_aiff_tags, 0},
 };

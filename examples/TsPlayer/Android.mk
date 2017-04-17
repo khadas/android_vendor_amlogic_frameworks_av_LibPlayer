@@ -11,7 +11,7 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/include \
         $(LOCAL_PATH)/../../amadec/include \
 
 LOCAL_STATIC_LIBRARIES :=   libamcodec libamadec
-LOCAL_SHARED_LIBRARIES += libutils libmedia libz libbinder libdl libcutils libc
+LOCAL_SHARED_LIBRARIES += libutils libmedia libz libbinder libdl libcutils libc libamsubdec
 
 LOCAL_MODULE := libtsplayer
 LOCAL_MODULE_TAGS := optional

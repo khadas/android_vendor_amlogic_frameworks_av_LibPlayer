@@ -31,8 +31,8 @@ extern const AVCodecTag ff_rm_codec_tags[];
 
 typedef struct RMStream RMStream;
 
-RMStream *ff_rm_alloc_rmstream (void);
-void      ff_rm_free_rmstream  (RMStream *rms);
+RMStream *ff_rm_alloc_rmstream(void);
+void      ff_rm_free_rmstream(RMStream *rms);
 
 /*< input format for Realmedia-style RTSP streams */
 extern AVInputFormat ff_rdt_demuxer;
@@ -49,9 +49,9 @@ extern AVInputFormat ff_rdt_demuxer;
  * @param codec_data_size size of the MDPR chunk
  * @return 0 on success, errno codes on error
  */
-int ff_rm_read_mdpr_codecdata (AVFormatContext *s, AVIOContext *pb,
-                               AVStream *st, RMStream *rst,
-                               int codec_data_size,const uint8_t *mime);
+int ff_rm_read_mdpr_codecdata(AVFormatContext *s, AVIOContext *pb,
+                              AVStream *st, RMStream *rst,
+                              int codec_data_size, const uint8_t *mime);
 
 /**
  * Parse one rm-stream packet from the input bytestream.
@@ -70,9 +70,9 @@ int ff_rm_read_mdpr_codecdata (AVFormatContext *s, AVIOContext *pb,
  *         value >0 means that no data was placed in pkt, but that cached
  *         data is available by calling ff_rm_retrieve_cache().
  */
-int ff_rm_parse_packet (AVFormatContext *s, AVIOContext *pb,
-                        AVStream *st, RMStream *rst, int len,
-                        AVPacket *pkt, int *seq, int flags, int64_t ts);
+int ff_rm_parse_packet(AVFormatContext *s, AVIOContext *pb,
+                       AVStream *st, RMStream *rst, int len,
+                       AVPacket *pkt, int *seq, int flags, int64_t ts);
 
 /**
  * Retrieve one cached packet from the rm-context. The real container can
@@ -90,8 +90,8 @@ int ff_rm_parse_packet (AVFormatContext *s, AVIOContext *pb,
  * @return the number of samples left for subsequent calls to this same
  *          function, or 0 if all samples have been retrieved.
  */
-int ff_rm_retrieve_cache (AVFormatContext *s, AVIOContext *pb,
-                          AVStream *st, RMStream *rst, AVPacket *pkt);
+int ff_rm_retrieve_cache(AVFormatContext *s, AVIOContext *pb,
+                         AVStream *st, RMStream *rst, AVPacket *pkt);
 
 /**
  * Perform 4-bit block reordering for SIPR data.

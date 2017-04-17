@@ -49,8 +49,9 @@ static int avs_probe(AVProbeData * p)
     const uint8_t *d;
 
     d = p->buf;
-    if (d[0] == 'w' && d[1] == 'W' && d[2] == 0x10 && d[3] == 0)
+    if (d[0] == 'w' && d[1] == 'W' && d[2] == 0x10 && d[3] == 0) {
         return 50;
+    }
 
     return 0;
 }
@@ -89,8 +90,9 @@ avs_read_video_packet(AVFormatContext * s, AVPacket * pkt,
     int ret;
 
     ret = av_new_packet(pkt, size + palette_size);
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
+    }
 
     if (palette_size) {
         pkt->data[0] = 0x00;
@@ -112,8 +114,9 @@ avs_read_video_packet(AVFormatContext * s, AVPacket * pkt,
 
     pkt->size = ret + palette_size;
     pkt->stream_index = avs->st_video->index;
-    if (sub_type == 0)
+    if (sub_type == 0) {
         pkt->flags |= AV_PKT_FLAG_KEY;
+    }
 
     return 0;
 }
@@ -128,10 +131,12 @@ static int avs_read_audio_packet(AVFormatContext * s, AVPacket * pkt)
     size = avio_tell(s->pb) - size;
     avs->remaining_audio_size -= size;
 
-    if (ret == AVERROR(EIO))
+    if (ret == AVERROR(EIO)) {
         return 0;    /* this indicate EOS */
-    if (ret < 0)
+    }
+    if (ret < 0) {
         return ret;
+    }
 
     pkt->stream_index = avs->st_audio->index;
     pkt->flags |= AV_PKT_FLAG_KEY;
@@ -149,13 +154,15 @@ static int avs_read_packet(AVFormatContext * s, AVPacket * pkt)
     int ret;
 
     if (avs->remaining_audio_size > 0)
-        if (avs_read_audio_packet(s, pkt) > 0)
+        if (avs_read_audio_packet(s, pkt) > 0) {
             return 0;
+        }
 
     while (1) {
         if (avs->remaining_frame_size <= 0) {
-            if (!avio_rl16(s->pb))    /* found EOF */
+            if (!avio_rl16(s->pb)) {  /* found EOF */
                 return AVERROR(EIO);
+            }
             avs->remaining_frame_size = avio_rl16(s->pb) - 4;
         }
 
@@ -168,24 +175,27 @@ static int avs_read_packet(AVFormatContext * s, AVPacket * pkt)
             switch (type) {
             case AVS_PALETTE:
                 ret = avio_read(s->pb, palette, size - 4);
-                if (ret < size - 4)
+                if (ret < size - 4) {
                     return AVERROR(EIO);
+                }
                 palette_size = size;
                 break;
 
             case AVS_VIDEO:
                 if (!avs->st_video) {
                     avs->st_video = av_new_stream(s, AVS_VIDEO);
-                    if (avs->st_video == NULL)
+                    if (avs->st_video == NULL) {
                         return AVERROR(ENOMEM);
+                    }
                     avs->st_video->codec->codec_type = AVMEDIA_TYPE_VIDEO;
                     avs->st_video->codec->codec_id = CODEC_ID_AVS;
                     avs->st_video->codec->width = avs->width;
                     avs->st_video->codec->height = avs->height;
-                    avs->st_video->codec->bits_per_coded_sample=avs->bits_per_sample;
+                    avs->st_video->codec->bits_per_coded_sample = avs->bits_per_sample;
                     avs->st_video->nb_frames = avs->nb_frames;
                     avs->st_video->codec->time_base = (AVRational) {
-                    1, avs->fps};
+                        1, avs->fps
+                    };
                 }
                 return avs_read_video_packet(s, pkt, type, sub_type, size,
                                              palette, palette_size);
@@ -193,14 +203,16 @@ static int avs_read_packet(AVFormatContext * s, AVPacket * pkt)
             case AVS_AUDIO:
                 if (!avs->st_audio) {
                     avs->st_audio = av_new_stream(s, AVS_AUDIO);
-                    if (avs->st_audio == NULL)
+                    if (avs->st_audio == NULL) {
                         return AVERROR(ENOMEM);
+                    }
                     avs->st_audio->codec->codec_type = AVMEDIA_TYPE_AUDIO;
                 }
                 avs->remaining_audio_size = size - 4;
                 size = avs_read_audio_packet(s, pkt);
-                if (size != 0)
+                if (size != 0) {
                     return size;
+                }
                 break;
 
             default:

@@ -56,8 +56,9 @@ static enum PixelFormat GetFfmpegChromaFormat(dirac_chroma_t dirac_pix_fmt)
     int idx;
 
     for (idx = 0; idx < num_formats; ++idx)
-        if (ffmpeg_dirac_pixel_format_map[idx].dirac_pix_fmt == dirac_pix_fmt)
+        if (ffmpeg_dirac_pixel_format_map[idx].dirac_pix_fmt == dirac_pix_fmt) {
             return ffmpeg_dirac_pixel_format_map[idx].ff_pix_fmt;
+        }
     return PIX_FMT_NONE;
 }
 
@@ -67,8 +68,9 @@ static av_cold int libdirac_decode_init(AVCodecContext *avccontext)
     FfmpegDiracDecoderParams *p_dirac_params = avccontext->priv_data;
     p_dirac_params->p_decoder =  dirac_decoder_init(avccontext->debug);
 
-    if (!p_dirac_params->p_decoder)
+    if (!p_dirac_params->p_decoder) {
         return -1;
+    }
 
     return 0;
 }
@@ -91,18 +93,18 @@ static int libdirac_decode_frame(AVCodecContext *avccontext,
     if (buf_size > 0) {
         /* set data to decode into buffer */
         dirac_buffer(p_dirac_params->p_decoder, buf, buf + buf_size);
-        if ((buf[4] & 0x08) == 0x08 && (buf[4] & 0x03))
+        if ((buf[4] & 0x08) == 0x08 && (buf[4] & 0x03)) {
             avccontext->has_b_frames = 1;
+        }
     }
     while (1) {
-         /* parse data and process result */
+        /* parse data and process result */
         DecoderState state = dirac_parse(p_dirac_params->p_decoder);
         switch (state) {
         case STATE_BUFFER:
             return buf_size;
 
-        case STATE_SEQUENCE:
-        {
+        case STATE_SEQUENCE: {
             /* tell FFmpeg about sequence details */
             dirac_sourceparams_t *src_params = &p_dirac_params->p_decoder->src_params;
 
@@ -137,8 +139,9 @@ static int libdirac_decode_frame(AVCodecContext *avccontext,
                                            avccontext->height);
 
             /* allocate output buffer */
-            if (!p_dirac_params->p_out_frame_buf)
+            if (!p_dirac_params->p_out_frame_buf) {
                 p_dirac_params->p_out_frame_buf = av_malloc(pict_size);
+            }
             buffer[0] = p_dirac_params->p_out_frame_buf;
             buffer[1] = p_dirac_params->p_out_frame_buf +
                         pic.linesize[0] * avccontext->height;

@@ -47,7 +47,7 @@ typedef struct {
     int scfi[2];
     int scf_idx[2][3];
     int Q[2];
-}Band;
+} Band;
 
 typedef struct {
     DSPContext dsp;
@@ -66,7 +66,7 @@ typedef struct {
     AVLFG rnd;
     int frames_to_skip;
     /* for synthesis */
-    DECLARE_ALIGNED(16, MPA_INT, synth_buf)[MPA_MAX_CHANNELS][512*2];
+    DECLARE_ALIGNED(16, MPA_INT, synth_buf)[MPA_MAX_CHANNELS][512 * 2];
     int synth_buf_offset[MPA_MAX_CHANNELS];
     DECLARE_ALIGNED(16, int32_t, sb_samples)[MPA_MAX_CHANNELS][36][SBLIMIT];
 } MPCContext;

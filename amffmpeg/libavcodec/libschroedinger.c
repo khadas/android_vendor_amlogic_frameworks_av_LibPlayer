@@ -30,7 +30,7 @@
 * Schroedinger video preset table. Ensure that this tables matches up correctly
 * with the ff_dirac_schro_video_format_info table in libdirac_libschro.c.
 */
-static const SchroVideoFormatEnum ff_schro_video_formats[]={
+static const SchroVideoFormatEnum ff_schro_video_formats[] = {
     SCHRO_VIDEO_FORMAT_CUSTOM     ,
     SCHRO_VIDEO_FORMAT_QSIF       ,
     SCHRO_VIDEO_FORMAT_QCIF       ,
@@ -55,14 +55,14 @@ SchroVideoFormatEnum ff_get_schro_video_format_preset(AVCodecContext *avccontext
     unsigned int num_formats = sizeof(ff_schro_video_formats) /
                                sizeof(ff_schro_video_formats[0]);
 
-    unsigned int idx = ff_dirac_schro_get_video_format_idx (avccontext);
+    unsigned int idx = ff_dirac_schro_get_video_format_idx(avccontext);
 
     return (idx < num_formats) ? ff_schro_video_formats[idx] :
-                                 SCHRO_VIDEO_FORMAT_CUSTOM;
+           SCHRO_VIDEO_FORMAT_CUSTOM;
 }
 
-int ff_get_schro_frame_format (SchroChromaFormat schro_pix_fmt,
-                               SchroFrameFormat  *schro_frame_fmt)
+int ff_get_schro_frame_format(SchroChromaFormat schro_pix_fmt,
+                              SchroFrameFormat  *schro_frame_fmt)
 {
     unsigned int num_formats = sizeof(ffmpeg_schro_pixel_format_map) /
                                sizeof(ffmpeg_schro_pixel_format_map[0]);
@@ -82,8 +82,9 @@ static void FreeSchroFrame(SchroFrame *frame, void *priv)
 {
     AVPicture *p_pic = priv;
 
-    if (!p_pic)
+    if (!p_pic) {
         return;
+    }
 
     avpicture_free(p_pic);
     av_freep(&p_pic);
@@ -117,7 +118,7 @@ SchroFrame *ff_create_schro_frame(AVCodecContext *avccontext,
         p_frame->components[i].stride = p_pic->linesize[i];
         p_frame->components[i].height = i ? uv_height : y_height;
         p_frame->components[i].length =
-                 p_frame->components[i].stride * p_frame->components[i].height;
+            p_frame->components[i].stride * p_frame->components[i].height;
         p_frame->components[i].data   = p_pic->data[i];
 
         if (i) {

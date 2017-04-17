@@ -72,19 +72,19 @@ typedef struct VP8EncoderContext {
 #define V AV_OPT_FLAG_VIDEO_PARAM
 #define E AV_OPT_FLAG_ENCODING_PARAM
 
-static const AVOption options[]={
-{"speed", "", offsetof(VP8Context, cpuused), FF_OPT_TYPE_INT, 3, -16, 16, V|E},
-{"quality", "", offsetof(VP8Context, deadline), FF_OPT_TYPE_INT, VPX_DL_GOOD_QUALITY, INT_MIN, INT_MAX, V|E, "quality"},
-{"best", NULL, 0, FF_OPT_TYPE_CONST, VPX_DL_BEST_QUALITY, INT_MIN, INT_MAX, V|E, "quality"},
-{"good", NULL, 0, FF_OPT_TYPE_CONST, VPX_DL_GOOD_QUALITY, INT_MIN, INT_MAX, V|E, "quality"},
-{"realtime", NULL, 0, FF_OPT_TYPE_CONST, VPX_DL_REALTIME, INT_MIN, INT_MAX, V|E, "quality"},
-{"vp8flags", "", offsetof(VP8Context, flags), FF_OPT_TYPE_FLAGS, 0, 0, UINT_MAX, V|E, "flags"},
-{"error_resilient", "enable error resilience", 0, FF_OPT_TYPE_CONST, VP8F_ERROR_RESILIENT, INT_MIN, INT_MAX, V|E, "flags"},
-{"altref", "enable use of alternate reference frames (VP8/2-pass only)", 0, FF_OPT_TYPE_CONST, VP8F_AUTO_ALT_REF, INT_MIN, INT_MAX, V|E, "flags"},
-{"arnr_max_frames", "altref noise reduction max frame count", offsetof(VP8Context, arnr_max_frames), FF_OPT_TYPE_INT, 0, 0, 15, V|E},
-{"arnr_strength", "altref noise reduction filter strength", offsetof(VP8Context, arnr_strength), FF_OPT_TYPE_INT, 3, 0, 6, V|E},
-{"arnr_type", "altref noise reduction filter type", offsetof(VP8Context, arnr_type), FF_OPT_TYPE_INT, 3, 1, 3, V|E},
-{NULL}
+static const AVOption options[] = {
+    {"speed", "", offsetof(VP8Context, cpuused), FF_OPT_TYPE_INT, 3, -16, 16, V | E},
+    {"quality", "", offsetof(VP8Context, deadline), FF_OPT_TYPE_INT, VPX_DL_GOOD_QUALITY, INT_MIN, INT_MAX, V | E, "quality"},
+    {"best", NULL, 0, FF_OPT_TYPE_CONST, VPX_DL_BEST_QUALITY, INT_MIN, INT_MAX, V | E, "quality"},
+    {"good", NULL, 0, FF_OPT_TYPE_CONST, VPX_DL_GOOD_QUALITY, INT_MIN, INT_MAX, V | E, "quality"},
+    {"realtime", NULL, 0, FF_OPT_TYPE_CONST, VPX_DL_REALTIME, INT_MIN, INT_MAX, V | E, "quality"},
+    {"vp8flags", "", offsetof(VP8Context, flags), FF_OPT_TYPE_FLAGS, 0, 0, UINT_MAX, V | E, "flags"},
+    {"error_resilient", "enable error resilience", 0, FF_OPT_TYPE_CONST, VP8F_ERROR_RESILIENT, INT_MIN, INT_MAX, V | E, "flags"},
+    {"altref", "enable use of alternate reference frames (VP8/2-pass only)", 0, FF_OPT_TYPE_CONST, VP8F_AUTO_ALT_REF, INT_MIN, INT_MAX, V | E, "flags"},
+    {"arnr_max_frames", "altref noise reduction max frame count", offsetof(VP8Context, arnr_max_frames), FF_OPT_TYPE_INT, 0, 0, 15, V | E},
+    {"arnr_strength", "altref noise reduction filter strength", offsetof(VP8Context, arnr_strength), FF_OPT_TYPE_INT, 3, 0, 6, V | E},
+    {"arnr_type", "altref noise reduction filter type", offsetof(VP8Context, arnr_type), FF_OPT_TYPE_INT, 3, 1, 3, V | E},
+    {NULL}
 };
 static const AVClass class = { "libvpx", av_default_item_name, options, LIBAVUTIL_VERSION_INT };
 
@@ -119,8 +119,9 @@ static av_cold void log_encoder_error(AVCodecContext *avctx, const char *desc)
     const char *detail = vpx_codec_error_detail(&ctx->encoder);
 
     av_log(avctx, AV_LOG_ERROR, "%s: %s\n", desc, error);
-    if (detail)
+    if (detail) {
         av_log(avctx, AV_LOG_ERROR, "  Additional information: %s\n", detail);
+    }
 }
 
 static av_cold void dump_enc_cfg(AVCodecContext *avctx,
@@ -161,10 +162,10 @@ static av_cold void dump_enc_cfg(AVCodecContext *avctx,
            width, "rc_undershoot_pct:", cfg->rc_undershoot_pct,
            width, "rc_overshoot_pct:",  cfg->rc_overshoot_pct);
     av_log(avctx, level, "decoder buffer model\n"
-            "  %*s%u\n  %*s%u\n  %*s%u\n",
-            width, "rc_buf_sz:",         cfg->rc_buf_sz,
-            width, "rc_buf_initial_sz:", cfg->rc_buf_initial_sz,
-            width, "rc_buf_optimal_sz:", cfg->rc_buf_optimal_sz);
+           "  %*s%u\n  %*s%u\n  %*s%u\n",
+           width, "rc_buf_sz:",         cfg->rc_buf_sz,
+           width, "rc_buf_initial_sz:", cfg->rc_buf_initial_sz,
+           width, "rc_buf_optimal_sz:", cfg->rc_buf_optimal_sz);
     av_log(avctx, level, "2 pass rate control settings\n"
            "  %*s%u\n  %*s%u\n  %*s%u\n",
            width, "rc_2pass_vbr_bias_pct:",       cfg->rc_2pass_vbr_bias_pct,
@@ -182,8 +183,9 @@ static void coded_frame_add(void *list, struct FrameListData *cx_frame)
 {
     struct FrameListData **p = list;
 
-    while (*p != NULL)
+    while (*p != NULL) {
         p = &(*p)->next;
+    }
     *p = cx_frame;
     cx_frame->next = NULL;
 }
@@ -260,22 +262,24 @@ static av_cold int vp8_init(AVCodecContext *avctx)
     enccfg.g_timebase.num = avctx->time_base.num;
     enccfg.g_timebase.den = avctx->time_base.den;
     enccfg.g_threads      = avctx->thread_count;
-    enccfg.g_lag_in_frames= FFMIN(avctx->rc_lookahead, 25);  //0-25, avoids init failure
+    enccfg.g_lag_in_frames = FFMIN(avctx->rc_lookahead, 25); //0-25, avoids init failure
 
-    if (avctx->flags & CODEC_FLAG_PASS1)
+    if (avctx->flags & CODEC_FLAG_PASS1) {
         enccfg.g_pass = VPX_RC_FIRST_PASS;
-    else if (avctx->flags & CODEC_FLAG_PASS2)
+    } else if (avctx->flags & CODEC_FLAG_PASS2) {
         enccfg.g_pass = VPX_RC_LAST_PASS;
-    else
+    } else {
         enccfg.g_pass = VPX_RC_ONE_PASS;
+    }
 
     if (avctx->rc_min_rate == avctx->rc_max_rate &&
-        avctx->rc_min_rate == avctx->bit_rate)
+        avctx->rc_min_rate == avctx->bit_rate) {
         enccfg.rc_end_usage = VPX_CBR;
-    else if (avctx->crf)
+    } else if (avctx->crf) {
         enccfg.rc_end_usage = VPX_CQ;
+    }
     enccfg.rc_target_bitrate = av_rescale_rnd(avctx->bit_rate, 1, 1000,
-                                              AV_ROUND_NEAR_INF);
+                               AV_ROUND_NEAR_INF);
 
     enccfg.rc_min_quantizer = avctx->qmin;
     enccfg.rc_max_quantizer = avctx->qmax;
@@ -299,13 +303,14 @@ static av_cold int vp8_init(AVCodecContext *avctx)
     enccfg.rc_undershoot_pct     = round(avctx->rc_buffer_aggressivity * 100);
 
     //_enc_init() will balk if kf_min_dist differs from max w/VPX_KF_AUTO
-    if (avctx->keyint_min == avctx->gop_size)
+    if (avctx->keyint_min == avctx->gop_size) {
         enccfg.kf_min_dist = avctx->keyint_min;
+    }
     enccfg.kf_max_dist     = avctx->gop_size;
 
-    if (enccfg.g_pass == VPX_RC_FIRST_PASS)
+    if (enccfg.g_pass == VPX_RC_FIRST_PASS) {
         enccfg.g_lag_in_frames = 0;
-    else if (enccfg.g_pass == VPX_RC_LAST_PASS) {
+    } else if (enccfg.g_pass == VPX_RC_LAST_PASS) {
         int decode_size;
 
         if (!avctx->stats_in) {
@@ -335,8 +340,9 @@ static av_cold int vp8_init(AVCodecContext *avctx)
     /* 0-3: For non-zero values the encoder increasingly optimizes for reduced
        complexity playback on low powered devices at the expense of encode
        quality. */
-   if (avctx->profile != FF_PROFILE_UNKNOWN)
-       enccfg.g_profile = avctx->profile;
+    if (avctx->profile != FF_PROFILE_UNKNOWN) {
+        enccfg.g_profile = avctx->profile;
+    }
 
     enccfg.g_error_resilient = ctx->flags & VP8F_ERROR_RESILIENT;
 
@@ -354,7 +360,7 @@ static av_cold int vp8_init(AVCodecContext *avctx)
     codecctl_int(avctx, VP8E_SET_NOISE_SENSITIVITY, avctx->noise_reduction);
     codecctl_int(avctx, VP8E_SET_TOKEN_PARTITIONS,  av_log2(avctx->slices));
     codecctl_int(avctx, VP8E_SET_STATIC_THRESHOLD,  avctx->mb_threshold);
-    codecctl_int(avctx, VP8E_SET_CQ_LEVEL,          (int)avctx->crf);
+    codecctl_int(avctx, VP8E_SET_CQ_LEVEL, (int)avctx->crf);
     codecctl_int(avctx, VP8E_SET_ENABLEAUTOALTREF,  !!(ctx->flags & VP8F_AUTO_ALT_REF));
     codecctl_int(avctx, VP8E_SET_ARNR_MAXFRAMES,    ctx->arnr_max_frames);
     codecctl_int(avctx, VP8E_SET_ARNR_STRENGTH,     ctx->arnr_strength);
@@ -402,10 +408,11 @@ static int storeframe(AVCodecContext *avctx, struct FrameListData *cx_frame,
         coded_frame->pts       = cx_frame->pts;
         coded_frame->key_frame = !!(cx_frame->flags & VPX_FRAME_IS_KEY);
 
-        if (coded_frame->key_frame)
+        if (coded_frame->key_frame) {
             coded_frame->pict_type = AV_PICTURE_TYPE_I;
-        else
+        } else {
             coded_frame->pict_type = AV_PICTURE_TYPE_P;
+        }
     } else {
         av_log(avctx, AV_LOG_ERROR,
                "Compressed frame larger than storage provided! (%zu/%d)\n",
@@ -435,8 +442,9 @@ static int queue_frames(AVCodecContext *avctx, uint8_t *buf, int buf_size,
         struct FrameListData *cx_frame = ctx->coded_frame_list;
         /* return the leading frame if we've already begun queueing */
         size = storeframe(avctx, cx_frame, buf, buf_size, coded_frame);
-        if (size < 0)
+        if (size < 0) {
             return AVERROR(EINVAL);
+        }
         ctx->coded_frame_list = cx_frame->next;
         free_coded_frame(cx_frame);
     }
@@ -454,8 +462,9 @@ static int queue_frames(AVCodecContext *avctx, uint8_t *buf, int buf_size,
                 assert(!ctx->coded_frame_list);
                 cx_pktcpy(&cx_frame, pkt);
                 size = storeframe(avctx, &cx_frame, buf, buf_size, coded_frame);
-                if (size < 0)
+                if (size < 0) {
                     return AVERROR(EINVAL);
+                }
             } else {
                 struct FrameListData *cx_frame =
                     av_malloc(sizeof(struct FrameListData));
@@ -556,5 +565,5 @@ AVCodec ff_libvpx_encoder = {
     CODEC_CAP_DELAY,
     .pix_fmts = (const enum PixelFormat[]){PIX_FMT_YUV420P, PIX_FMT_NONE},
     .long_name = NULL_IF_CONFIG_SMALL("libvpx VP8"),
-    .priv_class= &class,
+    .priv_class = &class,
 };

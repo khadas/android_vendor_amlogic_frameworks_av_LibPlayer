@@ -40,7 +40,7 @@ void ff_rtp_send_latm(AVFormatContext *s1, const uint8_t *buff, int size)
     }
 
     /* PayloadLengthInfo() */
-    header_size = size/0xFF + 1;
+    header_size = size / 0xFF + 1;
     memset(s->buf, 0xFF, header_size - 1);
     s->buf[header_size - 1] = size % 0xFF;
 

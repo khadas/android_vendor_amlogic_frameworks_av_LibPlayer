@@ -32,7 +32,7 @@
         return (p & ~pixel_max) ? (-p)>>31 & pixel_max : p;\
     }
 
-CLIP_PIXEL( 9)
+CLIP_PIXEL(9)
 CLIP_PIXEL(10)
 #endif
 

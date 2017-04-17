@@ -34,13 +34,14 @@ static int sol_probe(AVProbeData *p)
 {
     /* check file header */
     uint16_t magic;
-    magic=av_le2ne16(*((uint16_t*)p->buf));
+    magic = av_le2ne16(*((uint16_t*)p->buf));
     if ((magic == 0x0B8D || magic == 0x0C0D || magic == 0x0C8D) &&
         p->buf[2] == 'S' && p->buf[3] == 'O' &&
-        p->buf[4] == 'L' && p->buf[5] == 0)
+        p->buf[4] == 'L' && p->buf[5] == 0) {
         return AVPROBE_SCORE_MAX;
-    else
+    } else {
         return 0;
+    }
 }
 
 #define SOL_DPCM    1
@@ -49,43 +50,57 @@ static int sol_probe(AVProbeData *p)
 
 static enum CodecID sol_codec_id(int magic, int type)
 {
-    if (magic == 0x0B8D)
-    {
-        if (type & SOL_DPCM) return CODEC_ID_SOL_DPCM;
-        else return CODEC_ID_PCM_U8;
+    if (magic == 0x0B8D) {
+        if (type & SOL_DPCM) {
+            return CODEC_ID_SOL_DPCM;
+        } else {
+            return CODEC_ID_PCM_U8;
+        }
     }
-    if (type & SOL_DPCM)
-    {
-        if (type & SOL_16BIT) return CODEC_ID_SOL_DPCM;
-        else if (magic == 0x0C8D) return CODEC_ID_SOL_DPCM;
-        else return CODEC_ID_SOL_DPCM;
+    if (type & SOL_DPCM) {
+        if (type & SOL_16BIT) {
+            return CODEC_ID_SOL_DPCM;
+        } else if (magic == 0x0C8D) {
+            return CODEC_ID_SOL_DPCM;
+        } else {
+            return CODEC_ID_SOL_DPCM;
+        }
     }
-    if (type & SOL_16BIT) return CODEC_ID_PCM_S16LE;
+    if (type & SOL_16BIT) {
+        return CODEC_ID_PCM_S16LE;
+    }
     return CODEC_ID_PCM_U8;
 }
 
 static int sol_codec_type(int magic, int type)
 {
-    if (magic == 0x0B8D) return 1;//SOL_DPCM_OLD;
-    if (type & SOL_DPCM)
-    {
-        if (type & SOL_16BIT) return 3;//SOL_DPCM_NEW16;
-        else if (magic == 0x0C8D) return 1;//SOL_DPCM_OLD;
-        else return 2;//SOL_DPCM_NEW8;
+    if (magic == 0x0B8D) {
+        return 1;    //SOL_DPCM_OLD;
+    }
+    if (type & SOL_DPCM) {
+        if (type & SOL_16BIT) {
+            return 3;    //SOL_DPCM_NEW16;
+        } else if (magic == 0x0C8D) {
+            return 1;    //SOL_DPCM_OLD;
+        } else {
+            return 2;    //SOL_DPCM_NEW8;
+        }
     }
     return -1;
 }
 
 static int sol_channels(int magic, int type)
 {
-    if (magic == 0x0B8D || !(type & SOL_STEREO)) return 1;
+    if (magic == 0x0B8D || !(type & SOL_STEREO)) {
+        return 1;
+    }
     return 2;
 }
 
 static int sol_read_header(AVFormatContext *s,
-                          AVFormatParameters *ap)
+                           AVFormatParameters *ap)
 {
-    unsigned int magic,tag;
+    unsigned int magic, tag;
     AVIOContext *pb = s->pb;
     unsigned int id, channels, rate, type;
     enum CodecID codec;
@@ -94,25 +109,30 @@ static int sol_read_header(AVFormatContext *s,
     /* check ".snd" header */
     magic = avio_rl16(pb);
     tag = avio_rl32(pb);
-    if (tag != MKTAG('S', 'O', 'L', 0))
+    if (tag != MKTAG('S', 'O', 'L', 0)) {
         return -1;
+    }
     rate = avio_rl16(pb);
     type = avio_r8(pb);
     avio_skip(pb, 4); /* size */
-    if (magic != 0x0B8D)
-        avio_r8(pb); /* newer SOLs contain padding byte */
+    if (magic != 0x0B8D) {
+        avio_r8(pb);    /* newer SOLs contain padding byte */
+    }
 
     codec = sol_codec_id(magic, type);
     channels = sol_channels(magic, type);
 
-    if (codec == CODEC_ID_SOL_DPCM)
+    if (codec == CODEC_ID_SOL_DPCM) {
         id = sol_codec_type(magic, type);
-    else id = 0;
+    } else {
+        id = 0;
+    }
 
     /* now we are ready: build format streams */
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return -1;
+    }
     st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
     st->codec->codec_tag = id;
     st->codec->codec_id = codec;
@@ -125,13 +145,14 @@ static int sol_read_header(AVFormatContext *s,
 #define MAX_SIZE 4096
 
 static int sol_read_packet(AVFormatContext *s,
-                          AVPacket *pkt)
+                           AVPacket *pkt)
 {
     int ret;
 
-    if (url_feof(s->pb))
+    if (url_feof(s->pb)) {
         return AVERROR(EIO);
-    ret= av_get_packet(s->pb, pkt, MAX_SIZE);
+    }
+    ret = av_get_packet(s->pb, pkt, MAX_SIZE);
     pkt->stream_index = 0;
 
     /* note: we need to modify the packet size here to handle the last

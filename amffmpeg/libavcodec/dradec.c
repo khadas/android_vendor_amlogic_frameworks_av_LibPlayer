@@ -30,8 +30,8 @@ static int dra_set_info(DRAContext *dra)
 
 
 static int dra_decode_frame(AVCodecContext *avctx,
-                             void *outbuffer, int *outputsize,
-                             AVPacket *avpkt)
+                            void *outbuffer, int *outputsize,
+                            AVPacket *avpkt)
 {
     const uint8_t *inbuffer = avpkt->data;
     int input_buffer_size = avpkt->size;

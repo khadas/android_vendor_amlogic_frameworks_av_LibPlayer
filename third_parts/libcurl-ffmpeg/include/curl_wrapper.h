@@ -1,5 +1,6 @@
 #ifndef CURL_WRAPPER_H_
 #define CURL_WRAPPER_H_
+
 #include <ctype.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -27,6 +28,7 @@ typedef struct _CURLWHandle {
     char * post_headers;
     int quited;
     int open_quited;
+    int redirect_quited;
     int c_max_timeout;
     int c_max_connecttimeout;
     int c_buffersize;
@@ -50,14 +52,15 @@ typedef struct _CURLWHandle {
 } CURLWHandle;
 
 typedef struct _CURLWContext {
-    int64_t chunk_size;
     int quited;
     int open_fail;
     int curl_h_num;
     int chunked;
     int connected;
     int no_body;
+    int is_use_block_request;
     int ignore_interrupt;
+    int clear_redirect_url;
     int (*interrupt)(void);
     int (*interruptwithpid)(void *);
     void * parent_thread_id;
@@ -69,6 +72,8 @@ typedef struct _Curl_Data {
     int64_t size;
     CURLWHandle * handle;
     CURLWContext * ctx;
+    int rangesize;
+    char rangebuf[128];
 } Curl_Data;
 
 CURLWContext * curl_wrapper_init(int flags);

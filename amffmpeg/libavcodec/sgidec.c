@@ -43,20 +43,24 @@ typedef struct SgiState {
  * @return size of output in bytes, -1 if buffer overflows
  */
 static int expand_rle_row(const uint8_t *in_buf, const uint8_t* in_end,
-            unsigned char *out_buf, uint8_t* out_end, int pixelstride)
+                          unsigned char *out_buf, uint8_t* out_end, int pixelstride)
 {
     unsigned char pixel, count;
     unsigned char *orig = out_buf;
 
     while (1) {
-        if(in_buf + 1 > in_end) return -1;
+        if (in_buf + 1 > in_end) {
+            return -1;
+        }
         pixel = bytestream_get_byte(&in_buf);
         if (!(count = (pixel & 0x7f))) {
             return (out_buf - orig) / pixelstride;
         }
 
         /* Check for buffer overflow. */
-        if(out_buf + pixelstride * count >= out_end) return -1;
+        if (out_buf + pixelstride * count >= out_end) {
+            return -1;
+        }
 
         if (pixel & 0x80) {
             while (count--) {
@@ -92,7 +96,7 @@ static int read_rle_sgi(unsigned char* out_buf, const uint8_t *in_buf,
     unsigned int start_offset;
 
     /* size of  RLE offset and length tables */
-    if(len * 2  > in_end - in_buf) {
+    if (len * 2  > in_end - in_buf) {
         return AVERROR_INVALIDDATA;
     }
 
@@ -102,12 +106,13 @@ static int read_rle_sgi(unsigned char* out_buf, const uint8_t *in_buf,
         for (y = 0; y < s->height; y++) {
             dest_row -= s->linesize;
             start_offset = bytestream_get_be32(&start_table);
-            if(start_offset > in_end - in_buf) {
+            if (start_offset > in_end - in_buf) {
                 return AVERROR_INVALIDDATA;
             }
             if (expand_rle_row(in_buf + start_offset, in_end, dest_row + z,
-                dest_row + FFABS(s->linesize), s->depth) != s->width)
+                               dest_row + FFABS(s->linesize), s->depth) != s->width) {
                 return AVERROR_INVALIDDATA;
+            }
         }
     }
     return 0;
@@ -123,7 +128,7 @@ static int read_rle_sgi(unsigned char* out_buf, const uint8_t *in_buf,
  * @return 0 if read success, otherwise return -1.
  */
 static int read_uncompressed_sgi(unsigned char* out_buf, uint8_t* out_end,
-                const uint8_t *in_buf, const uint8_t *in_end, SgiState* s)
+                                 const uint8_t *in_buf, const uint8_t *in_end, SgiState* s)
 {
     int x, y, z;
     const uint8_t *ptr;
@@ -131,14 +136,14 @@ static int read_uncompressed_sgi(unsigned char* out_buf, uint8_t* out_end,
 
     /* Test buffer size. */
     if (offset * s->depth > in_end - in_buf) {
-       return -1;
+        return -1;
     }
 
     for (y = s->height - 1; y >= 0; y--) {
         out_end = out_buf + (y * s->linesize);
         for (x = s->width; x > 0; x--) {
             ptr = in_buf += s->bytes_per_channel;
-            for(z = 0; z < s->depth; z ++) {
+            for (z = 0; z < s->depth; z ++) {
                 memcpy(out_end, ptr, s->bytes_per_channel);
                 out_end += s->bytes_per_channel;
                 ptr += offset;
@@ -162,7 +167,7 @@ static int decode_frame(AVCodecContext *avctx,
     int ret = 0;
     uint8_t *out_buf, *out_end;
 
-    if (buf_size < SGI_HEADER_SIZE){
+    if (buf_size < SGI_HEADER_SIZE) {
         av_log(avctx, AV_LOG_ERROR, "buf_size too small (%d)\n", buf_size);
         return -1;
     }
@@ -202,12 +207,14 @@ static int decode_frame(AVCodecContext *avctx,
         return -1;
     }
 
-    if (av_image_check_size(s->width, s->height, 0, avctx))
+    if (av_image_check_size(s->width, s->height, 0, avctx)) {
         return -1;
+    }
     avcodec_set_dimensions(avctx, s->width, s->height);
 
-    if (p->data[0])
+    if (p->data[0]) {
         avctx->release_buffer(avctx, p);
+    }
 
     p->reference = 0;
     if (avctx->get_buffer(avctx, p) < 0) {
@@ -240,7 +247,8 @@ static int decode_frame(AVCodecContext *avctx,
     }
 }
 
-static av_cold int sgi_init(AVCodecContext *avctx){
+static av_cold int sgi_init(AVCodecContext *avctx)
+{
     SgiState *s = avctx->priv_data;
 
     avcodec_get_frame_defaults(&s->picture);
@@ -253,8 +261,9 @@ static av_cold int sgi_end(AVCodecContext *avctx)
 {
     SgiState * const s = avctx->priv_data;
 
-    if (s->picture.data[0])
+    if (s->picture.data[0]) {
         avctx->release_buffer(avctx, &s->picture);
+    }
 
     return 0;
 }

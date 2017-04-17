@@ -32,17 +32,19 @@ static int dirac_header(AVFormatContext *s, int idx)
     GetBitContext gb;
 
     // already parsed the header
-    if (st->codec->codec_id == CODEC_ID_DIRAC)
+    if (st->codec->codec_id == CODEC_ID_DIRAC) {
         return 0;
+    }
 
     init_get_bits(&gb, os->buf + os->pstart + 13, (os->psize - 13) * 8);
-    if (ff_dirac_parse_sequence_header(st->codec, &gb, &source) < 0)
+    if (ff_dirac_parse_sequence_header(st->codec, &gb, &source) < 0) {
         return -1;
+    }
 
     st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
     st->codec->codec_id = CODEC_ID_DIRAC;
     // dirac in ogg always stores timestamps as though the video were interlaced
-    av_set_pts_info(st, 64, st->codec->time_base.num, 2*st->codec->time_base.den);
+    av_set_pts_info(st, 64, st->codec->time_base.num, 2 * st->codec->time_base.den);
     return 1;
 }
 
@@ -58,11 +60,13 @@ static uint64_t dirac_gptopts(AVFormatContext *s, int idx, uint64_t granule,
     int64_t  dts   = (gp >> 31);
     int64_t  pts   = dts + ((gp >> 9) & 0x1fff);
 
-    if (!dist)
+    if (!dist) {
         os->pflags |= AV_PKT_FLAG_KEY;
+    }
 
-    if (dts_out)
+    if (dts_out) {
         *dts_out = dts;
+    }
 
     return pts;
 }
@@ -74,12 +78,13 @@ static int old_dirac_header(AVFormatContext *s, int idx)
     AVStream *st = s->streams[idx];
     uint8_t *buf = os->buf + os->pstart;
 
-    if (buf[0] != 'K')
+    if (buf[0] != 'K') {
         return 0;
+    }
 
     st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
     st->codec->codec_id = CODEC_ID_DIRAC;
-    av_set_pts_info(st, 64, AV_RB32(buf+12), AV_RB32(buf+8));
+    av_set_pts_info(st, 64, AV_RB32(buf + 12), AV_RB32(buf + 8));
     return 1;
 }
 
@@ -91,8 +96,9 @@ static uint64_t old_dirac_gptopts(AVFormatContext *s, int idx, uint64_t gp,
     uint64_t iframe = gp >> 30;
     uint64_t pframe = gp & 0x3fffffff;
 
-    if (!pframe)
+    if (!pframe) {
         os->pflags |= AV_PKT_FLAG_KEY;
+    }
 
     return iframe + pframe;
 }

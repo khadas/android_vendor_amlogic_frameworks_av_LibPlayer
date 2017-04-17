@@ -101,7 +101,7 @@ static int encode_frame(AVCodecContext *avctx, unsigned char *buf,
     memset(buf, 0, SGI_HEADER_SIZE);
     buf += 80;
 
-     /* colormap */
+    /* colormap */
     bytestream_put_be32(&buf, 0L);
 
     /* The rest of the 512 byte header is unused. */
@@ -117,8 +117,9 @@ static int encode_frame(AVCodecContext *avctx, unsigned char *buf,
         buf += tablesize;
 
         /* Make an intermediate consecutive buffer. */
-        if (!(encode_buf = av_malloc(width)))
+        if (!(encode_buf = av_malloc(width))) {
             return -1;
+        }
 
         for (z = 0; z < depth; z++) {
             in_buf = p->data[0] + p->linesize[0] * (height - 1) + z;
@@ -126,8 +127,9 @@ static int encode_frame(AVCodecContext *avctx, unsigned char *buf,
             for (y = 0; y < height; y++) {
                 bytestream_put_be32(&offsettab, buf - orig_buf);
 
-                for (x = 0; x < width; x++)
+                for (x = 0; x < width; x++) {
                     encode_buf[x] = in_buf[depth * x];
+                }
 
                 if ((length = ff_rle_encode(buf, end_buf - buf - 1, encode_buf, 1, width, 0, 0, 0x80, 0)) < 1) {
                     av_free(encode_buf);
@@ -147,8 +149,9 @@ static int encode_frame(AVCodecContext *avctx, unsigned char *buf,
             in_buf = p->data[0] + p->linesize[0] * (height - 1) + z;
 
             for (y = 0; y < height; y++) {
-                for (x = 0; x < width * depth; x += depth)
+                for (x = 0; x < width * depth; x += depth) {
                     bytestream_put_byte(&buf, in_buf[x]);
+                }
 
                 in_buf -= p->linesize[0];
             }
@@ -167,6 +170,6 @@ AVCodec ff_sgi_encoder = {
     encode_init,
     encode_frame,
     NULL,
-    .pix_fmts= (const enum PixelFormat[]){PIX_FMT_RGB24, PIX_FMT_RGBA, PIX_FMT_GRAY8, PIX_FMT_NONE},
-    .long_name= NULL_IF_CONFIG_SMALL("SGI image"),
+    .pix_fmts = (const enum PixelFormat[]){PIX_FMT_RGB24, PIX_FMT_RGBA, PIX_FMT_GRAY8, PIX_FMT_NONE},
+    .long_name = NULL_IF_CONFIG_SMALL("SGI image"),
 };

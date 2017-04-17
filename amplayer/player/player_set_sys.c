@@ -17,6 +17,7 @@
 #include <amthreadpool.h>
 #include <cutils/properties.h>
 
+
 static freescale_setting_t freescale_setting[] = {
     {
         DISP_MODE_480P,
@@ -94,14 +95,19 @@ int get_black_policy()
     return get_sysfs_int("/sys/class/video/blackout_policy") & 1;
 }
 
-int get_video_seek_flag()
+int set_auto_refresh_rate(int enable)
 {
-    return get_sysfs_int("/sys/class/video/video_seek_flag") & 1;
+    return set_sysfs_int("/sys/class/tv/policy_fr_auto_switch", enable);
 }
 
-int set_video_seek_flag(int enable)
+int get_auto_refresh_rate()
 {
-    return set_sysfs_int("/sys/class/video/video_seek_flag", enable);
+    return get_sysfs_int("/sys/class/tv/policy_fr_auto_switch");
+}
+
+int reset_auto_refresh_rate()
+{
+    return set_sysfs_int("/sys/class/tv/policy_fr_auto_switch", 3);
 }
 
 int check_audiodsp_fatal_err()
@@ -127,6 +133,7 @@ int check_audiodsp_fatal_err()
 
 int get_audio_digital_output_mode()
 {
+    //return !!amsysfs_get_sysfs_int("/sys/class/audiodsp/digital_raw");
     int audio_digital_output_mode = 0;
     int fd = -1;
     int val = 0;
@@ -138,7 +145,7 @@ int get_audio_digital_output_mode()
         close(fd);
         audio_digital_output_mode = val & 0xf;
         if ((audio_digital_output_mode != 0) && (audio_digital_output_mode != 1) && (audio_digital_output_mode != 2)) {
-            log_print("[%s]--[audio_digital_output_mode:%d]\n", __FUNCTION__, audio_digital_output_mode);
+            //log_print("[%s]--[audio_digital_output_mode:%d]\n", __FUNCTION__, audio_digital_output_mode);
         }
     } else {
         log_print("unable to open file check_audiodsp_fatal_err,err: %s", strerror(errno));
@@ -146,7 +153,6 @@ int get_audio_digital_output_mode()
 
     return audio_digital_output_mode;
 }
-
 int check_audio_output()
 {
     return get_sysfs_int("/sys/class/amaudio/output_enable") & 3;
@@ -157,6 +163,12 @@ int set_tsync_enable(int enable)
     return set_sysfs_int("/sys/class/tsync/enable", enable);
 
 }
+
+int get_vf_next_pts()
+{
+    return get_sysfs_int("/sys/class/video/vf_next_pts");
+}
+
 int get_tsync_enable(void)
 {
     char buf[32];
@@ -210,7 +222,6 @@ int set_subtitle_subtype(int subtype)
 
 int av_get_subtitle_curr()
 {
-    //return get_sysfs_int("/sys/class/subtitle/curr");
     return amsysfs_get_sysfs_int("/sys/class/subtitle/curr");
 }
 
@@ -237,26 +248,6 @@ static int get_last_file(char *filename, int nsize)
 static int set_last_file(char *filename)
 {
     return set_sysfs_str("/sys/class/video/file_name", filename);
-}
-
-int get_di_prog_proc_config()
-{
-    return amsysfs_get_sysfs_int("/sys/module/di/parameters/prog_proc_config");
-}
-
-int set_di_prog_proc_config(int val)
-{
-    return set_sysfs_int("/sys/module/di/parameters/prog_proc_config", val);
-}
-
-int get_di_detect_3d_enable()
-{
-    return amsysfs_get_sysfs_int("/sys/module/di/parameters/det3d_en");
-}
-
-int set_di_detect_3d_enable(int val)
-{
-    return set_sysfs_int("/sys/module/di/parameters/det3d_en", val);
 }
 
 int check_file_same(char *filename2)
@@ -328,8 +319,27 @@ void get_display_mode2(char *mode)
     return ;
 }
 
-
-
+void get_vfm_map_info(char *vfm_map)
+{
+    int fd;
+    char *path = "/sys/class/vfm/map";
+    if (!vfm_map) {
+        log_error("[get_vfm_map]Invalide parameter!");
+        return;
+    }
+    fd = open(path, O_RDONLY);
+    if (fd >= 0) {
+        memset(vfm_map, 0, 4096); // clean buffer and read 4096 byte to avoid strlen > 4096
+        read(fd, vfm_map, 4096);
+        log_print("[get_vfm_map_info]vfm_map=%s strlen=%d\n", vfm_map, strlen(vfm_map));
+        vfm_map[strlen(vfm_map)] = '\0';
+        close(fd);
+    } else {
+        sprintf(vfm_map, "%s", "fail");
+    };
+    log_print("last [get_vfm_map_info]vfm_map=%s\n", vfm_map);
+    return ;
+}
 int set_fb0_freescale(int freescale)
 {
     return  set_sysfs_int("/sys/class/graphics/fb0/free_scale", freescale);
@@ -549,7 +559,7 @@ int DisableFreeScale(display_mode mode, const int vpp)
     log_print("DisableFreeScale: mode=%d vpp=%d ", mode, vpp);
 
     int isM8 = 0;
-    char value[128];
+    char value[PROPERTY_VALUE_MAX];
     memset(value, 0 , 128);
     property_get("ro.product.model", value, "1");
     if (strstr(value, "M8")) {
@@ -705,7 +715,7 @@ int EnableFreeScale(display_mode mode, const int vpp)
     log_print("EnableFreeScale: mode=%d", mode);
 
     int isM8 = 0;
-    char value[128];
+    char value[PROPERTY_VALUE_MAX];
     memset(value, 0 , 128);
     property_get("ro.module.dualscaler", value, "false");
     if (strstr(value, "true")) {
@@ -769,7 +779,7 @@ int EnableFreeScale(display_mode mode, const int vpp)
     }
 
     switch (mode) {
-        //log_print("set mid mode=%d", mode);
+    //log_print("set mid mode=%d", mode);
 
     case DISP_MODE_480P: //480p
         set_sysfs_str(ppmgr_path, "1");
@@ -925,7 +935,7 @@ int disable_freescale(int cfg)
         return 0;
     }
 
-    char mode[PROPERTY_VALUE_MAX];
+    char mode[16];
     display_mode disp_mode;
 
     if (vpp2_freescale) {
@@ -964,7 +974,7 @@ int enable_freescale(int cfg)
         return 0;
     }
 
-    char mode[PROPERTY_VALUE_MAX];
+    char mode[16];
     display_mode disp_mode;
 
     if (vpp2_freescale) {
@@ -989,7 +999,7 @@ int enable_freescale(int cfg)
 
 int disable_freescale_MBX()
 {
-    char mode[PROPERTY_VALUE_MAX];
+    char mode[16];
     char m1080scale[PROPERTY_VALUE_MAX];
 
     property_get("ro.platform.has.1080scale", m1080scale, "fail");
@@ -1015,7 +1025,7 @@ int disable_freescale_MBX()
 
 int enable_freescale_MBX()
 {
-    char mode[PROPERTY_VALUE_MAX];
+    char mode[16];
     char m1080scale[PROPERTY_VALUE_MAX];
     char vaxis_x_str[PROPERTY_VALUE_MAX];
     char vaxis_y_str[PROPERTY_VALUE_MAX];
@@ -1027,7 +1037,7 @@ int enable_freescale_MBX()
     int vaxis_x, vaxis_y, vaxis_width, vaxis_height, vaxis_right, vaxis_bottom;
 
     int ret;
-    char buf[PROPERTY_VALUE_MAX] = {0};
+    char buf[32] = {0};
     property_get("ro.platform.has.1080scale", m1080scale, "fail");
     if (!strncmp(m1080scale, "fail", 4)) {
         return 0;
@@ -1154,7 +1164,7 @@ int wait_video_unreg()
 {
     int ret = 0;
     int waitcount = 0;
-    char buf[PROPERTY_VALUE_MAX] = {0};
+    char buf[32] = {0};
     ret = amsysfs_get_sysfs_str("/sys/module/amvideo/parameters/new_frame_count", buf, 32);
     log_print("[wait_di_bypass] ret %d buf %s\n", ret, buf);
     while ((ret >= 0) && (strcmp(buf, "0") != 0)) {
@@ -1174,7 +1184,7 @@ int wait_video_unreg()
 
 int freescale_is_enable()
 {
-    char buf[PROPERTY_VALUE_MAX] = {0};
+    char buf[32] = {0};
     int ret = 0;
     ret = amsysfs_get_sysfs_str("/sys/class/graphics/fb0/free_scale", buf, 32);
     log_print("[wait_di_bypass] ret %d buf %s\n", ret, buf);
@@ -1186,7 +1196,7 @@ int freescale_is_enable()
 
 int disable_2X_2XYscale()
 {
-    char mode[PROPERTY_VALUE_MAX];
+    char mode[16];
     char m1080scale[PROPERTY_VALUE_MAX];
 
     property_get("ro.platform.has.1080scale", m1080scale, "fail");
@@ -1209,9 +1219,9 @@ int disable_2X_2XYscale()
 
 int enable_2Xscale()
 {
-    char mode[PROPERTY_VALUE_MAX];
+    char mode[16];
     char m1080scale[PROPERTY_VALUE_MAX];
-    char saxis_str[PROPERTY_VALUE_MAX];
+    char saxis_str[32];
     display_mode disp_mode;
 
     property_get("ro.platform.has.1080scale", m1080scale, "fail");
@@ -1242,7 +1252,7 @@ int enable_2Xscale()
 
 int enable_2XYscale()
 {
-    char mode[PROPERTY_VALUE_MAX];
+    char mode[16];
     char m1080scale[PROPERTY_VALUE_MAX];
     int scaleFile = -1, scaleaxisFile = -1, scaleOsd1File = -1, scaleaxisOsd1File = -1;
 
@@ -1272,17 +1282,17 @@ int enable_2XYscale()
 
 int GL_2X_scale(int mSwitch)
 {
-    char mode[PROPERTY_VALUE_MAX];
+    char mode[16];
     char m1080scale[PROPERTY_VALUE_MAX];
-    char raxis_str[PROPERTY_VALUE_MAX], saxis_str[PROPERTY_VALUE_MAX];
-    char writedata[PROPERTY_VALUE_MAX] = {0};
+    char raxis_str[32], saxis_str[32];
+    char writedata[40] = {0};
     char vaxis_newx_str[PROPERTY_VALUE_MAX] = {0};
     char vaxis_newy_str[PROPERTY_VALUE_MAX] = {0};
     char vaxis_width_str[PROPERTY_VALUE_MAX] = {0};
     char vaxis_height_str[PROPERTY_VALUE_MAX] = {0};
     int vaxis_newx = -1, vaxis_newy = -1, vaxis_width = -1, vaxis_height = -1;
     int ret = 0;
-    char buf[PROPERTY_VALUE_MAX];
+    char buf[32];
 
     property_get("ro.platform.has.1080scale", m1080scale, "fail");
     if (!strncmp(m1080scale, "fail", 4)) {

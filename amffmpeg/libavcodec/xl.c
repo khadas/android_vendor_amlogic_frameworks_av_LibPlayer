@@ -27,16 +27,17 @@
 #include "libavutil/intreadwrite.h"
 #include "avcodec.h"
 
-typedef struct VideoXLContext{
+typedef struct VideoXLContext {
     AVCodecContext *avctx;
     AVFrame pic;
 } VideoXLContext;
 
 static const int xl_table[32] = {
-   0,   1,   2,   3,   4,   5,   6,   7,
-   8,   9,  12,  15,  20,  25,  34,  46,
-  64,  82,  94, 103, 108, 113, 116, 119,
- 120, 121, 122, 123, 124, 125, 126, 127};
+    0,   1,   2,   3,   4,   5,   6,   7,
+    8,   9,  12,  15,  20,  25,  34,  46,
+    64,  82,  94, 103, 108, 113, 116, 119,
+    120, 121, 122, 123, 124, 125, 126, 127
+};
 
 static int decode_frame(AVCodecContext *avctx,
                         void *data, int *data_size,
@@ -45,23 +46,24 @@ static int decode_frame(AVCodecContext *avctx,
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;
     VideoXLContext * const a = avctx->priv_data;
-    AVFrame * const p= (AVFrame*)&a->pic;
+    AVFrame * const p = (AVFrame*)&a->pic;
     uint8_t *Y, *U, *V;
     int i, j;
     int stride;
     uint32_t val;
     int y0, y1, y2, y3 = 0, c0 = 0, c1 = 0;
 
-    if(p->data[0])
+    if (p->data[0]) {
         avctx->release_buffer(avctx, p);
+    }
 
     p->reference = 0;
-    if(avctx->get_buffer(avctx, p) < 0){
+    if (avctx->get_buffer(avctx, p) < 0) {
         av_log(avctx, AV_LOG_ERROR, "get_buffer() failed\n");
         return -1;
     }
-    p->pict_type= AV_PICTURE_TYPE_I;
-    p->key_frame= 1;
+    p->pict_type = AV_PICTURE_TYPE_I;
+    p->key_frame = 1;
 
     Y = a->pic.data[0];
     U = a->pic.data[1];
@@ -78,10 +80,11 @@ static int decode_frame(AVCodecContext *avctx,
             buf -= 4;
             val = ((val >> 16) & 0xFFFF) | ((val & 0xFFFF) << 16);
 
-            if(!j)
+            if (!j) {
                 y0 = (val & 0x1F) << 2;
-            else
+            } else {
                 y0 = y3 + xl_table[val & 0x1F];
+            }
             val >>= 5;
             y1 = y0 + xl_table[val & 0x1F];
             val >>= 5;
@@ -89,15 +92,17 @@ static int decode_frame(AVCodecContext *avctx,
             val >>= 6; /* align to word */
             y3 = y2 + xl_table[val & 0x1F];
             val >>= 5;
-            if(!j)
+            if (!j) {
                 c0 = (val & 0x1F) << 2;
-            else
+            } else {
                 c0 += xl_table[val & 0x1F];
+            }
             val >>= 5;
-            if(!j)
+            if (!j) {
                 c1 = (val & 0x1F) << 2;
-            else
+            } else {
                 c1 += xl_table[val & 0x1F];
+            }
 
             Y[j + 0] = y0 << 1;
             Y[j + 1] = y1 << 1;
@@ -120,21 +125,24 @@ static int decode_frame(AVCodecContext *avctx,
     return buf_size;
 }
 
-static av_cold int decode_init(AVCodecContext *avctx){
+static av_cold int decode_init(AVCodecContext *avctx)
+{
     VideoXLContext * const a = avctx->priv_data;
 
     avcodec_get_frame_defaults(&a->pic);
-    avctx->pix_fmt= PIX_FMT_YUV411P;
+    avctx->pix_fmt = PIX_FMT_YUV411P;
 
     return 0;
 }
 
-static av_cold int decode_end(AVCodecContext *avctx){
+static av_cold int decode_end(AVCodecContext *avctx)
+{
     VideoXLContext * const a = avctx->priv_data;
     AVFrame *pic = &a->pic;
 
-    if (pic->data[0])
+    if (pic->data[0]) {
         avctx->release_buffer(avctx, pic);
+    }
 
     return 0;
 }

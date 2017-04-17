@@ -48,8 +48,9 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size,
     int aligned_width = ((avctx->width + 47) / 48) * 48;
     int stride = aligned_width * 8 / 3;
 
-    if (pic->data[0])
+    if (pic->data[0]) {
         avctx->release_buffer(avctx, pic);
+    }
 
     if (avpkt->size < stride * avctx->height) {
         av_log(avctx, AV_LOG_ERROR, "packet too small\n");
@@ -57,8 +58,9 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size,
     }
 
     pic->reference = 0;
-    if (avctx->get_buffer(avctx, pic) < 0)
+    if (avctx->get_buffer(avctx, pic) < 0) {
         return -1;
+    }
 
     y = (uint16_t*)pic->data[0];
     u = (uint16_t*)pic->data[1];
@@ -113,8 +115,9 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size,
 static av_cold int decode_close(AVCodecContext *avctx)
 {
     AVFrame *pic = avctx->coded_frame;
-    if (pic->data[0])
+    if (pic->data[0]) {
         avctx->release_buffer(avctx, pic);
+    }
     av_freep(&avctx->coded_frame);
 
     return 0;

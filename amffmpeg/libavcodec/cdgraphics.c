@@ -125,7 +125,7 @@ static void cdg_load_palette(CDGraphicsContext *cc, uint8_t *data, int low)
         color = (data[2 * i] << 6) + (data[2 * i + 1] & 0x3F);
         r = ((color >> 8) & 0x000F) * 17;
         g = ((color >> 4) & 0x000F) * 17;
-        b = ((color     ) & 0x000F) * 17;
+        b = ((color) & 0x000F) * 17;
         palette[i + array_offset] = r << 16 | g << 8 | b;
     }
     cc->frame.palette_has_changed = 1;
@@ -143,21 +143,25 @@ static int cdg_tile_block(CDGraphicsContext *cc, uint8_t *data, int b)
     ri = (data[2] & 0x1F) * CDG_TILE_HEIGHT + cc->vscroll;
     ci = (data[3] & 0x3F) * CDG_TILE_WIDTH  + cc->hscroll;
 
-    if (ri > (CDG_FULL_HEIGHT - CDG_TILE_HEIGHT))
+    if (ri > (CDG_FULL_HEIGHT - CDG_TILE_HEIGHT)) {
         return AVERROR(EINVAL);
-    if (ci > (CDG_FULL_WIDTH - CDG_TILE_WIDTH))
+    }
+    if (ci > (CDG_FULL_WIDTH - CDG_TILE_WIDTH)) {
         return AVERROR(EINVAL);
+    }
 
     for (y = 0; y < CDG_TILE_HEIGHT; y++) {
         for (x = 0; x < CDG_TILE_WIDTH; x++) {
-            if (!((data[4 + y] >> (5 - x)) & 0x01))
+            if (!((data[4 + y] >> (5 - x)) & 0x01)) {
                 color = data[0] & 0x0F;
-            else
+            } else {
                 color = data[1] & 0x0F;
+            }
 
             ai = ci + x + (stride * (ri + y));
-            if (b)
+            if (b) {
                 color ^= buf[ai];
+            }
             buf[ai] = color;
         }
     }
@@ -178,8 +182,9 @@ static void cdg_copy_rect_buf(int out_tl_x, int out_tl_y, uint8_t *out,
 
     in  += in_tl_x  + in_tl_y  * stride;
     out += out_tl_x + out_tl_y * stride;
-    for (y = 0; y < h; y++)
+    for (y = 0; y < h; y++) {
         memcpy(out + y * stride, in + y * stride, w);
+    }
 }
 
 static void cdg_fill_rect_preset(int tl_x, int tl_y, uint8_t *out,
@@ -187,8 +192,9 @@ static void cdg_fill_rect_preset(int tl_x, int tl_y, uint8_t *out,
 {
     int y;
 
-    for (y = tl_y; y < tl_y + h; y++)
+    for (y = tl_y; y < tl_y + h; y++) {
         memset(out + tl_x + y * stride, color, w);
+    }
 }
 
 static void cdg_fill_wrapper(int out_tl_x, int out_tl_y, uint8_t *out,
@@ -226,17 +232,22 @@ static void cdg_scroll(CDGraphicsContext *cc, uint8_t *data,
     cc->hscroll = h_off;
     cc->vscroll = v_off;
 
-    if (vscmd == UP)
+    if (vscmd == UP) {
         vinc -= 12;
-    if (vscmd == DOWN)
+    }
+    if (vscmd == DOWN) {
         vinc += 12;
-    if (hscmd == LEFT)
+    }
+    if (hscmd == LEFT) {
         hinc -= 6;
-    if (hscmd == RIGHT)
+    }
+    if (hscmd == RIGHT) {
         hinc += 6;
+    }
 
-    if (!hinc && !vinc)
+    if (!hinc && !vinc) {
         return;
+    }
 
     memcpy(new_frame->data[1], cc->frame.data[1], CDG_PALETTE_SIZE * 4);
 
@@ -361,8 +372,9 @@ static av_cold int cdg_decode_end(AVCodecContext *avctx)
 {
     CDGraphicsContext *cc = avctx->priv_data;
 
-    if (cc->frame.data[0])
+    if (cc->frame.data[0]) {
         avctx->release_buffer(avctx, &cc->frame);
+    }
 
     return 0;
 }

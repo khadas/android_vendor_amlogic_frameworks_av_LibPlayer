@@ -56,8 +56,9 @@ ff_rdt_parse_open(AVFormatContext *ic, int first_stream_of_set_idx,
                   void *priv_data, RTPDynamicProtocolHandler *handler)
 {
     RDTDemuxContext *s = av_mallocz(sizeof(RDTDemuxContext));
-    if (!s)
+    if (!s) {
         return NULL;
+    }
 
     s->ic = ic;
     s->streams = &ic->streams[first_stream_of_set_idx];
@@ -94,42 +95,46 @@ void
 ff_rdt_calc_response_and_checksum(char response[41], char chksum[9],
                                   const char *challenge)
 {
-    int ch_len = strlen (challenge), i;
+    int ch_len = strlen(challenge), i;
     unsigned char zres[16],
-        buf[64] = { 0xa1, 0xe9, 0x14, 0x9d, 0x0e, 0x6b, 0x3b, 0x59 };
+             buf[64] = { 0xa1, 0xe9, 0x14, 0x9d, 0x0e, 0x6b, 0x3b, 0x59 };
 #define XOR_TABLE_SIZE 37
     const unsigned char xor_table[XOR_TABLE_SIZE] = {
         0x05, 0x18, 0x74, 0xd0, 0x0d, 0x09, 0x02, 0x53,
         0xc0, 0x01, 0x05, 0x05, 0x67, 0x03, 0x19, 0x70,
         0x08, 0x27, 0x66, 0x10, 0x10, 0x72, 0x08, 0x09,
         0x63, 0x11, 0x03, 0x71, 0x08, 0x08, 0x70, 0x02,
-        0x10, 0x57, 0x05, 0x18, 0x54 };
+        0x10, 0x57, 0x05, 0x18, 0x54
+    };
 
     /* some (length) checks */
-    if (ch_len == 40) /* what a hack... */
+    if (ch_len == 40) { /* what a hack... */
         ch_len = 32;
-    else if (ch_len > 56)
+    } else if (ch_len > 56) {
         ch_len = 56;
+    }
     memcpy(buf + 8, challenge, ch_len);
 
     /* xor challenge bytewise with xor_table */
-    for (i = 0; i < XOR_TABLE_SIZE; i++)
+    for (i = 0; i < XOR_TABLE_SIZE; i++) {
         buf[8 + i] ^= xor_table[i];
+    }
 
     av_md5_sum(zres, buf, 64);
     ff_data_to_hex(response, zres, 16, 1);
 
     /* add tail */
-    strcpy (response + 32, "01d0a8e3");
+    strcpy(response + 32, "01d0a8e3");
 
     /* calculate checksum */
-    for (i = 0; i < 8; i++)
+    for (i = 0; i < 8; i++) {
         chksum[i] = response[i * 4];
+    }
     chksum[8] = 0;
 }
 
 static int
-rdt_load_mdpr (PayloadContext *rdt, AVStream *st, int rule_nr)
+rdt_load_mdpr(PayloadContext *rdt, AVStream *st, int rule_nr)
 {
     AVIOContext pb;
     int size;
@@ -149,35 +154,40 @@ rdt_load_mdpr (PayloadContext *rdt, AVStream *st, int rule_nr)
      * we're interested in, and forward that ([size]+[data]) to
      * the RM demuxer to parse the stream-specific header data.
      */
-    if (!rdt->mlti_data)
+    if (!rdt->mlti_data) {
         return -1;
+    }
     ffio_init_context(&pb, rdt->mlti_data, rdt->mlti_data_size, 0,
-                  NULL, NULL, NULL, NULL);
+                      NULL, NULL, NULL, NULL);
     tag = avio_rl32(&pb);
     if (tag == MKTAG('M', 'L', 'T', 'I')) {
         int num, chunk_nr;
 
         /* read index of MDPR chunk numbers */
         num = avio_rb16(&pb);
-        if (rule_nr < 0 || rule_nr >= num)
+        if (rule_nr < 0 || rule_nr >= num) {
             return -1;
+        }
         avio_skip(&pb, rule_nr * 2);
         chunk_nr = avio_rb16(&pb);
         avio_skip(&pb, (num - 1 - rule_nr) * 2);
 
         /* read MDPR chunks */
         num = avio_rb16(&pb);
-        if (chunk_nr >= num)
+        if (chunk_nr >= num) {
             return -1;
-        while (chunk_nr--)
+        }
+        while (chunk_nr--) {
             avio_skip(&pb, avio_rb32(&pb));
+        }
         size = avio_rb32(&pb);
     } else {
         size = rdt->mlti_data_size;
         avio_seek(&pb, 0, SEEK_SET);
     }
-    if (ff_rm_read_mdpr_codecdata(rdt->rmctx, &pb, st, rdt->rmst[st->index], size, NULL) < 0)
+    if (ff_rm_read_mdpr_codecdata(rdt->rmctx, &pb, st, rdt->rmst[st->index], size, NULL) < 0) {
         return -1;
+    }
 
     return 0;
 }
@@ -200,16 +210,18 @@ ff_rdt_parse_header(const uint8_t *buf, int len,
     while (len >= 5 && buf[1] == 0xFF /* status packet */) {
         int pkt_len;
 
-        if (!(buf[0] & 0x80))
-            return -1; /* not followed by a data packet */
+        if (!(buf[0] & 0x80)) {
+            return -1;    /* not followed by a data packet */
+        }
 
-        pkt_len = AV_RB16(buf+3);
+        pkt_len = AV_RB16(buf + 3);
         buf += pkt_len;
         len -= pkt_len;
         consumed += pkt_len;
     }
-    if (len < 16)
+    if (len < 16) {
         return -1;
+    }
     /**
      * Layout of the header (in bits):
      * 1:  len_included
@@ -267,33 +279,47 @@ ff_rdt_parse_header(const uint8_t *buf, int len,
     set_id        = get_bits(&gb, 5);
     skip_bits(&gb, 1);
     seq_no        = get_bits(&gb, 16);
-    if (len_included)
+    if (len_included) {
         skip_bits(&gb, 16);
+    }
     skip_bits(&gb, 2);
     stream_id     = get_bits(&gb, 5);
     is_keyframe   = !get_bits1(&gb);
     timestamp     = get_bits_long(&gb, 32);
-    if (set_id == 0x1f)
+    if (set_id == 0x1f) {
         set_id    = get_bits(&gb, 16);
-    if (need_reliable)
+    }
+    if (need_reliable) {
         skip_bits(&gb, 16);
-    if (stream_id == 0x1f)
+    }
+    if (stream_id == 0x1f) {
         stream_id = get_bits(&gb, 16);
+    }
 
-    if (pset_id)      *pset_id      = set_id;
-    if (pseq_no)      *pseq_no      = seq_no;
-    if (pstream_id)   *pstream_id   = stream_id;
-    if (pis_keyframe) *pis_keyframe = is_keyframe;
-    if (ptimestamp)   *ptimestamp   = timestamp;
+    if (pset_id) {
+        *pset_id      = set_id;
+    }
+    if (pseq_no) {
+        *pseq_no      = seq_no;
+    }
+    if (pstream_id) {
+        *pstream_id   = stream_id;
+    }
+    if (pis_keyframe) {
+        *pis_keyframe = is_keyframe;
+    }
+    if (ptimestamp) {
+        *ptimestamp   = timestamp;
+    }
 
     return consumed + (get_bits_count(&gb) >> 3);
 }
 
 /**< return 0 on packet, no more left, 1 on packet, 1 on partial packet... */
 static int
-rdt_parse_packet (AVFormatContext *ctx, PayloadContext *rdt, AVStream *st,
-                  AVPacket *pkt, uint32_t *timestamp,
-                  const uint8_t *buf, int len, int flags)
+rdt_parse_packet(AVFormatContext *ctx, PayloadContext *rdt, AVStream *st,
+                 AVPacket *pkt, uint32_t *timestamp,
+                 const uint8_t *buf, int len, int flags)
 {
     int seq = 1, res;
     AVIOContext pb;
@@ -303,15 +329,16 @@ rdt_parse_packet (AVFormatContext *ctx, PayloadContext *rdt, AVStream *st,
 
         ffio_init_context(&pb, buf, len, 0, NULL, NULL, NULL, NULL);
         flags = (flags & RTP_FLAG_KEY) ? 2 : 0;
-        res = ff_rm_parse_packet (rdt->rmctx, &pb, st, rdt->rmst[st->index], len, pkt,
-                                  &seq, flags, *timestamp);
+        res = ff_rm_parse_packet(rdt->rmctx, &pb, st, rdt->rmst[st->index], len, pkt,
+                                 &seq, flags, *timestamp);
         pos = avio_tell(&pb);
-        if (res < 0)
+        if (res < 0) {
             return res;
+        }
         if (res > 0) {
             if (st->codec->codec_id == CODEC_ID_AAC) {
-                memcpy (rdt->buffer, buf + pos, len - pos);
-                rdt->rmctx->pb = avio_alloc_context (rdt->buffer, len - pos, 0,
+                memcpy(rdt->buffer, buf + pos, len - pos);
+                rdt->rmctx->pb = avio_alloc_context(rdt->buffer, len - pos, 0,
                                                     NULL, NULL, NULL, NULL);
             }
             goto get_cache;
@@ -319,11 +346,12 @@ rdt_parse_packet (AVFormatContext *ctx, PayloadContext *rdt, AVStream *st,
     } else {
 get_cache:
         rdt->audio_pkt_cnt =
-            ff_rm_retrieve_cache (rdt->rmctx, rdt->rmctx->pb,
-                                  st, rdt->rmst[st->index], pkt);
+            ff_rm_retrieve_cache(rdt->rmctx, rdt->rmctx->pb,
+                                 st, rdt->rmst[st->index], pkt);
         if (rdt->audio_pkt_cnt == 0 &&
-            st->codec->codec_id == CODEC_ID_AAC)
+            st->codec->codec_id == CODEC_ID_AAC) {
             av_freep(&rdt->rmctx->pb);
+        }
     }
     pkt->stream_index = st->index;
     pkt->pts = *timestamp;
@@ -338,25 +366,28 @@ ff_rdt_parse_packet(RDTDemuxContext *s, AVPacket *pkt,
     uint8_t *buf = bufptr ? *bufptr : NULL;
     int seq_no, flags = 0, stream_id, set_id, is_keyframe;
     uint32_t timestamp;
-    int rv= 0;
+    int rv = 0;
 
-    if (!s->parse_packet)
+    if (!s->parse_packet) {
         return -1;
+    }
 
     if (!buf && s->prev_stream_id != -1) {
         /* return the next packets, if any */
-        timestamp= 0; ///< Should not be used if buf is NULL, but should be set to the timestamp of the packet returned....
-        rv= s->parse_packet(s->ic, s->dynamic_protocol_context,
-                            s->streams[s->prev_stream_id],
-                            pkt, &timestamp, NULL, 0, flags);
+        timestamp = 0; ///< Should not be used if buf is NULL, but should be set to the timestamp of the packet returned....
+        rv = s->parse_packet(s->ic, s->dynamic_protocol_context,
+                             s->streams[s->prev_stream_id],
+                             pkt, &timestamp, NULL, 0, flags);
         return rv;
     }
 
-    if (len < 12)
+    if (len < 12) {
         return -1;
+    }
     rv = ff_rdt_parse_header(buf, len, &set_id, &seq_no, &stream_id, &is_keyframe, &timestamp);
-    if (rv < 0)
+    if (rv < 0) {
         return rv;
+    }
     if (is_keyframe &&
         (set_id != s->prev_set_id || timestamp != s->prev_timestamp ||
          stream_id != s->prev_stream_id)) {
@@ -368,10 +399,10 @@ ff_rdt_parse_packet(RDTDemuxContext *s, AVPacket *pkt,
     buf += rv;
     len -= rv;
 
-     if (s->prev_stream_id >= s->n_streams) {
-         s->prev_stream_id = -1;
-         return -1;
-     }
+    if (s->prev_stream_id >= s->n_streams) {
+        s->prev_stream_id = -1;
+        return -1;
+    }
 
     rv = s->parse_packet(s->ic, s->dynamic_protocol_context,
                          s->streams[s->prev_stream_id],
@@ -381,15 +412,15 @@ ff_rdt_parse_packet(RDTDemuxContext *s, AVPacket *pkt,
 }
 
 void
-ff_rdt_subscribe_rule (char *cmd, int size,
-                       int stream_nr, int rule_nr)
+ff_rdt_subscribe_rule(char *cmd, int size,
+                      int stream_nr, int rule_nr)
 {
     av_strlcatf(cmd, size, "stream=%d;rule=%d,stream=%d;rule=%d",
                 stream_nr, rule_nr * 2, stream_nr, rule_nr * 2 + 1);
 }
 
 static unsigned char *
-rdt_parse_b64buf (unsigned int *target_len, const char *p)
+rdt_parse_b64buf(unsigned int *target_len, const char *p)
 {
     unsigned char *target;
     int len = strlen(p);
@@ -404,27 +435,30 @@ rdt_parse_b64buf (unsigned int *target_len, const char *p)
 }
 
 static int
-rdt_parse_sdp_line (AVFormatContext *s, int st_index,
-                    PayloadContext *rdt, const char *line)
+rdt_parse_sdp_line(AVFormatContext *s, int st_index,
+                   PayloadContext *rdt, const char *line)
 {
     AVStream *stream = s->streams[st_index];
     const char *p = line;
 
     if (av_strstart(p, "OpaqueData:buffer;", &p)) {
         rdt->mlti_data = rdt_parse_b64buf(&rdt->mlti_data_size, p);
-    } else if (av_strstart(p, "StartTime:integer;", &p))
+    } else if (av_strstart(p, "StartTime:integer;", &p)) {
         stream->first_dts = atoi(p);
-    else if (av_strstart(p, "ASMRuleBook:string;", &p)) {
+    } else if (av_strstart(p, "ASMRuleBook:string;", &p)) {
         int n, first = -1;
 
         for (n = 0; n < s->nb_streams; n++)
             if (s->streams[n]->id == stream->id) {
                 int count = s->streams[n]->index + 1;
-                if (first == -1) first = n;
+                if (first == -1) {
+                    first = n;
+                }
                 if (rdt->nb_rmst < count) {
-                    RMStream **rmst= av_realloc(rdt->rmst, count*sizeof(*rmst));
-                    if (!rmst)
+                    RMStream **rmst = av_realloc(rdt->rmst, count * sizeof(*rmst));
+                    if (!rmst) {
                         return AVERROR(ENOMEM);
+                    }
                     memset(rmst + rdt->nb_rmst, 0,
                            (count - rdt->nb_rmst) * sizeof(*rmst));
                     rdt->rmst    = rmst;
@@ -433,7 +467,7 @@ rdt_parse_sdp_line (AVFormatContext *s, int st_index,
                 rdt->rmst[s->streams[n]->index] = ff_rm_alloc_rmstream();
                 rdt_load_mdpr(rdt, s->streams[n], (n - first) * 2);
 
-           }
+            }
     }
 
     return 0;
@@ -444,10 +478,12 @@ real_parse_asm_rule(AVStream *st, const char *p, const char *end)
 {
     do {
         /* can be either averagebandwidth= or AverageBandwidth= */
-        if (sscanf(p, " %*1[Aa]verage%*1[Bb]andwidth=%d", &st->codec->bit_rate) == 1)
+        if (sscanf(p, " %*1[Aa]verage%*1[Bb]andwidth=%d", &st->codec->bit_rate) == 1) {
             break;
-        if (!(p = strchr(p, ',')) || p > end)
+        }
+        if (!(p = strchr(p, ',')) || p > end) {
             p = end;
+        }
         p++;
     } while (p < end);
 }
@@ -457,8 +493,9 @@ add_dstream(AVFormatContext *s, AVStream *orig_st)
 {
     AVStream *st;
 
-    if (!(st = av_new_stream(s, 0)))
+    if (!(st = av_new_stream(s, 0))) {
         return NULL;
+    }
     st->id = orig_st->id;
     st->codec->codec_type = orig_st->codec->codec_type;
     st->first_dts         = orig_st->first_dts;
@@ -488,17 +525,22 @@ real_parse_asm_rulebook(AVFormatContext *s, AVStream *orig_st,
      * statements. Generally, these conditions are bitrate limits (min/max)
      * for multi-bitrate streams.
      */
-    if (*p == '\"') p++;
+    if (*p == '\"') {
+        p++;
+    }
     while (1) {
-        if (!(end = strchr(p, ';')))
+        if (!(end = strchr(p, ';'))) {
             break;
+        }
         if (!odd && end != p) {
-            if (n_rules > 0)
+            if (n_rules > 0) {
                 st = add_dstream(s, orig_st);
-            else
+            } else {
                 st = orig_st;
-            if (!st)
+            }
+            if (!st) {
                 break;
+            }
             real_parse_asm_rule(st, p, end);
             n_rules++;
         }
@@ -508,17 +550,18 @@ real_parse_asm_rulebook(AVFormatContext *s, AVStream *orig_st,
 }
 
 void
-ff_real_parse_sdp_a_line (AVFormatContext *s, int stream_index,
-                          const char *line)
+ff_real_parse_sdp_a_line(AVFormatContext *s, int stream_index,
+                         const char *line)
 {
     const char *p = line;
 
-    if (av_strstart(p, "ASMRuleBook:string;", &p))
+    if (av_strstart(p, "ASMRuleBook:string;", &p)) {
         real_parse_asm_rulebook(s, s->streams[stream_index], p);
+    }
 }
 
 static PayloadContext *
-rdt_new_context (void)
+rdt_new_context(void)
 {
     PayloadContext *rdt = av_mallocz(sizeof(PayloadContext));
 
@@ -532,7 +575,7 @@ rdt_new_context (void)
 }
 
 static void
-rdt_free_context (PayloadContext *rdt)
+rdt_free_context(PayloadContext *rdt)
 {
     int i;
 
@@ -541,8 +584,9 @@ rdt_free_context (PayloadContext *rdt)
             ff_rm_free_rmstream(rdt->rmst[i]);
             av_freep(&rdt->rmst[i]);
         }
-    if (rdt->rmctx)
+    if (rdt->rmctx) {
         av_close_input_file(rdt->rmctx);
+    }
     av_freep(&rdt->mlti_data);
     av_freep(&rdt->rmst);
     av_free(rdt);

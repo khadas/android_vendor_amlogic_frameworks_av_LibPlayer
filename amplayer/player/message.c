@@ -242,6 +242,12 @@ int update_player_states(play_para_t *para, int force)
                   para->abuffer.buffer_rp,
                   para->vbuffer.buffer_rp,
                   para->playctrl_info.read_end_flag);
+
+        if (para->playctrl_info.cache_enable == 1) {
+            //avpkt_cache_getcache_time_by_streamindex(para, para->astream_info.audio_index);
+            avpkt_cache_getcache_time_by_streamindex(para, para->vstream_info.video_index);
+        }
+
         fn = cb->update_statue_callback;
         if (fn) {
             fn(para->player_id, &state);
@@ -250,6 +256,7 @@ int update_player_states(play_para_t *para, int force)
         para->state.error_no = 0;
         player_hwbuflevel_update(para);
         player_read_streaming_subtitle(para);
+        player_avlevel_underflow_reset(para);
     }
     return 0;
 }
@@ -449,7 +456,4 @@ int send_event(play_para_t *para, int msg, unsigned long ext1, unsigned long ext
         cb->notify_fn(para->player_id, msg, ext1, ext2);
     }
     return 0;
-}
-
-
-
+}            

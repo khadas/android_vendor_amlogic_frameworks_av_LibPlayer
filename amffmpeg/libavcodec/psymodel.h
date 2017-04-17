@@ -79,7 +79,7 @@ typedef struct FFPsyContext {
  */
 typedef struct FFPsyModel {
     const char *name;
-    int  (*init)   (FFPsyContext *apc);
+    int (*init)(FFPsyContext *apc);
 
     /**
      * Suggest window sequence for channel.
@@ -92,7 +92,7 @@ typedef struct FFPsyModel {
      *
      * @return suggested window information in a structure
      */
-    FFPsyWindowInfo (*window)(FFPsyContext *ctx, const int16_t *audio, const int16_t *la, int channel, int prev_type);
+    FFPsyWindowInfo(*window)(FFPsyContext *ctx, const int16_t *audio, const int16_t *la, int channel, int prev_type);
 
     /**
      * Perform psychoacoustic analysis and set band info (threshold, energy).
@@ -104,7 +104,7 @@ typedef struct FFPsyModel {
      */
     void (*analyze)(FFPsyContext *ctx, int channel, const float *coeffs, const FFPsyWindowInfo *wi);
 
-    void (*end)    (FFPsyContext *apc);
+    void (*end)(FFPsyContext *apc);
 } FFPsyModel;
 
 /**

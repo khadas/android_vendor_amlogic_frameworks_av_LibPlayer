@@ -92,7 +92,21 @@ int hls_simple_cache_get_data_size(void* handle)
     return size;
 
 }
+int hls_simple_cache_get_cache_size(void* handle)
+{
+    if (handle == NULL) {
+        return -1;
+    }
+    SimpleCache_t* cache = (SimpleCache_t*)handle;
+    pthread_mutex_lock(&cache->lock);
 
+    int size = cache->size;
+
+    pthread_mutex_unlock(&cache->lock);
+
+    return size;
+
+}
 int hls_simple_cache_reset(void* handle)
 {
     if (handle == NULL) {

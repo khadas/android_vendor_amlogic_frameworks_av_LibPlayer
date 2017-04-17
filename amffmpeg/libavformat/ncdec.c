@@ -29,16 +29,19 @@ static int nc_probe(AVProbeData *probe_packet)
 {
     int size;
 
-    if (AV_RB32(probe_packet->buf) != NC_VIDEO_FLAG)
+    if (AV_RB32(probe_packet->buf) != NC_VIDEO_FLAG) {
         return 0;
+    }
 
     size = AV_RL16(probe_packet->buf + 5);
 
-    if (size + 20 > probe_packet->buf_size)
-        return AVPROBE_SCORE_MAX/4;
+    if (size + 20 > probe_packet->buf_size) {
+        return AVPROBE_SCORE_MAX / 4;
+    }
 
-    if (AV_RB32(probe_packet->buf+16+size) == NC_VIDEO_FLAG)
+    if (AV_RB32(probe_packet->buf + 16 + size) == NC_VIDEO_FLAG) {
         return AVPROBE_SCORE_MAX;
+    }
 
     return 0;
 }
@@ -47,8 +50,9 @@ static int nc_read_header(AVFormatContext *s, AVFormatParameters *ap)
 {
     AVStream *st = av_new_stream(s, 0);
 
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
 
     st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
     st->codec->codec_id   = CODEC_ID_MPEG4;
@@ -64,11 +68,12 @@ static int nc_read_packet(AVFormatContext *s, AVPacket *pkt)
     int size;
     int ret;
 
-    uint32_t state=-1;
+    uint32_t state = -1;
     while (state != NC_VIDEO_FLAG) {
-        if (url_feof(s->pb))
+        if (url_feof(s->pb)) {
             return AVERROR(EIO);
-        state = (state<<8) + avio_r8(s->pb);
+        }
+        state = (state << 8) + avio_r8(s->pb);
     }
 
     avio_r8(s->pb);
@@ -82,7 +87,9 @@ static int nc_read_packet(AVFormatContext *s, AVPacket *pkt)
 
     ret = av_get_packet(s->pb, pkt, size);
     if (ret != size) {
-        if (ret > 0) av_free_packet(pkt);
+        if (ret > 0) {
+            av_free_packet(pkt);
+        }
         return AVERROR(EIO);
     }
 

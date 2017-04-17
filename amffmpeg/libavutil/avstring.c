@@ -32,8 +32,9 @@ int av_strstart(const char *str, const char *pfx, const char **ptr)
         pfx++;
         str++;
     }
-    if (!*pfx && ptr)
+    if (!*pfx && ptr) {
         *ptr = str;
+    }
     return !*pfx;
 }
 
@@ -43,19 +44,22 @@ int av_stristart(const char *str, const char *pfx, const char **ptr)
         pfx++;
         str++;
     }
-    if (!*pfx && ptr)
+    if (!*pfx && ptr) {
         *ptr = str;
+    }
     return !*pfx;
 }
 
 char *av_stristr(const char *s1, const char *s2)
 {
-    if (!*s2)
+    if (!*s2) {
         return s1;
+    }
 
     do {
-        if (av_stristart(s1, s2, NULL))
+        if (av_stristart(s1, s2, NULL)) {
             return s1;
+        }
     } while (*s1++);
 
     return NULL;
@@ -64,18 +68,21 @@ char *av_stristr(const char *s1, const char *s2)
 size_t av_strlcpy(char *dst, const char *src, size_t size)
 {
     size_t len = 0;
-    while (++len < size && *src)
+    while (++len < size && *src) {
         *dst++ = *src++;
-    if (len <= size)
+    }
+    if (len <= size) {
         *dst = 0;
+    }
     return len + strlen(src) - 1;
 }
 
 size_t av_strlcat(char *dst, const char *src, size_t size)
 {
     size_t len = strlen(dst);
-    if (size <= len + 1)
+    if (size <= len + 1) {
         return len + strlen(src);
+    }
     return len + av_strlcpy(dst + len, src, size - len);
 }
 
@@ -93,8 +100,10 @@ size_t av_strlcatf(char *dst, size_t size, const char *fmt, ...)
 
 char *av_d2str(double d)
 {
-    char *str= av_malloc(16);
-    if(str) snprintf(str, 16, "%f", d);
+    char *str = av_malloc(16);
+    if (str) {
+        snprintf(str, 16, "%f", d);
+    }
     return str;
 }
 
@@ -103,31 +112,34 @@ char *av_d2str(double d)
 char *av_get_token(const char **buf, const char *term)
 {
     char *out = av_malloc(strlen(*buf) + 1);
-    char *ret= out, *end= out;
+    char *ret = out, *end = out;
     const char *p = *buf;
-    if (!out) return NULL;
+    if (!out) {
+        return NULL;
+    }
     p += strspn(p, WHITESPACES);
 
-    while(*p && !strspn(p, term)) {
+    while (*p && !strspn(p, term)) {
         char c = *p++;
-        if(c == '\\' && *p){
+        if (c == '\\' && *p) {
             *out++ = *p++;
-            end= out;
-        }else if(c == '\''){
-            while(*p && *p != '\'')
+            end = out;
+        } else if (c == '\'') {
+            while (*p && *p != '\'') {
                 *out++ = *p++;
-            if(*p){
-                p++;
-                end= out;
             }
-        }else{
+            if (*p) {
+                p++;
+                end = out;
+            }
+        } else {
             *out++ = c;
         }
     }
 
-    do{
+    do {
         *out-- = 0;
-    }while(out >= end && strspn(out, WHITESPACES));
+    } while (out >= end && strspn(out, WHITESPACES));
 
     *buf = p;
 
@@ -138,8 +150,9 @@ char *av_strtok(char *s, const char *delim, char **saveptr)
 {
     char *tok;
 
-    if (!s && !(s = *saveptr))
+    if (!s && !(s = *saveptr)) {
         return NULL;
+    }
 
     /* skip leading delimiters */
     s += strspn(s, delim);
@@ -155,7 +168,7 @@ char *av_strtok(char *s, const char *delim, char **saveptr)
     s += strcspn(s, delim);
     if (*s) {
         *s = 0;
-        *saveptr = s+1;
+        *saveptr = s + 1;
     } else {
         *saveptr = NULL;
     }
@@ -223,8 +236,8 @@ int main(void)
             "\\'fo\\o\\:':  foo  '  :blahblah"
         };
 
-        for (i=0; i < FF_ARRAY_ELEMS(strings); i++) {
-            const char *p= strings[i];
+        for (i = 0; i < FF_ARRAY_ELEMS(strings); i++) {
+            const char *p = strings[i];
             printf("|%s|", p);
             printf(" -> |%s|", av_get_token(&p, ":"));
             printf(" + |%s|\n", p);

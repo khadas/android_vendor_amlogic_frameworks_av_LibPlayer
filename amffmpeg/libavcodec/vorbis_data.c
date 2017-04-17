@@ -51,7 +51,7 @@ const int64_t ff_vorbis_channel_layouts[9] = {
     AV_CH_LAYOUT_QUAD,
     AV_CH_LAYOUT_5POINT0_BACK,
     AV_CH_LAYOUT_5POINT1_BACK,
-    AV_CH_LAYOUT_5POINT1|AV_CH_BACK_CENTER,
+    AV_CH_LAYOUT_5POINT1 | AV_CH_BACK_CENTER,
     AV_CH_LAYOUT_7POINT1,
     0
 };
@@ -2120,7 +2120,7 @@ DECLARE_ALIGNED(16, static const float, vwin8192)[4096] = {
     1.0000000000F, 1.0000000000F, 1.0000000000F, 1.0000000000F,
 };
 
-const float ff_vorbis_floor1_inverse_db_table[256]={
+const float ff_vorbis_floor1_inverse_db_table[256] = {
     1.0649863e-07F, 1.1341951e-07F, 1.2079015e-07F, 1.2863978e-07F,
     1.3699951e-07F, 1.4590251e-07F, 1.5538408e-07F, 1.6548181e-07F,
     1.7623575e-07F, 1.8768855e-07F, 1.9988561e-07F, 2.128753e-07F,
@@ -2188,6 +2188,6 @@ const float ff_vorbis_floor1_inverse_db_table[256]={
 };
 
 const float * const ff_vorbis_vwin[8] = {
-      vwin64,  vwin128,  vwin256,  vwin512,
+    vwin64,  vwin128,  vwin256,  vwin512,
     vwin1024, vwin2048, vwin4096, vwin8192
 };

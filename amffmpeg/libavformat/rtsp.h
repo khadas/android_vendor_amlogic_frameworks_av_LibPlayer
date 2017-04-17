@@ -359,8 +359,8 @@ typedef struct RTSPState {
      */
     int rtp_muxer_flags;
     /*
-	total received bytes;
-	*/	
+    total received bytes;
+    */
     uint64_t rcv_bytes;
     /*
     whether to use the rtsp as protocol in ffmpeg.default is demuxer.set by output.

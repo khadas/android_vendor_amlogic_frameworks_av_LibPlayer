@@ -33,16 +33,19 @@ extern "C" {
 #define HLSMAX(a,b) ((a) > (b) ? (a) : (b))
 #define HLSMIN(a,b) ((a) > (b) ? (b) : (a))
 #define ERROR_END_OF_STREAM 1011 // compatible for android
+#define ERROR_URL_NOT_M3U8    123456
+
+
 
 #ifndef MAX_URL_SIZE
 #define MAX_URL_SIZE 4096
 #endif
 
-    /* error handling */
+/* error handling */
 #if EDOM > 0
 #define HLSERROR(e) (-(e))   ///< Returns a negative error code from a POSIX error code, to return from library functions.
 #else
-    /* Some platforms have E* and errno already negated. */
+/* Some platforms have E* and errno already negated. */
 #define HLSERROR(e) (e)
 #endif
 
@@ -63,15 +66,15 @@ do {\
 #endif
 
 
-    typedef struct _GUID {
-        uint32_t Data1;
-        uint16_t Data2;
-        uint16_t Data3;
-        uint16_t Data4;
-        uint8_t  Data5[6];
-    } GUID;
+typedef struct _GUID {
+    uint32_t Data1;
+    uint16_t Data2;
+    uint16_t Data3;
+    uint16_t Data4;
+    uint8_t  Data5[6];
+} GUID;
 
-    typedef GUID guid_t;
+typedef GUID guid_t;
 
 
 #define GUID_FMT "%04X-%02X-%02X-%02X-%02X%02X%02X%02X%02X%02X"
@@ -86,48 +89,48 @@ do {\
 
 
 
-    /*----------------------------------------------*
-     * 外部函数原型说明                             *
-     *----------------------------------------------*/
+/*----------------------------------------------*
+ * 外部函数原型说明                             *
+ *----------------------------------------------*/
 
-    int getLocalCurrentTime(char** buf, int* len);
+int getLocalCurrentTime(char** buf, int* len);
 
-    int64_t in_gettimeUs(void);
+int64_t in_gettimeUs(void);
 
-    /**
-     * Add an element to a dynamic array. from ffmpeg
-     *
-     * @param tab_ptr Pointer to the array.
-     * @param nb_ptr  Pointer to the number of elements in the array.
-     * @param elem    Element to be added.
-     */
-    void in_dynarray_add(void *tab_ptr, int *nb_ptr, void *elem);
-
-
-    void in_freepointer(void *arg);
-
-    float in_get_sys_prop_float(char* key);
-
-    int in_get_sys_prop_bool(char* key);
-    void  in_generate_guid(guid_t *p_guid);
-
-    char* in_strip_blank(char *pStr);
-
-    int in_hex_to_data(const char *p, uint8_t *data);
+/**
+ * Add an element to a dynamic array. from ffmpeg
+ *
+ * @param tab_ptr Pointer to the array.
+ * @param nb_ptr  Pointer to the number of elements in the array.
+ * @param elem    Element to be added.
+ */
+void in_dynarray_add(void *tab_ptr, int *nb_ptr, void *elem);
 
 
-    const char* in_data_to_hex(char *buff, const uint8_t *src, int s, int lowercase);
+void in_freepointer(void *arg);
+
+float in_get_sys_prop_float(char* key);
+
+int in_get_sys_prop_bool(char* key);
+void  in_generate_guid(guid_t *p_guid);
+
+char* in_strip_blank(char *pStr);
+
+int in_hex_to_data(const char *p, uint8_t *data);
 
 
-    void in_hex_dump(const char* title, const unsigned char* dat, size_t length);
+const char* in_data_to_hex(char *buff, const uint8_t *src, int s, int lowercase);
 
 
-    int in_get_mac_address(const char* device, char* mac, int size);
+void in_hex_dump(const char* title, const unsigned char* dat, size_t length);
 
 
-    char * in_strrstr(const char *s, const char *str);
+int in_get_mac_address(const char* device, char* mac, int size);
 
-    unsigned long in_get_free_mem_size();
+
+char * in_strrstr(const char *s, const char *str);
+
+unsigned long in_get_free_mem_size();
 #ifdef __cplusplus
 #if __cplusplus
 }

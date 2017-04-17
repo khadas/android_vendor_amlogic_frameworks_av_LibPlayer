@@ -43,22 +43,12 @@ static void vcodec_info_init(play_para_t *p_para, codec_para_t *v_codec)
         || (vinfo->video_format == VFORMAT_H264)
         || (vinfo->video_format == VFORMAT_H264MVC)
         || (vinfo->video_format == VFORMAT_H264_4K2K)
-        || (vinfo->video_format == VFORMAT_HEVC)
-        || (vinfo->video_format == VFORMAT_VP9)) {
-        if (((vinfo->video_format == VFORMAT_H264)
-            || (vinfo->video_format == VFORMAT_H264MVC)
-            || (vinfo->video_format == VFORMAT_H264_4K2K)
-            || (vinfo->video_format == VFORMAT_MPEG4))
-            && (p_para->file_type == AVI_FILE)) {
+        || (vinfo->video_format == VFORMAT_HEVC)) {
+        if (((vinfo->video_format == VFORMAT_H264) || (vinfo->video_format == VFORMAT_H264MVC) || (vinfo->video_format == VFORMAT_H264_4K2K)) && (p_para->file_type == AVI_FILE)) {
             v_codec->am_sysinfo.param     = (void *)(EXTERNAL_PTS | SYNC_OUTSIDE);
         }
-        if (((vinfo->video_format == VFORMAT_H264)
-            || (vinfo->video_format == VFORMAT_VP9))
-            && (p_para->file_type == MKV_FILE)) {
-            if ((vinfo->video_rate == 4004 /*23.97fps*/)
-                || (vinfo->video_rate == 3203 /*29.97fps*/)
-                || (vinfo->video_rate == 1601 /*59.94fps*/)
-                || (vinfo->video_rate == 1602 /*59.94fps*/)) {
+        if ((vinfo->video_format == VFORMAT_H264) && (p_para->file_type == MKV_FILE)) {
+            if ((vinfo->video_rate == 4004 /*23.97fps*/) || (vinfo->video_rate == 3203 /*29.97fps*/)) {
                 v_codec->am_sysinfo.param = (void *)(UNSTABLE_PTS | (unsigned long)v_codec->am_sysinfo.param);
             }
         }
@@ -67,8 +57,12 @@ static void vcodec_info_init(play_para_t *p_para, codec_para_t *v_codec)
             v_codec->am_sysinfo.param = (void *)(UNSTABLE_PTS | (unsigned long)v_codec->am_sysinfo.param);
         }
 
+        if ((vinfo->video_format == VFORMAT_H264) && (p_para->file_type == FLV_FILE)) {
+            v_codec->am_sysinfo.param = (void *)(SYNC_OUTSIDE | (unsigned long)v_codec->am_sysinfo.param);
+        }
+
         if ((vinfo->video_format == VFORMAT_H264) || (vinfo->video_format == VFORMAT_H264MVC) || (vinfo->video_format == VFORMAT_H264_4K2K)) {
-            if (memcmp(p_para->pFormatCtx->iformat->name,"mpegts",6) == 0) {
+            if (memcmp(p_para->pFormatCtx->iformat->name, "mpegts", 6) == 0 && p_para->pFormatCtx->pb->is_slowmedia) {
                 /* ts slow media, use idr framerate */
                 log_print("[%s:%d]Slow media detected for ts,used USE_IDR_FRAMERATE\n", __FUNCTION__, __LINE__);
                 v_codec->am_sysinfo.param = (void *) USE_IDR_FRAMERATE;
@@ -83,7 +77,6 @@ static void vcodec_info_init(play_para_t *p_para, codec_para_t *v_codec)
         if ((vinfo->video_format == VFORMAT_H264) && p_para->playctrl_info.no_error_recovery) {
             v_codec->am_sysinfo.param = (void *)(NO_ERROR_RECOVERY | (unsigned long)v_codec->am_sysinfo.param);
         }
-
         if ((vinfo->video_format == VFORMAT_H264) || (vinfo->video_format == VFORMAT_HEVC)) {
             v_codec->dv_enable = !!p_para->playctrl_info.dolby_vision_enable;
         }
@@ -112,11 +105,17 @@ static void acodec_info_init(play_para_t *p_para, codec_para_t *a_codec)
     a_codec->stream_type = stream_type_convert(p_para->stream_type, 0, a_codec->has_audio);
     a_codec->switch_audio_flag = 0;
     a_codec->has_video = p_para->vstream_info.has_video;
+#if 0
+    if (p_para->pFormatCtx && p_para->pFormatCtx->pb && p_para->pFormatCtx->pb->local_playback == 1) {
+        a_codec->localplay_flag = 1;
+    } else {
+        a_codec->localplay_flag = 0;
+    }
+#endif
     if ((p_para->astream_info.has_audio == 1) &&
         (p_para->vstream_info.has_video == 0) &&
         ((a_codec->audio_type == AFORMAT_COOK) ||
-        (a_codec->audio_type == AFORMAT_SIPR) ||
-        (a_codec->audio_type == AFORMAT_WMALOSSLESS))) {
+         (a_codec->audio_type == AFORMAT_SIPR))) {
         log_print("[%s %d]Pure RA audio Stream/%d, Covert audio_type to AFORMAT_PCM_S16LE\n", __FUNCTION__, __LINE__, a_codec->audio_type);
         a_codec->audio_type = AFORMAT_PCM_S16LE;
     }
@@ -176,7 +175,6 @@ static int stream_es_init(play_para_t *p_para)
     s_stream_info_t *sinfo = &p_para->sstream_info;
     codec_para_t *v_codec = NULL, *a_codec = NULL, *s_codec = NULL;
     int ret = CODEC_ERROR_NONE;
-
     if (vinfo->has_video) {
         v_codec = codec_alloc();
         if (!v_codec) {
@@ -185,14 +183,6 @@ static int stream_es_init(play_para_t *p_para)
         MEMSET(v_codec, 0, sizeof(codec_para_t));
 
         vcodec_info_init(p_para, v_codec);
-
-        if (p_para->pFormatCtx->flags & AVFMT_FLAG_DRMLEVEL1 ||
-                p_para->pFormatCtx->flags & AVFMT_FLAG_PR_TVP ||
-                (p_para->pFormatCtx->pb &&
-                (p_para->pFormatCtx->pb->isprtvp & AVFMT_FLAG_PR_TVP))) {
-            log_print("TVP set drmmode 1\n");
-            v_codec->drmmode = 1;
-        }
         ret = codec_init(v_codec);
         if (ret != CODEC_ERROR_NONE) {
             if (ret != CODEC_OPEN_HANDLE_FAILED) {

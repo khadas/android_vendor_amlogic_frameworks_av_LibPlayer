@@ -15,7 +15,6 @@ LOCAL_CFLAGS += -DUSE_BORINGSSL
 else
 OPENSSL_HEADER_DIR=$(TOP)/external/openssl/include
 endif
-
 ZLIB_HEADER_DIR=$(TOP)/external/zlib
 #LOCAL_CFLAGS+=
 LOCAL_C_INCLUDES += \
@@ -44,7 +43,6 @@ LOCAL_CFLAGS += -DUSE_BORINGSSL
 else
 OPENSSL_HEADER_DIR=$(TOP)/external/openssl/include
 endif
-
 ZLIB_HEADER_DIR=$(TOP)/external/zlib
 #LOCAL_CFLAGS+=
 LOCAL_C_INCLUDES += \

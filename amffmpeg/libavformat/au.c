@@ -52,8 +52,9 @@ static const AVCodecTag codec_au_tags[] = {
 /* AUDIO_FILE header */
 static int put_au_header(AVIOContext *pb, AVCodecContext *enc)
 {
-    if(!enc->codec_tag)
+    if (!enc->codec_tag) {
         return -1;
+    }
     ffio_wfourcc(pb, ".snd");    /* magic number */
     avio_wb32(pb, 24);           /* header size */
     avio_wb32(pb, AU_UNKNOWN_SIZE); /* data size */
@@ -110,10 +111,11 @@ static int au_probe(AVProbeData *p)
 {
     /* check file header */
     if (p->buf[0] == '.' && p->buf[1] == 's' &&
-        p->buf[2] == 'n' && p->buf[3] == 'd')
+        p->buf[2] == 'n' && p->buf[3] == 'd') {
         return AVPROBE_SCORE_MAX;
-    else
+    } else {
         return 0;
+    }
 }
 
 /* au input */
@@ -129,8 +131,9 @@ static int au_read_header(AVFormatContext *s,
 
     /* check ".snd" header */
     tag = avio_rl32(pb);
-    if (tag != MKTAG('.', 's', 'n', 'd'))
+    if (tag != MKTAG('.', 's', 'n', 'd')) {
         return -1;
+    }
     size = avio_rb32(pb); /* header size */
     avio_rb32(pb); /* data size */
 
@@ -152,8 +155,9 @@ static int au_read_header(AVFormatContext *s,
 
     /* now we are ready: build format streams */
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return -1;
+    }
     st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
     st->codec->codec_tag = id;
     st->codec->codec_id = codec;
@@ -170,11 +174,12 @@ static int au_read_packet(AVFormatContext *s,
 {
     int ret;
 
-    ret= av_get_packet(s->pb, pkt, BLOCK_SIZE *
-                       s->streams[0]->codec->channels *
-                       av_get_bits_per_sample(s->streams[0]->codec->codec_id) >> 3);
-    if (ret < 0)
+    ret = av_get_packet(s->pb, pkt, BLOCK_SIZE *
+                        s->streams[0]->codec->channels *
+                        av_get_bits_per_sample(s->streams[0]->codec->codec_id) >> 3);
+    if (ret < 0) {
         return ret;
+    }
     pkt->stream_index = 0;
 
     /* note: we need to modify the packet size here to handle the last
@@ -193,7 +198,7 @@ AVInputFormat ff_au_demuxer = {
     au_read_packet,
     NULL,
     pcm_read_seek,
-    .codec_tag= (const AVCodecTag* const []){codec_au_tags, 0},
+    .codec_tag = (const AVCodecTag* const []){codec_au_tags, 0},
 };
 #endif
 
@@ -209,6 +214,6 @@ AVOutputFormat ff_au_muxer = {
     au_write_header,
     au_write_packet,
     au_write_trailer,
-    .codec_tag= (const AVCodecTag* const []){codec_au_tags, 0},
+    .codec_tag = (const AVCodecTag* const []){codec_au_tags, 0},
 };
 #endif //CONFIG_AU_MUXER

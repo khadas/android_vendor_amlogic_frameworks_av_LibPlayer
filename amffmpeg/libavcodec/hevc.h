@@ -108,7 +108,7 @@ enum NALUnitType {
     NAL_SEI_PREFIX  = 39,
     NAL_SEI_SUFFIX  = 40,
 
-	NAL_SEI_DV_META = 62,
+    NAL_SEI_DV_META = 62,
 };
 
 enum RPSType {
@@ -938,7 +938,7 @@ typedef struct HEVCContext {
 
     int context_initialized;
     int is_nalff;         ///< this flag is != 0 if bitstream is encapsulated
-                          ///< as a format defined in 14496-15
+    ///< as a format defined in 14496-15
     int strict_def_disp_win;
 
     int nal_length_size;  ///< Number of bytes used for nal length (1, 2 or 4)
@@ -946,20 +946,20 @@ typedef struct HEVCContext {
 
 } HEVCContext;
 
-typedef struct hevc_info{
-	const uint8_t *sps;
-	size_t sps_size;
-	int mwidth;
-	int mheight;
-	int bit_depth;
-	int long_term_ref_pics_present_flag;
-	int num_long_term_ref_pics_sps;
+typedef struct hevc_info {
+    const uint8_t *sps;
+    size_t sps_size;
+    int mwidth;
+    int mheight;
+    int bit_depth;
+    int long_term_ref_pics_present_flag;
+    int num_long_term_ref_pics_sps;
 };
 
 int check_size_in_buffer(unsigned char *p, int len);
 int check_size_in_buffer3(unsigned char *p, int len);
 
-int HEVC_decode_SPS(const uint8_t *buf,int size,struct hevc_info*info);
+int HEVC_decode_SPS(const uint8_t *buf, int size, struct hevc_info*info);
 
 
 int ff_hevc_extract_rbsp(HEVCContext *s, const uint8_t *src, int length,

@@ -20,7 +20,10 @@
 
 #ifndef AVUTIL_AVUTIL_H
 #define AVUTIL_AVUTIL_H
+
 #include <stdint.h>
+
+
 /**
  * @file
  * external API header
@@ -90,7 +93,7 @@ enum AVMediaType {
     AVMEDIA_TYPE_SUBTITLE,
     AVMEDIA_TYPE_ATTACHMENT,
     AVMEDIA_TYPE_NB,
-    AVMEDIA_TYPE_RTSP_MPEGTS	// a fake type only used by rtsp protocol
+    AVMEDIA_TYPE_RTSP_MPEGTS    // a fake type only used by rtsp protocol
 };
 
 #define CODEC_TYPE_UNKNOWN  AVMEDIA_TYPE_UNKNOWN

@@ -54,34 +54,34 @@ static const VideoSizeAbbr video_size_abbrs[] = {
     { "qcif",      176, 144 },
     { "cif",       352, 288 },
     { "4cif",      704, 576 },
-    { "16cif",    1408,1152 },
+    { "16cif",    1408, 1152 },
     { "qqvga",     160, 120 },
     { "qvga",      320, 240 },
     { "vga",       640, 480 },
     { "svga",      800, 600 },
     { "xga",      1024, 768 },
-    { "uxga",     1600,1200 },
-    { "qxga",     2048,1536 },
-    { "sxga",     1280,1024 },
-    { "qsxga",    2560,2048 },
-    { "hsxga",    5120,4096 },
+    { "uxga",     1600, 1200 },
+    { "qxga",     2048, 1536 },
+    { "sxga",     1280, 1024 },
+    { "qsxga",    2560, 2048 },
+    { "hsxga",    5120, 4096 },
     { "wvga",      852, 480 },
     { "wxga",     1366, 768 },
-    { "wsxga",    1600,1024 },
-    { "wuxga",    1920,1200 },
-    { "woxga",    2560,1600 },
-    { "wqsxga",   3200,2048 },
-    { "wquxga",   3840,2400 },
-    { "whsxga",   6400,4096 },
-    { "whuxga",   7680,4800 },
+    { "wsxga",    1600, 1024 },
+    { "wuxga",    1920, 1200 },
+    { "woxga",    2560, 1600 },
+    { "wqsxga",   3200, 2048 },
+    { "wquxga",   3840, 2400 },
+    { "whsxga",   6400, 4096 },
+    { "whuxga",   7680, 4800 },
     { "cga",       320, 200 },
     { "ega",       640, 350 },
     { "hd480",     852, 480 },
     { "hd720",    1280, 720 },
-    { "hd1080",   1920,1080 },
+    { "hd1080",   1920, 1080 },
 };
 
-static const VideoRateAbbr video_rate_abbrs[]= {
+static const VideoRateAbbr video_rate_abbrs[] = {
     { "ntsc",      { 30000, 1001 } },
     { "pal",       {    25,    1 } },
     { "qntsc",     { 30000, 1001 } }, /* VCD compliant NTSC */
@@ -109,12 +109,14 @@ int av_parse_video_size(int *width_ptr, int *height_ptr, const char *str)
     if (i == n) {
         p = str;
         width = strtol(p, &p, 10);
-        if (*p)
+        if (*p) {
             p++;
+        }
         height = strtol(p, &p, 10);
     }
-    if (width <= 0 || height <= 0)
+    if (width <= 0 || height <= 0) {
         return AVERROR(EINVAL);
+    }
     *width_ptr  = width;
     *height_ptr = height;
     return 0;
@@ -135,11 +137,13 @@ int av_parse_video_rate(AVRational *rate, const char *arg)
 
     /* Then, we try to parse it as fraction */
     if ((ret = av_expr_parse_and_eval(&res, arg, NULL, NULL, NULL, NULL, NULL, NULL,
-                                      NULL, 0, NULL)) < 0)
+                                      NULL, 0, NULL)) < 0) {
         return ret;
+    }
     *rate = av_d2q(res, 1001000);
-    if (rate->num <= 0 || rate->den <= 0)
+    if (rate->num <= 0 || rate->den <= 0) {
         return AVERROR(EINVAL);
+    }
     return 0;
 }
 
@@ -307,15 +311,18 @@ int av_parse_color(uint8_t *rgba_color, const char *color_string, int slen,
 
     if (color_string[0] == '#') {
         hex_offset = 1;
-    } else if (!strncmp(color_string, "0x", 2))
+    } else if (!strncmp(color_string, "0x", 2)) {
         hex_offset = 2;
+    }
 
-    if (slen < 0)
+    if (slen < 0) {
         slen = strlen(color_string);
+    }
     av_strlcpy(color_string2, color_string + hex_offset,
-               FFMIN(slen-hex_offset+1, sizeof(color_string2)));
-    if ((tail = strchr(color_string2, ALPHA_SEP)))
+               FFMIN(slen - hex_offset + 1, sizeof(color_string2)));
+    if ((tail = strchr(color_string2, ALPHA_SEP))) {
         *tail++ = 0;
+    }
     len = strlen(color_string2);
     rgba_color[3] = 255;
 
@@ -384,18 +391,21 @@ static int date_get_num(const char **pp,
 
     p = *pp;
     val = 0;
-    for(i = 0; i < len_max; i++) {
+    for (i = 0; i < len_max; i++) {
         c = *p;
-        if (!isdigit(c))
+        if (!isdigit(c)) {
             break;
+        }
         val = (val * 10) + c - '0';
         p++;
     }
     /* no number read ? */
-    if (p == *pp)
+    if (p == *pp) {
         return -1;
-    if (val < n_min || val > n_max)
+    }
+    if (val < n_min || val > n_max) {
         return -1;
+    }
     *pp = p;
     return val;
 }
@@ -407,47 +417,53 @@ const char *small_strptime(const char *p, const char *fmt,
 {
     int c, val;
 
-    for(;;) {
+    for (;;) {
         c = *fmt++;
         if (c == '\0') {
             return p;
         } else if (c == '%') {
             c = *fmt++;
-            switch(c) {
+            switch (c) {
             case 'H':
                 val = date_get_num(&p, 0, 23, 2);
-                if (val == -1)
+                if (val == -1) {
                     return NULL;
+                }
                 dt->tm_hour = val;
                 break;
             case 'M':
                 val = date_get_num(&p, 0, 59, 2);
-                if (val == -1)
+                if (val == -1) {
                     return NULL;
+                }
                 dt->tm_min = val;
                 break;
             case 'S':
                 val = date_get_num(&p, 0, 59, 2);
-                if (val == -1)
+                if (val == -1) {
                     return NULL;
+                }
                 dt->tm_sec = val;
                 break;
             case 'Y':
                 val = date_get_num(&p, 0, 9999, 4);
-                if (val == -1)
+                if (val == -1) {
                     return NULL;
+                }
                 dt->tm_year = val - 1900;
                 break;
             case 'm':
                 val = date_get_num(&p, 1, 12, 2);
-                if (val == -1)
+                if (val == -1) {
                     return NULL;
+                }
                 dt->tm_mon = val - 1;
                 break;
             case 'd':
                 val = date_get_num(&p, 1, 31, 2);
-                if (val == -1)
+                if (val == -1) {
                     return NULL;
+                }
                 dt->tm_mday = val;
                 break;
             case '%':
@@ -456,9 +472,10 @@ const char *small_strptime(const char *p, const char *fmt,
                 return NULL;
             }
         } else {
-        match:
-            if (c != *p)
+match:
+            if (c != *p) {
                 return NULL;
+            }
             p++;
         }
     }
@@ -507,10 +524,11 @@ int av_parse_time(int64_t *timeval, const char *datestr, int duration)
     time_t now = time(0);
 
     len = strlen(datestr);
-    if (len > 0)
+    if (len > 0) {
         lastch = datestr[len - 1];
-    else
+    } else {
         lastch = '\0';
+    }
     is_utc = (lastch == 'z' || lastch == 'Z');
 
     memset(&dt, 0, sizeof(dt));
@@ -544,8 +562,9 @@ int av_parse_time(int64_t *timeval, const char *datestr, int duration)
             p = q;
         }
 
-        if (*p == 'T' || *p == 't' || *p == ' ')
+        if (*p == 'T' || *p == 't' || *p == ' ') {
             p++;
+        }
 
         /* parse the hour-minute-second part */
         for (i = 0; i < FF_ARRAY_ELEMS(time_fmt); i++) {
@@ -599,8 +618,9 @@ int av_parse_time(int64_t *timeval, const char *datestr, int duration)
         int val, n;
         q++;
         for (val = 0, n = 100000; n >= 1; n /= 10, q++) {
-            if (!isdigit(*q))
+            if (!isdigit(*q)) {
                 break;
+            }
             val += n * (*q - '0');
         }
         t += val;
@@ -615,13 +635,15 @@ int av_find_info_tag(char *arg, int arg_size, const char *tag1, const char *info
     char tag[128], *q;
 
     p = info;
-    if (*p == '?')
+    if (*p == '?') {
         p++;
-    for(;;) {
+    }
+    for (;;) {
         q = tag;
         while (*p != '\0' && *p != '=' && *p != '&') {
-            if ((q - tag) < sizeof(tag) - 1)
+            if ((q - tag) < sizeof(tag) - 1) {
                 *q++ = *p;
+            }
             p++;
         }
         *q = '\0';
@@ -630,19 +652,22 @@ int av_find_info_tag(char *arg, int arg_size, const char *tag1, const char *info
             p++;
             while (*p != '&' && *p != '\0') {
                 if ((q - arg) < arg_size - 1) {
-                    if (*p == '+')
+                    if (*p == '+') {
                         *q++ = ' ';
-                    else
+                    } else {
                         *q++ = *p;
+                    }
                 }
                 p++;
             }
         }
         *q = '\0';
-        if (!strcmp(tag, tag1))
+        if (!strcmp(tag, tag1)) {
             return 1;
-        if (*p != '&')
+        }
+        if (*p != '&') {
             break;
+        }
         p++;
     }
     return 0;
@@ -687,7 +712,9 @@ int main(void)
 
         for (i = 0; i < FF_ARRAY_ELEMS(rates); i++) {
             int ret;
-            AVRational q = (AVRational){0, 0};
+            AVRational q = (AVRational) {
+                0, 0
+            };
             ret = av_parse_video_rate(&q, rates[i]),
             printf("'%s' -> %d/%d ret:%d\n",
                    rates[i], q.num, q.den, ret);
@@ -740,8 +767,9 @@ int main(void)
         av_log_set_level(AV_LOG_DEBUG);
 
         for (i = 0;  i < FF_ARRAY_ELEMS(color_names); i++) {
-            if (av_parse_color(rgba, color_names[i], -1, NULL) >= 0)
+            if (av_parse_color(rgba, color_names[i], -1, NULL) >= 0) {
                 printf("%s -> R(%d) G(%d) B(%d) A(%d)\n", color_names[i], rgba[0], rgba[1], rgba[2], rgba[3]);
+            }
         }
     }
 

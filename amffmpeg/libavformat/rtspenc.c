@@ -62,8 +62,9 @@ int ff_rtsp_setup_output_streams(AVFormatContext *s, const char *addr)
 
     /* Announce the stream */
     sdp = av_mallocz(SDP_MAX_SIZE);
-    if (sdp == NULL)
+    if (sdp == NULL) {
         return AVERROR(ENOMEM);
+    }
     /* We create the SDP based on the RTSP AVFormatContext where we
      * aren't allowed to change the filename field. (We create the SDP
      * based on the RTSP context since the contexts for the RTP streams
@@ -89,16 +90,18 @@ int ff_rtsp_setup_output_streams(AVFormatContext *s, const char *addr)
                                   "Content-Type: application/sdp\r\n",
                                   reply, NULL, sdp, strlen(sdp));
     av_free(sdp);
-    if (reply->status_code != RTSP_STATUS_OK)
+    if (reply->status_code != RTSP_STATUS_OK) {
         return AVERROR_INVALIDDATA;
+    }
 
     /* Set up the RTSPStreams for each AVStream */
     for (i = 0; i < s->nb_streams; i++) {
         RTSPStream *rtsp_st;
 
         rtsp_st = av_mallocz(sizeof(RTSPStream));
-        if (!rtsp_st)
+        if (!rtsp_st) {
             return AVERROR(ENOMEM);
+        }
         dynarray_add(&rt->rtsp_streams, &rt->nb_rtsp_streams, rtsp_st);
 
         rtsp_st->stream_index = i;
@@ -121,8 +124,9 @@ static int rtsp_write_record(AVFormatContext *s)
     snprintf(cmd, sizeof(cmd),
              "Range: npt=0.000-\r\n");
     ff_rtsp_send_cmd(s, "RECORD", rt->control_uri, cmd, reply, NULL);
-    if (reply->status_code != RTSP_STATUS_OK)
+    if (reply->status_code != RTSP_STATUS_OK) {
         return -1;
+    }
     rt->state = RTSP_STATE_STREAMING;
     return 0;
 }
@@ -132,8 +136,9 @@ static int rtsp_write_header(AVFormatContext *s)
     int ret;
 
     ret = ff_rtsp_connect(s);
-    if (ret)
+    if (ret) {
         return ret;
+    }
 
     if (rtsp_write_record(s) < 0) {
         ff_rtsp_close_streams(s);
@@ -164,12 +169,14 @@ static int tcp_write_packet(AVFormatContext *s, RTSPStream *rtsp_st)
         interleaved_packet = interleave_header = ptr;
         ptr += 4;
         size -= 4;
-        if (packet_len > size || packet_len < 2)
+        if (packet_len > size || packet_len < 2) {
             break;
-        if (ptr[1] >= RTCP_SR && ptr[1] <= RTCP_APP)
-            id = rtsp_st->interleaved_max; /* RTCP */
-        else
-            id = rtsp_st->interleaved_min; /* RTP */
+        }
+        if (ptr[1] >= RTCP_SR && ptr[1] <= RTCP_APP) {
+            id = rtsp_st->interleaved_max;    /* RTCP */
+        } else {
+            id = rtsp_st->interleaved_min;    /* RTP */
+        }
         interleave_header[0] = '$';
         interleave_header[1] = id;
         AV_WB16(interleave_header + 2, packet_len);
@@ -193,8 +200,9 @@ static int rtsp_write_packet(AVFormatContext *s, AVPacket *pkt)
 
     while (1) {
         n = poll(&p, 1, 0);
-        if (n <= 0)
+        if (n <= 0) {
             break;
+        }
         if (p.revents & POLLIN) {
             RTSPMessageHeader reply;
 
@@ -203,18 +211,22 @@ static int rtsp_write_packet(AVFormatContext *s, AVPacket *pkt)
              * (which may not be coming any time soon) if it handles
              * interleaved packets internally. */
             ret = ff_rtsp_read_reply(s, &reply, NULL, 1, NULL);
-            if (ret < 0)
+            if (ret < 0) {
                 return AVERROR(EPIPE);
-            if (ret == 1)
+            }
+            if (ret == 1) {
                 ff_rtsp_skip_packet(s);
+            }
             /* XXX: parse message */
-            if (rt->state != RTSP_STATE_STREAMING)
+            if (rt->state != RTSP_STATE_STREAMING) {
                 return AVERROR(EPIPE);
+            }
         }
     }
 
-    if (pkt->stream_index < 0 || pkt->stream_index >= rt->nb_rtsp_streams)
+    if (pkt->stream_index < 0 || pkt->stream_index >= rt->nb_rtsp_streams) {
         return AVERROR_INVALIDDATA;
+    }
     rtsp_st = rt->rtsp_streams[pkt->stream_index];
     rtpctx = rtsp_st->transport_priv;
 
@@ -223,8 +235,9 @@ static int rtsp_write_packet(AVFormatContext *s, AVPacket *pkt)
      * transport, rtpctx->pb is only a dyn_packet_buf that queues up the
      * packets, so we need to send them out on the TCP connection separately.
      */
-    if (!ret && rt->lower_transport == RTSP_LOWER_TRANSPORT_TCP)
+    if (!ret && rt->lower_transport == RTSP_LOWER_TRANSPORT_TCP) {
         ret = tcp_write_packet(s, rtsp_st);
+    }
     return ret;
 }
 

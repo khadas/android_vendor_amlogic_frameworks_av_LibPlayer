@@ -31,7 +31,7 @@
 #include "avformat.h"
 #include "libavutil/dict.h"
 
-struct AVMetadataConv{
+struct AVMetadataConv {
     const char *native;
     const char *generic;
 };
@@ -40,8 +40,8 @@ typedef struct AVMetadataConv AVMetadataConv;
 #endif
 
 void ff_metadata_conv(AVDictionary **pm, const AVMetadataConv *d_conv,
-                                       const AVMetadataConv *s_conv);
+                      const AVMetadataConv *s_conv);
 void ff_metadata_conv_ctx(AVFormatContext *ctx, const AVMetadataConv *d_conv,
-                                                const AVMetadataConv *s_conv);
+                          const AVMetadataConv *s_conv);
 
 #endif /* AVFORMAT_METADATA_H */

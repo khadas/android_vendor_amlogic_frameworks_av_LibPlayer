@@ -27,6 +27,7 @@
 #include "avio.h"
 #include "internal.h"
 #include "dv.h"
+#include <stdio.h>
 
 /* isom.c */
 extern const AVCodecTag ff_mp4_obj_type[];
@@ -86,6 +87,10 @@ typedef struct {
     unsigned size;
     unsigned flags;
 } MOVTrackExt;
+typedef struct {
+    unsigned int count;
+    unsigned int index;
+} MOVSbgp;
 
 typedef struct MOVStreamContext {
     AVIOContext *pb;
@@ -126,8 +131,17 @@ typedef struct MOVStreamContext {
     uint32_t palette[256];
     int has_palette;
 
-    int readed_count;	  ///readed count/ /by zz.
+    int readed_count;     ///readed count/ /by zz.
     int64_t track_end;    ///< used for dts generation in fragmented movie files
+    unsigned int rap_group_count;
+    MOVSbgp *rap_group;
+    struct {
+        int use_subsamples;
+        uint8_t* auxiliary_info;
+        uint8_t* auxiliary_info_end;
+        uint8_t* auxiliary_info_pos;
+        int current_sample;
+    } cenc;
 } MOVStreamContext;
 
 typedef struct MOVContext {
@@ -144,6 +158,14 @@ typedef struct MOVContext {
     unsigned trex_count;
     int itunes_metadata;  ///< metadata are itunes style
     int chapter_track;
+
+    int is_protected;
+    int per_sample_iv_size;
+    unsigned char *pssh_data;
+    unsigned int pssh_size;
+    int drm_handle;
+    FILE *fp1;
+    FILE *fp2;
 } MOVContext;
 
 int ff_mp4_read_descr_len(AVIOContext *pb);

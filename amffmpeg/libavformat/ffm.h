@@ -45,7 +45,7 @@ typedef struct FFMContext {
     /* only reading mode */
     int64_t write_index, file_size;
     int read_state;
-    uint8_t header[FRAME_HEADER_SIZE+4];
+    uint8_t header[FRAME_HEADER_SIZE + 4];
 
     /* read and write */
     int first_packet; /* true if first packet, needed to set the discontinuity tag */

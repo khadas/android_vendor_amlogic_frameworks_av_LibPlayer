@@ -25,10 +25,11 @@
 
 static int dirac_probe(AVProbeData *p)
 {
-    if (AV_RL32(p->buf) == MKTAG('B', 'B', 'C', 'D'))
+    if (AV_RL32(p->buf) == MKTAG('B', 'B', 'C', 'D')) {
         return AVPROBE_SCORE_MAX;
-    else
+    } else {
         return 0;
+    }
 }
 
 FF_DEF_RAWVIDEO_DEMUXER(dirac, "raw Dirac", dirac_probe, NULL, CODEC_ID_DIRAC)

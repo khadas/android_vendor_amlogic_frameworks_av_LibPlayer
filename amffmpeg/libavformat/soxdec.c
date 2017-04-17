@@ -37,8 +37,9 @@
 
 static int sox_probe(AVProbeData *p)
 {
-    if (AV_RL32(p->buf) == SOX_TAG || AV_RB32(p->buf) == SOX_TAG)
+    if (AV_RL32(p->buf) == SOX_TAG || AV_RB32(p->buf) == SOX_TAG) {
         return AVPROBE_SCORE_MAX;
+    }
     return 0;
 }
 
@@ -51,8 +52,9 @@ static int sox_read_header(AVFormatContext *s,
     AVStream *st;
 
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
 
     st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
 
@@ -89,13 +91,13 @@ static int sox_read_header(AVFormatContext *s,
                sample_rate_frac);
 
     if ((header_size + 4) & 7 || header_size < SOX_FIXED_HDR + comment_size
-        || st->codec->channels > 65535) /* Reserve top 16 bits */ {
+        || st->codec->channels > 65535) { /* Reserve top 16 bits */
         av_log(s, AV_LOG_ERROR, "invalid header\n");
         return -1;
     }
 
     if (comment_size && comment_size < UINT_MAX) {
-        char *comment = av_malloc(comment_size+1);
+        char *comment = av_malloc(comment_size + 1);
         if (avio_read(pb, comment, comment_size) != comment_size) {
             av_freep(&comment);
             return AVERROR(EIO);
@@ -103,7 +105,7 @@ static int sox_read_header(AVFormatContext *s,
         comment[comment_size] = 0;
 
         av_dict_set(&s->metadata, "comment", comment,
-                               AV_DICT_DONT_STRDUP_VAL);
+                    AV_DICT_DONT_STRDUP_VAL);
     }
 
     avio_skip(pb, header_size - SOX_FIXED_HDR - comment_size);
@@ -128,13 +130,15 @@ static int sox_read_packet(AVFormatContext *s,
 {
     int ret, size;
 
-    if (url_feof(s->pb))
+    if (url_feof(s->pb)) {
         return AVERROR_EOF;
+    }
 
-    size = SOX_SAMPLES*s->streams[0]->codec->block_align;
+    size = SOX_SAMPLES * s->streams[0]->codec->block_align;
     ret = av_get_packet(s->pb, pkt, size);
-    if (ret < 0)
+    if (ret < 0) {
         return AVERROR(EIO);
+    }
     pkt->stream_index = 0;
     pkt->size = ret;
 

@@ -24,8 +24,9 @@
 
 static int apc_probe(AVProbeData *p)
 {
-    if (!strncmp(p->buf, "CRYO_APC", 8))
+    if (!strncmp(p->buf, "CRYO_APC", 8)) {
         return AVPROBE_SCORE_MAX;
+    }
 
     return 0;
 }
@@ -40,8 +41,9 @@ static int apc_read_header(AVFormatContext *s, AVFormatParameters *ap)
     avio_rl32(pb); /* 1.20 */
 
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
 
     st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
     st->codec->codec_id = CODEC_ID_ADPCM_IMA_WS;
@@ -52,15 +54,17 @@ static int apc_read_header(AVFormatContext *s, AVFormatParameters *ap)
     st->codec->extradata_size = 2 * 4;
     st->codec->extradata = av_malloc(st->codec->extradata_size +
                                      FF_INPUT_BUFFER_PADDING_SIZE);
-    if (!st->codec->extradata)
+    if (!st->codec->extradata) {
         return AVERROR(ENOMEM);
+    }
 
     /* initial predictor values for adpcm decoder */
     avio_read(pb, st->codec->extradata, 2 * 4);
 
     st->codec->channels = 1;
-    if (avio_rl32(pb))
+    if (avio_rl32(pb)) {
         st->codec->channels = 2;
+    }
 
     st->codec->bits_per_coded_sample = 4;
     st->codec->bit_rate = st->codec->bits_per_coded_sample * st->codec->channels
@@ -74,8 +78,9 @@ static int apc_read_header(AVFormatContext *s, AVFormatParameters *ap)
 
 static int apc_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
-    if (av_get_packet(s->pb, pkt, MAX_READ_SIZE) <= 0)
+    if (av_get_packet(s->pb, pkt, MAX_READ_SIZE) <= 0) {
         return AVERROR(EIO);
+    }
     pkt->stream_index = 0;
     return 0;
 }

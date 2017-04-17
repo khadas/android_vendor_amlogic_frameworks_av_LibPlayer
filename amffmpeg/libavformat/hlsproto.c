@@ -71,13 +71,16 @@ typedef struct HLSContext {
 static int read_chomp_line(AVIOContext *s, char *buf, int maxlen)
 {
     int len = ff_get_line(s, buf, maxlen);
-    while (len > 0 && isspace(buf[len - 1]))
+    while (len > 0 && isspace(buf[len - 1])) {
         buf[--len] = '\0';
-     if(len==0){
-	 	if(url_feof(s))
-			return AVERROR_EOF;
-		if(url_ferror(s))
-			return url_ferror(s);
+    }
+    if (len == 0) {
+        if (url_feof(s)) {
+            return AVERROR_EOF;
+        }
+        if (url_ferror(s)) {
+            return url_ferror(s);
+        }
     }
     return len;
 }
@@ -85,8 +88,9 @@ static int read_chomp_line(AVIOContext *s, char *buf, int maxlen)
 static void free_segment_list(HLSContext *s)
 {
     int i;
-    for (i = 0; i < s->n_segments; i++)
+    for (i = 0; i < s->n_segments; i++) {
         av_free(s->segments[i]);
+    }
     av_freep(&s->segments);
     s->n_segments = 0;
 }
@@ -94,8 +98,9 @@ static void free_segment_list(HLSContext *s)
 static void free_variant_list(HLSContext *s)
 {
     int i;
-    for (i = 0; i < s->n_variants; i++)
+    for (i = 0; i < s->n_variants; i++) {
         av_free(s->variants[i]);
+    }
     av_freep(&s->variants);
     s->n_variants = 0;
 }
@@ -120,29 +125,33 @@ static int parse_playlist(URLContext *h, const char *url)
     int ret = 0, duration = 0, is_segment = 0, is_variant = 0, bandwidth = 0;
     char line[1024];
     const char *ptr;
-    int segnum=0;
-#ifdef  AVIO_OPEN2		
+    int segnum = 0;
+#ifdef  AVIO_OPEN2
     if ((ret = avio_open2(&in, url, AVIO_FLAG_READ,
-                          &h->interrupt_callback, NULL)) < 0)
+                          &h->interrupt_callback, NULL)) < 0) {
         return ret;
+    }
 #else
-	if ((ret = avio_open(&in, url, AVIO_FLAG_READ)) < 0)
+    if ((ret = avio_open(&in, url, AVIO_FLAG_READ)) < 0) {
         return ret;
+    }
 #endif
     read_chomp_line(in, line, sizeof(line));
-    if (strcmp(line, "#EXTM3U"))
+    if (strcmp(line, "#EXTM3U")) {
         return AVERROR_INVALIDDATA;
+    }
 
     free_segment_list(s);
     s->finished = 0;
     while (1) {
-	if(url_interrupt_cb())
-	 	break;
-        ret=read_chomp_line(in, line, sizeof(line));
-	 if(ret<0){
-	 	ret=(segnum>0)?0:ret;
-	 	break;
-	 }
+        if (url_interrupt_cb()) {
+            break;
+        }
+        ret = read_chomp_line(in, line, sizeof(line));
+        if (ret < 0) {
+            ret = (segnum > 0) ? 0 : ret;
+            break;
+        }
         if (av_strstart(line, "#EXT-X-STREAM-INF:", &ptr)) {
             struct variant_info info = {{0}};
             is_variant = 1;
@@ -170,7 +179,7 @@ static int parse_playlist(URLContext *h, const char *url)
                 seg->duration = duration;
                 ff_make_absolute_url(seg->url, sizeof(seg->url), url, line);
                 dynarray_add(&s->segments, &s->n_segments, seg);
-		  segnum++;	
+                segnum++;
                 is_segment = 0;
             } else if (is_variant) {
                 struct variant *var = av_malloc(sizeof(struct variant));
@@ -208,11 +217,12 @@ static int hls_open(URLContext *h, const char *uri, int flags)
     int ret, i;
     const char *nested_url;
 
-    if (flags & AVIO_FLAG_WRITE)
+    if (flags & AVIO_FLAG_WRITE) {
         return AVERROR(ENOSYS);
+    }
 
     h->is_streamed = 1;
-    h->is_slowmedia= 1;
+    h->is_slowmedia = 1;
 
     if (av_strstart(uri, "hls+", &nested_url)) {
         av_strlcpy(s->playlisturl, nested_url, sizeof(s->playlisturl));
@@ -247,8 +257,9 @@ static int hls_open(URLContext *h, const char *uri, int flags)
            "please report it.) To use the demuxer, simply use %s as url.\n",
            s->playlisturl);
 
-    if ((ret = parse_playlist(h, s->playlisturl)) < 0)
+    if ((ret = parse_playlist(h, s->playlisturl)) < 0) {
         goto fail;
+    }
 
     if (s->n_segments == 0 && s->n_variants > 0) {
         int max_bandwidth = 0, maxvar = -1;
@@ -260,8 +271,9 @@ static int hls_open(URLContext *h, const char *uri, int flags)
         }
         av_strlcpy(s->playlisturl, s->variants[maxvar]->url,
                    sizeof(s->playlisturl));
-        if ((ret = parse_playlist(h, s->playlisturl)) < 0)
+        if ((ret = parse_playlist(h, s->playlisturl)) < 0) {
             goto fail;
+        }
     }
 
     if (s->n_segments == 0) {
@@ -270,8 +282,9 @@ static int hls_open(URLContext *h, const char *uri, int flags)
         goto fail;
     }
     s->cur_seq_no = s->start_seq_no;
-    if (!s->finished && s->n_segments >= 3)
+    if (!s->finished && s->n_segments >= 3) {
         s->cur_seq_no = s->start_seq_no + s->n_segments - 3;
+    }
 
     return 0;
 
@@ -290,8 +303,9 @@ static int hls_read(URLContext *h, uint8_t *buf, int size)
 start:
     if (s->seg_hd) {
         ret = ffurl_read(s->seg_hd, buf, size);
-        if (ret > 0)
+        if (ret > 0) {
             return ret;
+        }
     }
     if (s->seg_hd) {
         ffurl_close(s->seg_hd);
@@ -306,8 +320,9 @@ retry:
     if (!s->finished) {
         int64_t now = av_gettime();
         if (now - s->last_load_time >= reload_interval) {
-            if ((ret = parse_playlist(h, s->playlisturl)) < 0)
+            if ((ret = parse_playlist(h, s->playlisturl)) < 0) {
                 return ret;
+            }
             /* If we need to reload the playlist again below (if
              * there's still no more segments), switch to a reload
              * interval of half the target duration. */
@@ -321,12 +336,14 @@ retry:
         s->cur_seq_no = s->start_seq_no;
     }
     if (s->cur_seq_no - s->start_seq_no >= s->n_segments) {
-        if (s->finished)
+        if (s->finished) {
             return AVERROR_EOF;
+        }
         while (av_gettime() - s->last_load_time < reload_interval) {
-             if (url_interrupt_cb())
+            if (url_interrupt_cb()) {
                 return AVERROR_EXIT;
-            usleep(100*1000);
+            }
+            usleep(100 * 1000);
         }
         goto retry;
     }
@@ -334,8 +351,9 @@ retry:
     av_log(h, AV_LOG_DEBUG, "opening %s\n", url);
     ret = ffurl_open(&s->seg_hd, url, AVIO_FLAG_READ);
     if (ret < 0) {
-        if (url_interrupt_cb())
+        if (url_interrupt_cb()) {
             return AVERROR_EXIT;
+        }
         av_log(h, AV_LOG_WARNING, "Unable to open %s\n", url);
         s->cur_seq_no++;
         goto retry;
@@ -346,8 +364,8 @@ retry:
 
 static int64_t hls_seek(URLContext *h, int64_t pos, int whence)
 {
-	HLSContext *s = h->priv_data;
-	return -1;
+    HLSContext *s = h->priv_data;
+    return -1;
 }
 
 
@@ -374,28 +392,22 @@ URLProtocol ff_hls_protocol = {
 };
 
 
-int  hlsproto_probe(ByteIOContext *s,const char *file)
+int  hlsproto_probe(ByteIOContext *s, const char *file)
 {
-	if(s)
-	{
-		char line[1024];
-		if(read_chomp_line(s,line,1024)>0)
-		{
+    if (s) {
+        char line[1024];
+        if (read_chomp_line(s, line, 1024) > 0) {
 
-			if(memcmp(line,EXTM3U,strlen(EXTM3U))==0)
-			{				
-				av_log(NULL, AV_LOG_INFO, "hls_probe get m3u flags!!\n");
-				return 100;
-			}
-		}	
-	}
-	else
-	{
-		if((av_match_ext(file, "m3u"))||(av_match_ext(file, "m3u8"))) 
-		{
-			return 50;
-		}
-	}
-	return 0;
+            if (memcmp(line, EXTM3U, strlen(EXTM3U)) == 0) {
+                av_log(NULL, AV_LOG_INFO, "hls_probe get m3u flags!!\n");
+                return 100;
+            }
+        }
+    } else {
+        if ((av_match_ext(file, "m3u")) || (av_match_ext(file, "m3u8"))) {
+            return 50;
+        }
+    }
+    return 0;
 }
 

@@ -98,8 +98,9 @@ static int decode_rle(AVCodecContext *avctx, AVSubtitle *sub,
 
     sub->rects[0]->pict.data[0] = av_malloc(sub->rects[0]->w * sub->rects[0]->h);
 
-    if (!sub->rects[0]->pict.data[0])
+    if (!sub->rects[0]->pict.data[0]) {
         return -1;
+    }
 
     pixel_count = 0;
     line_count  = 0;
@@ -114,8 +115,9 @@ static int decode_rle(AVCodecContext *avctx, AVSubtitle *sub,
         if (color == 0x00) {
             flags = bytestream_get_byte(&buf);
             run   = flags & 0x3f;
-            if (flags & 0x40)
+            if (flags & 0x40) {
                 run = (run << 8) + bytestream_get_byte(&buf);
+            }
             color = flags & 0x80 ? bytestream_get_byte(&buf) : 0;
         }
 
@@ -156,15 +158,16 @@ static int decode_rle(AVCodecContext *avctx, AVSubtitle *sub,
  * @todo TODO: Enable support for RLE data over multiple packets
  */
 static int parse_picture_segment(AVCodecContext *avctx,
-                                  const uint8_t *buf, int buf_size)
+                                 const uint8_t *buf, int buf_size)
 {
     PGSSubContext *ctx = avctx->priv_data;
 
     uint8_t sequence_desc;
     unsigned int rle_bitmap_len, width, height;
 
-    if (buf_size <= 4)
+    if (buf_size <= 4) {
         return -1;
+    }
     buf_size -= 4;
 
     /* skip 3 unknown bytes: Object ID (2 bytes), Version Number */
@@ -175,8 +178,9 @@ static int parse_picture_segment(AVCodecContext *avctx,
 
     if (!(sequence_desc & 0x80)) {
         /* Additional RLE data */
-        if (buf_size > ctx->picture.rle_remaining_len)
+        if (buf_size > ctx->picture.rle_remaining_len) {
             return -1;
+        }
 
         memcpy(ctx->picture.rle + ctx->picture.rle_data_len, buf, buf_size);
         ctx->picture.rle_data_len += buf_size;
@@ -185,12 +189,13 @@ static int parse_picture_segment(AVCodecContext *avctx,
         return 0;
     }
 
-    if (buf_size <= 7)
+    if (buf_size <= 7) {
         return -1;
+    }
     buf_size -= 7;
 
     /* Decode rle bitmap length, stored size includes width/height data */
-    rle_bitmap_len = bytestream_get_be24(&buf) - 2*2;
+    rle_bitmap_len = bytestream_get_be24(&buf) - 2 * 2;
 
     /* Get bitmap dimensions from data */
     width  = bytestream_get_be16(&buf);
@@ -207,8 +212,9 @@ static int parse_picture_segment(AVCodecContext *avctx,
 
     av_fast_malloc(&ctx->picture.rle, &ctx->picture.rle_buffer_size, rle_bitmap_len);
 
-    if (!ctx->picture.rle)
+    if (!ctx->picture.rle) {
         return -1;
+    }
 
     memcpy(ctx->picture.rle, buf, buf_size);
     ctx->picture.rle_data_len = buf_size;
@@ -254,7 +260,7 @@ static void parse_palette_segment(AVCodecContext *avctx,
         av_dlog(avctx, "Color %d := (%d,%d,%d,%d)\n", color_id, r, g, b, alpha);
 
         /* Store color in palette */
-        ctx->clut[color_id] = RGBA(r,g,b,alpha);
+        ctx->clut[color_id] = RGBA(r, g, b, alpha);
     }
 }
 
@@ -282,8 +288,9 @@ static void parse_presentation_segment(AVCodecContext *avctx,
 
     av_dlog(avctx, "Video Dimensions %dx%d\n",
             w, h);
-    if (av_image_check_size(w, h, 0, avctx) >= 0)
+    if (av_image_check_size(w, h, 0, avctx) >= 0) {
         avcodec_set_dimensions(avctx, w, h);
+    }
 
     /* Skip 1 bytes of unknown, frame rate? */
     buf++;
@@ -299,8 +306,9 @@ static void parse_presentation_segment(AVCodecContext *avctx,
     buf += 3;
 
     ctx->presentation.object_number = bytestream_get_byte(&buf);
-    if (!ctx->presentation.object_number)
+    if (!ctx->presentation.object_number) {
         return;
+    }
 
     /*
      * Skip 4 bytes of unknown:
@@ -320,7 +328,8 @@ static void parse_presentation_segment(AVCodecContext *avctx,
     if (x > avctx->width || y > avctx->height) {
         av_log(avctx, AV_LOG_ERROR, "Subtitle out of video bounds. x = %d, y = %d, video width = %d, video height = %d.\n",
                x, y, avctx->width, avctx->height);
-        x = 0; y = 0;
+        x = 0;
+        y = 0;
     }
 
     /* Fill in dimensions */
@@ -357,8 +366,9 @@ static int display_end_segment(AVCodecContext *avctx, void *data,
 
     // Blank if last object_number was 0.
     // Note that this may be wrong for more complex subtitles.
-    if (!ctx->presentation.object_number)
+    if (!ctx->presentation.object_number) {
         return 1;
+    }
     sub->start_display_time = 0;
     sub->end_display_time   = 20000;
     sub->format             = 0;
@@ -380,8 +390,9 @@ static int display_end_segment(AVCodecContext *avctx, void *data,
         if (ctx->picture.rle_remaining_len)
             av_log(avctx, AV_LOG_ERROR, "RLE data length %u is %u bytes shorter than expected\n",
                    ctx->picture.rle_data_len, ctx->picture.rle_remaining_len);
-        if(decode_rle(avctx, sub, ctx->picture.rle, ctx->picture.rle_data_len) < 0)
+        if (decode_rle(avctx, sub, ctx->picture.rle, ctx->picture.rle_data_len) < 0) {
             return 0;
+        }
     }
     /* Allocate memory for colors */
     sub->rects[0]->nb_colors    = 256;
@@ -407,18 +418,21 @@ static int decode(AVCodecContext *avctx, void *data, int *data_size,
 
     for (i = 0; i < buf_size; i++) {
         av_dlog(avctx, "%02x ", buf[i]);
-        if (i % 16 == 15)
+        if (i % 16 == 15) {
             av_dlog(avctx, "\n");
+        }
     }
 
-    if (i & 15)
+    if (i & 15) {
         av_dlog(avctx, "\n");
+    }
 
     *data_size = 0;
 
     /* Ensure that we have received at a least a segment code and segment length */
-    if (buf_size < 3)
+    if (buf_size < 3) {
         return -1;
+    }
 
     buf_end = buf + buf_size;
 
@@ -429,8 +443,9 @@ static int decode(AVCodecContext *avctx, void *data, int *data_size,
 
         av_dlog(avctx, "Segment Length %d, Segment Type %x\n", segment_length, segment_type);
 
-        if (segment_type != DISPLAY_SEGMENT && segment_length > buf_end - buf)
+        if (segment_type != DISPLAY_SEGMENT && segment_length > buf_end - buf) {
             break;
+        }
 
         switch (segment_type) {
         case PALETTE_SEGMENT:

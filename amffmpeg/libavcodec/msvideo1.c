@@ -122,9 +122,9 @@ static void msvideo1_decode_8bit(Msvideo1Context *s)
             byte_b = s->buf[stream_ptr++];
 
             /* check if the decode is finished */
-            if ((byte_a == 0) && (byte_b == 0) && (total_blocks == 0))
+            if ((byte_a == 0) && (byte_b == 0) && (total_blocks == 0)) {
                 return;
-            else if ((byte_b & 0xFC) == 0x84) {
+            } else if ((byte_b & 0xFC) == 0x84) {
                 /* skip code, but don't count the current block */
                 skip_blocks = ((byte_b - 0x84) << 8) + byte_a - 1;
             } else if (byte_b < 0x80) {
@@ -136,8 +136,9 @@ static void msvideo1_decode_8bit(Msvideo1Context *s)
                 colors[1] = s->buf[stream_ptr++];
 
                 for (pixel_y = 0; pixel_y < 4; pixel_y++) {
-                    for (pixel_x = 0; pixel_x < 4; pixel_x++, flags >>= 1)
+                    for (pixel_x = 0; pixel_x < 4; pixel_x++, flags >>= 1) {
                         pixels[pixel_ptr++] = colors[(flags & 0x1) ^ 1];
+                    }
                     pixel_ptr -= row_dec;
                 }
             } else if (byte_b >= 0x90) {
@@ -152,7 +153,7 @@ static void msvideo1_decode_8bit(Msvideo1Context *s)
                     for (pixel_x = 0; pixel_x < 4; pixel_x++, flags >>= 1)
                         pixels[pixel_ptr++] =
                             colors[((pixel_y & 0x2) << 1) +
-                                (pixel_x & 0x2) + ((flags & 0x1) ^ 1)];
+                                   (pixel_x & 0x2) + ((flags & 0x1) ^ 1)];
                     pixel_ptr -= row_dec;
                 }
             } else {
@@ -160,8 +161,9 @@ static void msvideo1_decode_8bit(Msvideo1Context *s)
                 colors[0] = byte_a;
 
                 for (pixel_y = 0; pixel_y < 4; pixel_y++) {
-                    for (pixel_x = 0; pixel_x < 4; pixel_x++)
+                    for (pixel_x = 0; pixel_x < 4; pixel_x++) {
                         pixels[pixel_ptr++] = colors[0];
+                    }
                     pixel_ptr -= row_dec;
                 }
             }
@@ -172,8 +174,9 @@ static void msvideo1_decode_8bit(Msvideo1Context *s)
     }
 
     /* make the palette available on the way out */
-    if (s->avctx->pix_fmt == PIX_FMT_PAL8)
+    if (s->avctx->pix_fmt == PIX_FMT_PAL8) {
         memcpy(s->frame.data[1], s->pal, AVPALETTE_SIZE);
+    }
 }
 
 static void msvideo1_decode_16bit(Msvideo1Context *s)
@@ -257,14 +260,15 @@ static void msvideo1_decode_16bit(Msvideo1Context *s)
                         for (pixel_x = 0; pixel_x < 4; pixel_x++, flags >>= 1)
                             pixels[pixel_ptr++] =
                                 colors[((pixel_y & 0x2) << 1) +
-                                    (pixel_x & 0x2) + ((flags & 0x1) ^ 1)];
+                                       (pixel_x & 0x2) + ((flags & 0x1) ^ 1)];
                         pixel_ptr -= row_dec;
                     }
                 } else {
                     /* 2-color encoding */
                     for (pixel_y = 0; pixel_y < 4; pixel_y++) {
-                        for (pixel_x = 0; pixel_x < 4; pixel_x++, flags >>= 1)
+                        for (pixel_x = 0; pixel_x < 4; pixel_x++, flags >>= 1) {
                             pixels[pixel_ptr++] = colors[(flags & 0x1) ^ 1];
+                        }
                         pixel_ptr -= row_dec;
                     }
                 }
@@ -273,8 +277,9 @@ static void msvideo1_decode_16bit(Msvideo1Context *s)
                 colors[0] = (byte_b << 8) | byte_a;
 
                 for (pixel_y = 0; pixel_y < 4; pixel_y++) {
-                    for (pixel_x = 0; pixel_x < 4; pixel_x++)
+                    for (pixel_x = 0; pixel_x < 4; pixel_x++) {
                         pixels[pixel_ptr++] = colors[0];
+                    }
                     pixel_ptr -= row_dec;
                 }
             }
@@ -286,8 +291,8 @@ static void msvideo1_decode_16bit(Msvideo1Context *s)
 }
 
 static int msvideo1_decode_frame(AVCodecContext *avctx,
-                                void *data, int *data_size,
-                                AVPacket *avpkt)
+                                 void *data, int *data_size,
+                                 AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;
@@ -312,10 +317,11 @@ static int msvideo1_decode_frame(AVCodecContext *avctx,
         }
     }
 
-    if (s->mode_8bit)
+    if (s->mode_8bit) {
         msvideo1_decode_8bit(s);
-    else
+    } else {
         msvideo1_decode_16bit(s);
+    }
 
     *data_size = sizeof(AVFrame);
     *(AVFrame*)data = s->frame;
@@ -328,8 +334,9 @@ static av_cold int msvideo1_decode_end(AVCodecContext *avctx)
 {
     Msvideo1Context *s = avctx->priv_data;
 
-    if (s->frame.data[0])
+    if (s->frame.data[0]) {
         avctx->release_buffer(avctx, &s->frame);
+    }
 
     return 0;
 }
@@ -344,5 +351,5 @@ AVCodec ff_msvideo1_decoder = {
     msvideo1_decode_end,
     msvideo1_decode_frame,
     CODEC_CAP_DR1,
-    .long_name= NULL_IF_CONFIG_SMALL("Microsoft Video 1"),
+    .long_name = NULL_IF_CONFIG_SMALL("Microsoft Video 1"),
 };

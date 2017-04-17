@@ -57,13 +57,14 @@ static int probe(AVProbeData *p)
 {
     const uint8_t *b = p->buf;
 
-    if ( b[0] == 'B' && b[1] == 'I' && b[2] == 'K' &&
+    if (b[0] == 'B' && b[1] == 'I' && b[2] == 'K' &&
         (b[3] == 'b' || b[3] == 'f' || b[3] == 'g' || b[3] == 'h' || b[3] == 'i') &&
-        AV_RL32(b+8) > 0 &&  // num_frames
-        AV_RL32(b+20) > 0 && AV_RL32(b+20) <= BINK_MAX_WIDTH &&
-        AV_RL32(b+24) > 0 && AV_RL32(b+24) <= BINK_MAX_HEIGHT &&
-        AV_RL32(b+28) > 0 && AV_RL32(b+32) > 0)  // fps num,den
+        AV_RL32(b + 8) > 0 && // num_frames
+        AV_RL32(b + 20) > 0 && AV_RL32(b + 20) <= BINK_MAX_WIDTH &&
+        AV_RL32(b + 24) > 0 && AV_RL32(b + 24) <= BINK_MAX_HEIGHT &&
+        AV_RL32(b + 28) > 0 && AV_RL32(b + 32) > 0) { // fps num,den
         return AVPROBE_SCORE_MAX;
+    }
     return 0;
 }
 
@@ -79,8 +80,9 @@ static int read_header(AVFormatContext *s, AVFormatParameters *ap)
     int keyframe;
 
     vst = av_new_stream(s, 0);
-    if (!vst)
+    if (!vst) {
         return AVERROR(ENOMEM);
+    }
 
     vst->codec->codec_tag = avio_rl32(pb);
 
@@ -131,8 +133,9 @@ static int read_header(AVFormatContext *s, AVFormatParameters *ap)
 
         for (i = 0; i < bink->num_audio_tracks; i++) {
             ast = av_new_stream(s, 1);
-            if (!ast)
+            if (!ast) {
                 return AVERROR(ENOMEM);
+            }
             ast->codec->codec_type  = AVMEDIA_TYPE_AUDIO;
             ast->codec->sample_rate = avio_rl16(pb);
             av_set_pts_info(ast, 64, 1, ast->codec->sample_rate);
@@ -142,11 +145,12 @@ static int read_header(AVFormatContext *s, AVFormatParameters *ap)
             ast->codec->channels = flags & BINK_AUD_STEREO ? 2 : 1;
             ast->codec->extradata  = av_mallocz(1 + FF_INPUT_BUFFER_PADDING_SIZE);
             ast->codec->extradata_size = 1;
-            ast->codec->extradata[0] = vst->codec->codec_tag == MKTAG('B','I','K','b');
+            ast->codec->extradata[0] = vst->codec->codec_tag == MKTAG('B', 'I', 'K', 'b');
         }
 
-        for (i = 0; i < bink->num_audio_tracks; i++)
+        for (i = 0; i < bink->num_audio_tracks; i++) {
             s->streams[i + 1]->id = avio_rl32(pb);
+        }
     }
 
     /* frame index table */
@@ -187,8 +191,9 @@ static int read_packet(AVFormatContext *s, AVPacket *pkt)
         int index_entry;
         AVStream *st = s->streams[0]; // stream 0 is video stream with index
 
-        if (bink->video_pts >= st->duration)
+        if (bink->video_pts >= st->duration) {
             return AVERROR(EIO);
+        }
 
         index_entry = av_index_search_timestamp(st, bink->video_pts,
                                                 AVSEEK_FLAG_ANY);
@@ -215,15 +220,16 @@ static int read_packet(AVFormatContext *s, AVPacket *pkt)
         bink->current_track++;
         if (audio_size >= 4) {
             /* get one audio packet per track */
-            if ((ret = av_get_packet(pb, pkt, audio_size)) < 0)
+            if ((ret = av_get_packet(pb, pkt, audio_size)) < 0) {
                 return ret;
+            }
             pkt->stream_index = bink->current_track;
             pkt->pts = bink->audio_pts[bink->current_track - 1];
 
             /* Each audio packet reports the number of decompressed samples
                (in bytes). We use this value to calcuate the audio PTS */
             if (pkt->size >= 4)
-                bink->audio_pts[bink->current_track -1] +=
+                bink->audio_pts[bink->current_track - 1] +=
                     AV_RL32(pkt->data) / (2 * s->streams[bink->current_track]->codec->channels);
             return 0;
         } else {
@@ -232,8 +238,9 @@ static int read_packet(AVFormatContext *s, AVPacket *pkt)
     }
 
     /* get video packet */
-    if ((ret = av_get_packet(pb, pkt, bink->remain_packet_size)) < 0)
+    if ((ret = av_get_packet(pb, pkt, bink->remain_packet_size)) < 0) {
         return ret;
+    }
     pkt->stream_index = 0;
     pkt->pts = bink->video_pts++;
     pkt->flags |= AV_PKT_FLAG_KEY;
@@ -249,8 +256,9 @@ static int read_seek(AVFormatContext *s, int stream_index, int64_t timestamp, in
     BinkDemuxContext *bink = s->priv_data;
     AVStream *vst = s->streams[0];
 
-    if (!s->pb->seekable)
+    if (!s->pb->seekable) {
         return -1;
+    }
 
     /* seek to the first frame */
     avio_seek(s->pb, vst->index_entries[0].pos, SEEK_SET);

@@ -31,7 +31,7 @@ typedef struct {
     /* The largest frame is 35 bytes, only 10 frames are allowed per
      * packet, and we return the first one immediately, so allocate
      * space for 9 frames */
-    uint8_t data[35*9];
+    uint8_t data[35 * 9];
 } InterleavePacket;
 
 struct PayloadContext {
@@ -42,7 +42,7 @@ struct PayloadContext {
 
     /* The maximum packet size, 10 frames of 35 bytes each, and one
      * packet header byte. */
-    uint8_t  next_data[1 + 35*10];
+    uint8_t  next_data[1 + 35 * 10];
     int      next_size;
     uint32_t next_timestamp;
 };
@@ -69,20 +69,21 @@ static int store_packet(AVFormatContext *ctx, PayloadContext *data,
     int frame_size, ret;
     InterleavePacket* ip;
 
-    if (len < 2)
+    if (len < 2) {
         return AVERROR_INVALIDDATA;
+    }
 
     interleave_size  = buf[0] >> 3 & 7;
     interleave_index = buf[0]      & 7;
 
     if (interleave_size > 5) {
         av_log(ctx, AV_LOG_ERROR, "Invalid interleave size %d\n",
-                                   interleave_size);
+               interleave_size);
         return AVERROR_INVALIDDATA;
     }
     if (interleave_index > interleave_size) {
         av_log(ctx, AV_LOG_ERROR, "Invalid interleave index %d/%d\n",
-                                   interleave_index, interleave_size);
+               interleave_index, interleave_size);
         return AVERROR_INVALIDDATA;
     }
     if (interleave_size != data->interleave_size) {
@@ -90,8 +91,9 @@ static int store_packet(AVFormatContext *ctx, PayloadContext *data,
         /* First packet, or changed interleave size */
         data->interleave_size = interleave_size;
         data->interleave_index = 0;
-        for (i = 0; i < 6; i++)
+        for (i = 0; i < 6; i++) {
             data->group[i].size = 0;
+        }
     }
 
     if (interleave_index < data->interleave_index) {
@@ -104,11 +106,13 @@ static int store_packet(AVFormatContext *ctx, PayloadContext *data,
             /* Stash away the current packet, emit everything we have of the
              * previous group. */
             for (; data->interleave_index <= interleave_size;
-                 data->interleave_index++)
+                 data->interleave_index++) {
                 data->group[data->interleave_index].size = 0;
+            }
 
-            if (len > sizeof(data->next_data))
+            if (len > sizeof(data->next_data)) {
                 return AVERROR_INVALIDDATA;
+            }
             memcpy(data->next_data, buf, len);
             data->next_size = len;
             data->next_timestamp = *timestamp;
@@ -121,22 +125,27 @@ static int store_packet(AVFormatContext *ctx, PayloadContext *data,
     if (interleave_index > data->interleave_index) {
         /* We missed a packet */
         for (; data->interleave_index < interleave_index;
-             data->interleave_index++)
+             data->interleave_index++) {
             data->group[data->interleave_index].size = 0;
+        }
     }
     data->interleave_index = interleave_index;
 
-    if (buf[1] >= FF_ARRAY_ELEMS(frame_sizes))
+    if (buf[1] >= FF_ARRAY_ELEMS(frame_sizes)) {
         return AVERROR_INVALIDDATA;
+    }
     frame_size = frame_sizes[buf[1]];
-    if (1 + frame_size > len)
+    if (1 + frame_size > len) {
         return AVERROR_INVALIDDATA;
+    }
 
-    if (len - 1 - frame_size > sizeof(data->group[0].data))
+    if (len - 1 - frame_size > sizeof(data->group[0].data)) {
         return AVERROR_INVALIDDATA;
+    }
 
-    if ((ret = av_new_packet(pkt, frame_size)) < 0)
+    if ((ret = av_new_packet(pkt, frame_size)) < 0) {
         return ret;
+    }
     memcpy(pkt->data, &buf[1], frame_size);
     pkt->stream_index = st->index;
 
@@ -175,20 +184,25 @@ static int return_stored_frame(AVFormatContext *ctx, PayloadContext *data,
 
     if (ip->size == 0) {
         /* No stored data for this interleave block, output an empty packet */
-        if ((ret = av_new_packet(pkt, 1)) < 0)
+        if ((ret = av_new_packet(pkt, 1)) < 0) {
             return ret;
+        }
         pkt->data[0] = 0; // Blank - could also be 14, Erasure
     } else {
-        if (ip->pos >= ip->size)
+        if (ip->pos >= ip->size) {
             return AVERROR_INVALIDDATA;
-        if (ip->data[ip->pos] >= FF_ARRAY_ELEMS(frame_sizes))
+        }
+        if (ip->data[ip->pos] >= FF_ARRAY_ELEMS(frame_sizes)) {
             return AVERROR_INVALIDDATA;
+        }
         frame_size = frame_sizes[ip->data[ip->pos]];
-        if (ip->pos + frame_size > ip->size)
+        if (ip->pos + frame_size > ip->size) {
             return AVERROR_INVALIDDATA;
+        }
 
-        if ((ret = av_new_packet(pkt, frame_size)) < 0)
+        if ((ret = av_new_packet(pkt, frame_size)) < 0) {
             return ret;
+        }
         memcpy(pkt->data, &ip->data[ip->pos], frame_size);
 
         ip->pos += frame_size;
@@ -198,10 +212,11 @@ static int return_stored_frame(AVFormatContext *ctx, PayloadContext *data,
 
     if (data->interleave_index == data->interleave_size) {
         data->interleave_index = 0;
-        if (!data->group_finished)
+        if (!data->group_finished) {
             return 1;
-        else
+        } else {
             return data->next_size > 0;
+        }
     } else {
         data->interleave_index++;
         return 1;
@@ -212,10 +227,11 @@ static int qcelp_parse_packet(AVFormatContext *ctx, PayloadContext *data,
                               AVStream *st, AVPacket *pkt, uint32_t *timestamp,
                               const uint8_t *buf, int len, int flags)
 {
-    if (buf)
+    if (buf) {
         return store_packet(ctx, data, st, pkt, timestamp, buf, len);
-    else
+    } else {
         return return_stored_frame(ctx, data, st, pkt, timestamp, buf, len);
+    }
 }
 
 RTPDynamicProtocolHandler ff_qcelp_dynamic_handler = {

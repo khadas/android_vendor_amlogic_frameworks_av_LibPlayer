@@ -51,8 +51,9 @@ static int qt_rtp_parse_packet(AVFormatContext *s, PayloadContext *qt,
     if (qt->remaining) {
         int num = qt->pkt.size / qt->bytes_per_frame;
 
-        if (av_new_packet(pkt, qt->bytes_per_frame))
+        if (av_new_packet(pkt, qt->bytes_per_frame)) {
             return AVERROR(ENOMEM);
+        }
         pkt->stream_index = st->index;
         pkt->flags        = qt->pkt.flags;
         memcpy(pkt->data,
@@ -72,14 +73,17 @@ static int qt_rtp_parse_packet(AVFormatContext *s, PayloadContext *qt,
     init_get_bits(&gb, buf, len << 3);
     ffio_init_context(&pb, buf, len, 0, NULL, NULL, NULL, NULL);
 
-    if (len < 4)
+    if (len < 4) {
         return AVERROR_INVALIDDATA;
+    }
 
     skip_bits(&gb, 4); // version
-    if ((packing_scheme = get_bits(&gb, 2)) == 0)
+    if ((packing_scheme = get_bits(&gb, 2)) == 0) {
         return AVERROR_INVALIDDATA;
-    if (get_bits1(&gb))
+    }
+    if (get_bits1(&gb)) {
         flags          |= RTP_FLAG_KEY;
+    }
     has_payload_desc    = get_bits1(&gb);
     has_packet_info     = get_bits1(&gb);
     skip_bits(&gb, 23); // reserved:7, cache payload info:1, payload ID:15
@@ -89,15 +93,16 @@ static int qt_rtp_parse_packet(AVFormatContext *s, PayloadContext *qt,
         uint32_t tag;
 
         pos = get_bits_count(&gb) >> 3;
-        if (pos + 12 > len)
+        if (pos + 12 > len) {
             return AVERROR_INVALIDDATA;
+        }
 
         skip_bits(&gb, 2); // has non-I frames:1, is sparse:1
         is_start  = get_bits1(&gb);
         is_finish = get_bits1(&gb);
         if (!is_start || !is_finish) {
             av_log_missing_feature(s, "RTP-X-QT with payload description "
-                                      "split over several packets", 1);
+                                   "split over several packets", 1);
             return AVERROR(ENOSYS);
         }
         skip_bits(&gb, 12); // reserved
@@ -106,30 +111,34 @@ static int qt_rtp_parse_packet(AVFormatContext *s, PayloadContext *qt,
         avio_seek(&pb, pos + 4, SEEK_SET);
         tag = avio_rl32(&pb);
         if ((st->codec->codec_type == AVMEDIA_TYPE_VIDEO &&
-                 tag != MKTAG('v','i','d','e')) ||
+             tag != MKTAG('v', 'i', 'd', 'e')) ||
             (st->codec->codec_type == AVMEDIA_TYPE_AUDIO &&
-                 tag != MKTAG('s','o','u','n')))
+             tag != MKTAG('s', 'o', 'u', 'n'))) {
             return AVERROR_INVALIDDATA;
+        }
         av_set_pts_info(st, 32, 1, avio_rb32(&pb));
 
-        if (pos + data_len > len)
+        if (pos + data_len > len) {
             return AVERROR_INVALIDDATA;
+        }
         /* TLVs */
         while (avio_tell(&pb) + 4 < pos + data_len) {
             int tlv_len = avio_rb16(&pb);
             tag = avio_rl16(&pb);
-            if (avio_tell(&pb) + tlv_len > pos + data_len)
+            if (avio_tell(&pb) + tlv_len > pos + data_len) {
                 return AVERROR_INVALIDDATA;
+            }
 
 #define MKTAG16(a,b) MKTAG(a,b,0,0)
             switch (tag) {
-            case MKTAG16('s','d'): {
+            case MKTAG16('s', 'd'): {
                 MOVStreamContext *msc;
                 void *priv_data = st->priv_data;
                 int nb_streams = s->nb_streams;
                 MOVContext *mc = av_mallocz(sizeof(*mc));
-                if (!mc)
+                if (!mc) {
                     return AVERROR(ENOMEM);
+                }
                 mc->fc = s;
                 st->priv_data = msc = av_mallocz(sizeof(MOVStreamContext));
                 if (!msc) {
@@ -156,8 +165,9 @@ static int qt_rtp_parse_packet(AVFormatContext *s, PayloadContext *qt,
 
         /* 32-bit alignment */
         avio_skip(&pb, ((avio_tell(&pb) + 3) & ~3) - avio_tell(&pb));
-    } else
+    } else {
         avio_seek(&pb, 4, SEEK_SET);
+    }
 
     if (has_packet_info) {
         av_log_missing_feature(s, "RTP-X-QT with packet specific info", 1);
@@ -165,8 +175,9 @@ static int qt_rtp_parse_packet(AVFormatContext *s, PayloadContext *qt,
     }
 
     alen = len - avio_tell(&pb);
-    if (alen <= 0)
+    if (alen <= 0) {
         return AVERROR_INVALIDDATA;
+    }
 
     switch (packing_scheme) {
     case 3: /* one data packet spread over 1 or multiple RTP packets */
@@ -180,8 +191,9 @@ static int qt_rtp_parse_packet(AVFormatContext *s, PayloadContext *qt,
             qt->pkt.size = 0;
             qt->timestamp = *timestamp;
         }
-        if (!qt->pkt.data)
+        if (!qt->pkt.data) {
             return AVERROR(ENOMEM);
+        }
         memcpy(qt->pkt.data + qt->pkt.size, buf + avio_tell(&pb), alen);
         qt->pkt.size += alen;
         if (has_marker_bit) {
@@ -198,11 +210,13 @@ static int qt_rtp_parse_packet(AVFormatContext *s, PayloadContext *qt,
 
     case 1: /* constant packet size, multiple packets per RTP packet */
         if (qt->bytes_per_frame == 0 ||
-            alen % qt->bytes_per_frame != 0)
-            return AVERROR_INVALIDDATA; /* wrongly padded */
+            alen % qt->bytes_per_frame != 0) {
+            return AVERROR_INVALIDDATA;    /* wrongly padded */
+        }
         qt->remaining = (alen / qt->bytes_per_frame) - 1;
-        if (av_new_packet(pkt, qt->bytes_per_frame))
+        if (av_new_packet(pkt, qt->bytes_per_frame)) {
             return AVERROR(ENOMEM);
+        }
         memcpy(pkt->data, buf + avio_tell(&pb), qt->bytes_per_frame);
         pkt->flags = flags & RTP_FLAG_KEY ? AV_PKT_FLAG_KEY : 0;
         pkt->stream_index = st->index;

@@ -67,63 +67,63 @@ extern "C" {
 #endif /* __cplusplus */
 
 
-    /**
-     *  GURI:
-     *  @scheme: Scheme (or protocol)
-     *  @userinfo: User info
-     *  @hostname: Host name
-     *  @port: Port number
-     *  @path: Path
-     *  @query: Query
-     *  @fragment: Fragment
-     *
-     *  The #GURI structure represents a URI.  All fields in this
-     *  structure are publicly readable.
-     *
-     **/
-    typedef struct _GURI GURI;
+/**
+ *  GURI:
+ *  @scheme: Scheme (or protocol)
+ *  @userinfo: User info
+ *  @hostname: Host name
+ *  @port: Port number
+ *  @path: Path
+ *  @query: Query
+ *  @fragment: Fragment
+ *
+ *  The #GURI structure represents a URI.  All fields in this
+ *  structure are publicly readable.
+ *
+ **/
+typedef struct _GURI GURI;
 
-    struct _GURI {
-        char* scheme;
-        char* user;
-        char* passwd;
-        char* hostname;
-        gint   port;
-        char* path;
-        char* query;
-        char* fragment;
-    };
+struct _GURI {
+    char* scheme;
+    char* user;
+    char* passwd;
+    char* hostname;
+    gint   port;
+    char* path;
+    char* query;
+    char* fragment;
+};
 
 
 
-    GURI*     gnet_uri_new(const char* uri);
-    GURI*     gnet_uri_new_fields(const char* scheme, const char* hostname,
-                                  const gint port, const char* path);
-    GURI*
-    gnet_uri_new_fields_all(const char* scheme, const char* user,
-                            const char* passwd, const char* hostname,
-                            const gint port, const char* path,
-                            const char* query, const char* fragment);
-    GURI*     gnet_uri_clone(const GURI* uri);
-    void      gnet_uri_delete(GURI* uri);
+GURI*     gnet_uri_new(const char* uri);
+GURI*     gnet_uri_new_fields(const char* scheme, const char* hostname,
+                              const gint port, const char* path);
+GURI*
+gnet_uri_new_fields_all(const char* scheme, const char* user,
+                        const char* passwd, const char* hostname,
+                        const gint port, const char* path,
+                        const char* query, const char* fragment);
+GURI*     gnet_uri_clone(const GURI* uri);
+void      gnet_uri_delete(GURI* uri);
 
-    gboolean  gnet_uri_equal(gconstpointer p1, gconstpointer p2);
-    guint     gnet_uri_hash(gconstpointer p);
+gboolean  gnet_uri_equal(gconstpointer p1, gconstpointer p2);
+guint     gnet_uri_hash(gconstpointer p);
 
-    void      gnet_uri_escape(GURI* uri);
-    void      gnet_uri_unescape(GURI* uri);
+void      gnet_uri_escape(GURI* uri);
+void      gnet_uri_unescape(GURI* uri);
 
-    char*     gnet_uri_get_string(const GURI* uri);
+char*     gnet_uri_get_string(const GURI* uri);
 
-    void      gnet_uri_set_scheme(GURI* uri, const char* scheme);
-    void      gnet_uri_set_userinfo(GURI* uri, const char* user, const char* passwd);
-    void      gnet_uri_set_hostname(GURI* uri, const char* hostname);
-    void      gnet_uri_set_port(GURI* uri, gint port);
-    void      gnet_uri_set_path(GURI* uri, const char* path);
-    void      gnet_uri_set_query(GURI* uri, const char* query);
-    void      gnet_uri_set_fragment(GURI* uri, const char* fragment);
+void      gnet_uri_set_scheme(GURI* uri, const char* scheme);
+void      gnet_uri_set_userinfo(GURI* uri, const char* user, const char* passwd);
+void      gnet_uri_set_hostname(GURI* uri, const char* hostname);
+void      gnet_uri_set_port(GURI* uri, gint port);
+void      gnet_uri_set_path(GURI* uri, const char* path);
+void      gnet_uri_set_query(GURI* uri, const char* query);
+void      gnet_uri_set_fragment(GURI* uri, const char* fragment);
 
-    char*     gnet_mms_helper(const GURI* uri, int make_absolute);
+char*     gnet_mms_helper(const GURI* uri, int make_absolute);
 
 #ifdef __cplusplus
 }

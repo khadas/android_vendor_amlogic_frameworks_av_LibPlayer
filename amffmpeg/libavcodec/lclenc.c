@@ -68,7 +68,8 @@ typedef struct LclEncContext {
  * Encode a frame
  *
  */
-static int encode_frame(AVCodecContext *avctx, unsigned char *buf, int buf_size, void *data){
+static int encode_frame(AVCodecContext *avctx, unsigned char *buf, int buf_size, void *data)
+{
     LclEncContext *c = avctx->priv_data;
     AVFrame *pict = data;
     AVFrame * const p = &c->pic;
@@ -76,10 +77,10 @@ static int encode_frame(AVCodecContext *avctx, unsigned char *buf, int buf_size,
     int zret; // Zlib return code
 
     *p = *pict;
-    p->pict_type= AV_PICTURE_TYPE_I;
-    p->key_frame= 1;
+    p->pict_type = AV_PICTURE_TYPE_I;
+    p->key_frame = 1;
 
-    if(avctx->pix_fmt != PIX_FMT_BGR24){
+    if (avctx->pix_fmt != PIX_FMT_BGR24) {
         av_log(avctx, AV_LOG_ERROR, "Format not supported!\n");
         return -1;
     }
@@ -92,9 +93,9 @@ static int encode_frame(AVCodecContext *avctx, unsigned char *buf, int buf_size,
     c->zstream.next_out = buf;
     c->zstream.avail_out = buf_size;
 
-    for(i = avctx->height - 1; i >= 0; i--) {
-        c->zstream.next_in = p->data[0]+p->linesize[0]*i;
-        c->zstream.avail_in = avctx->width*3;
+    for (i = avctx->height - 1; i >= 0; i--) {
+        c->zstream.next_in = p->data[0] + p->linesize[0] * i;
+        c->zstream.avail_in = avctx->width * 3;
         zret = deflate(&c->zstream, Z_NO_FLUSH);
         if (zret != Z_OK) {
             av_log(avctx, AV_LOG_ERROR, "Deflate error: %d\n", zret);
@@ -120,28 +121,28 @@ static av_cold int encode_init(AVCodecContext *avctx)
     LclEncContext *c = avctx->priv_data;
     int zret; // Zlib return code
 
-    c->avctx= avctx;
+    c->avctx = avctx;
 
     assert(avctx->width && avctx->height);
 
-    avctx->extradata= av_mallocz(8);
-    avctx->coded_frame= &c->pic;
+    avctx->extradata = av_mallocz(8);
+    avctx->coded_frame = &c->pic;
 
     // Will be user settable someday
     c->compression = 6;
     c->flags = 0;
     c->imgtype = IMGTYPE_RGB24;
-    avctx->bits_per_coded_sample= 24;
+    avctx->bits_per_coded_sample = 24;
 
-    avctx->extradata[0]= 4;
-    avctx->extradata[1]= 0;
-    avctx->extradata[2]= 0;
-    avctx->extradata[3]= 0;
-    avctx->extradata[4]= c->imgtype;
-    avctx->extradata[5]= c->compression;
-    avctx->extradata[6]= c->flags;
-    avctx->extradata[7]= CODEC_ZLIB;
-    c->avctx->extradata_size= 8;
+    avctx->extradata[0] = 4;
+    avctx->extradata[1] = 0;
+    avctx->extradata[2] = 0;
+    avctx->extradata[3] = 0;
+    avctx->extradata[4] = c->imgtype;
+    avctx->extradata[5] = c->compression;
+    avctx->extradata[6] = c->flags;
+    avctx->extradata[7] = CODEC_ZLIB;
+    c->avctx->extradata_size = 8;
 
     c->zstream.zalloc = Z_NULL;
     c->zstream.zfree = Z_NULL;

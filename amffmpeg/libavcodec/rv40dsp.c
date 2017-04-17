@@ -284,7 +284,8 @@ static void OPNAME ## rv40_chroma_mc8_c(uint8_t *dst/*align 8*/, uint8_t *src/*a
 RV40_CHROMA_MC(put_, op_put)
 RV40_CHROMA_MC(avg_, op_avg)
 
-void ff_rv40dsp_init(DSPContext* c, AVCodecContext *avctx) {
+void ff_rv40dsp_init(DSPContext* c, AVCodecContext *avctx)
+{
     c->put_rv40_qpel_pixels_tab[0][ 0] = c->put_h264_qpel_pixels_tab[0][0];
     c->put_rv40_qpel_pixels_tab[0][ 1] = put_rv40_qpel16_mc10_c;
     c->put_rv40_qpel_pixels_tab[0][ 2] = put_rv40_qpel16_mc20_c;
@@ -346,8 +347,8 @@ void ff_rv40dsp_init(DSPContext* c, AVCodecContext *avctx) {
     c->avg_rv40_qpel_pixels_tab[1][13] = avg_rv40_qpel8_mc13_c;
     c->avg_rv40_qpel_pixels_tab[1][14] = avg_rv40_qpel8_mc23_c;
 
-    c->put_rv40_chroma_pixels_tab[0]= put_rv40_chroma_mc8_c;
-    c->put_rv40_chroma_pixels_tab[1]= put_rv40_chroma_mc4_c;
-    c->avg_rv40_chroma_pixels_tab[0]= avg_rv40_chroma_mc8_c;
-    c->avg_rv40_chroma_pixels_tab[1]= avg_rv40_chroma_mc4_c;
+    c->put_rv40_chroma_pixels_tab[0] = put_rv40_chroma_mc8_c;
+    c->put_rv40_chroma_pixels_tab[1] = put_rv40_chroma_mc4_c;
+    c->avg_rv40_chroma_pixels_tab[0] = avg_rv40_chroma_mc8_c;
+    c->avg_rv40_chroma_pixels_tab[1] = avg_rv40_chroma_mc4_c;
 }

@@ -48,7 +48,8 @@ typedef struct Escape124Context {
     CodeBook codebooks[3];
 } Escape124Context;
 
-static int can_safely_read(GetBitContext* gb, int bits) {
+static int can_safely_read(GetBitContext* gb, int bits)
+{
     return get_bits_count(gb) + bits <= gb->size_in_bits;
 }
 
@@ -75,29 +76,34 @@ static av_cold int escape124_decode_close(AVCodecContext *avctx)
     unsigned i;
     Escape124Context *s = avctx->priv_data;
 
-    for (i = 0; i < 3; i++)
+    for (i = 0; i < 3; i++) {
         av_free(s->codebooks[i].blocks);
+    }
 
-    if (s->frame.data[0])
+    if (s->frame.data[0]) {
         avctx->release_buffer(avctx, &s->frame);
+    }
 
     return 0;
 }
 
 static CodeBook unpack_codebook(GetBitContext* gb, unsigned depth,
-                                 unsigned size)
+                                unsigned size)
 {
     unsigned i, j;
     CodeBook cb = { 0 };
 
-    if (!can_safely_read(gb, size * 34))
+    if (!can_safely_read(gb, size * 34)) {
         return cb;
+    }
 
-    if (size >= INT_MAX / sizeof(MacroBlock))
+    if (size >= INT_MAX / sizeof(MacroBlock)) {
         return cb;
+    }
     cb.blocks = av_malloc(size ? size * sizeof(MacroBlock) : 1);
-    if (!cb.blocks)
+    if (!cb.blocks) {
         return cb;
+    }
 
     cb.depth = depth;
     cb.size = size;
@@ -107,10 +113,11 @@ static CodeBook unpack_codebook(GetBitContext* gb, unsigned depth,
         unsigned color1 = get_bits(gb, 15);
 
         for (j = 0; j < 4; j++) {
-            if (mask_bits & (1 << j))
+            if (mask_bits & (1 << j)) {
                 cb.blocks[i].pixels[j] = color1;
-            else
+            } else {
                 cb.blocks[i].pixels[j] = color0;
+            }
         }
     }
     return cb;
@@ -121,19 +128,23 @@ static unsigned decode_skip_count(GetBitContext* gb)
     unsigned value;
     // This function reads a maximum of 23 bits,
     // which is within the padding space
-    if (!can_safely_read(gb, 1))
+    if (!can_safely_read(gb, 1)) {
         return -1;
+    }
     value = get_bits1(gb);
-    if (!value)
+    if (!value) {
         return value;
+    }
 
     value += get_bits(gb, 3);
-    if (value != (1 + ((1 << 3) - 1)))
+    if (value != (1 + ((1 << 3) - 1))) {
         return value;
+    }
 
     value += get_bits(gb, 7);
-    if (value != (1 + ((1 << 3) - 1)) + ((1 << 7) - 1))
+    if (value != (1 + ((1 << 3) - 1)) + ((1 << 7) - 1)) {
         return value;
+    }
 
     return value + get_bits(gb, 12);
 }
@@ -164,18 +175,23 @@ static MacroBlock decode_macroblock(Escape124Context* s, GetBitContext* gb,
     // This condition can occur with invalid bitstreams and
     // *codebook_index == 2
     if (block_index >= s->codebooks[*codebook_index].size)
-        return (MacroBlock) { { 0 } };
+        return (MacroBlock) {
+        {
+            0
+        }
+    };
 
     return s->codebooks[*codebook_index].blocks[block_index];
 }
 
-static void insert_mb_into_sb(SuperBlock* sb, MacroBlock mb, unsigned index) {
-   // Formula: ((index / 4) * 16 + (index % 4) * 2) / 2
-   uint32_t *dst = sb->pixels32 + index + (index & -4);
+static void insert_mb_into_sb(SuperBlock* sb, MacroBlock mb, unsigned index)
+{
+    // Formula: ((index / 4) * 16 + (index % 4) * 2) / 2
+    uint32_t *dst = sb->pixels32 + index + (index & -4);
 
-   // This technically violates C99 aliasing rules, but it should be safe.
-   dst[0] = mb.pixels32[0];
-   dst[4] = mb.pixels32[1];
+    // This technically violates C99 aliasing rules, but it should be safe.
+    dst[0] = mb.pixels32[0];
+    dst[4] = mb.pixels32[1];
 }
 
 static void copy_superblock(uint16_t* dest, unsigned dest_stride,
@@ -187,14 +203,16 @@ static void copy_superblock(uint16_t* dest, unsigned dest_stride,
             memcpy(dest + y * dest_stride, src + y * src_stride,
                    sizeof(uint16_t) * 8);
     else
-        for (y = 0; y < 8; y++)
+        for (y = 0; y < 8; y++) {
             memset(dest + y * dest_stride, 0, sizeof(uint16_t) * 8);
+        }
 }
 
 static const uint16_t mask_matrix[] = {0x1,   0x2,   0x10,   0x20,
                                        0x4,   0x8,   0x40,   0x80,
                                        0x100, 0x200, 0x1000, 0x2000,
-                                       0x400, 0x800, 0x4000, 0x8000};
+                                       0x400, 0x800, 0x4000, 0x8000
+                                      };
 
 static int escape124_decode_frame(AVCodecContext *avctx,
                                   void *data, int *data_size,
@@ -209,8 +227,8 @@ static int escape124_decode_frame(AVCodecContext *avctx,
     unsigned i;
 
     unsigned superblock_index, cb_index = 1,
-             superblock_col_index = 0,
-             superblocks_per_row = avctx->width / 8, skip = -1;
+                               superblock_col_index = 0,
+                               superblocks_per_row = avctx->width / 8, skip = -1;
 
     uint16_t* old_frame_data, *new_frame_data;
     unsigned old_stride, new_stride;
@@ -222,8 +240,9 @@ static int escape124_decode_frame(AVCodecContext *avctx,
 
     // This call also guards the potential depth reads for the
     // codebook unpacking.
-    if (!can_safely_read(&gb, 64))
+    if (!can_safely_read(&gb, 64)) {
         return -1;
+    }
 
     frame_flags = get_bits_long(&gb, 32);
     frame_size  = get_bits_long(&gb, 32);
@@ -262,8 +281,9 @@ static int escape124_decode_frame(AVCodecContext *avctx,
             }
             av_free(s->codebooks[i].blocks);
             s->codebooks[i] = unpack_codebook(&gb, cb_depth, cb_size);
-            if (!s->codebooks[i].blocks)
+            if (!s->codebooks[i].blocks) {
                 return -1;
+            }
         }
     }
 
@@ -313,16 +333,17 @@ static int escape124_decode_frame(AVCodecContext *avctx,
                 unsigned inv_mask = get_bits(&gb, 4);
                 for (i = 0; i < 4; i++) {
                     if (inv_mask & (1 << i)) {
-                        multi_mask ^= 0xF << i*4;
+                        multi_mask ^= 0xF << i * 4;
                     } else {
-                        multi_mask ^= get_bits(&gb, 4) << i*4;
+                        multi_mask ^= get_bits(&gb, 4) << i * 4;
                     }
                 }
 
                 for (i = 0; i < 16; i++) {
                     if (multi_mask & mask_matrix[i]) {
-                        if (!can_safely_read(&gb, 1))
+                        if (!can_safely_read(&gb, 1)) {
                             break;
+                        }
                         mb = decode_macroblock(s, &gb, &cb_index,
                                                superblock_index);
                         insert_mb_into_sb(&sb, mb, i);
@@ -340,12 +361,14 @@ static int escape124_decode_frame(AVCodecContext *avctx,
 
         superblock_col_index++;
         new_frame_data += 8;
-        if (old_frame_data)
+        if (old_frame_data) {
             old_frame_data += 8;
+        }
         if (superblock_col_index == superblocks_per_row) {
             new_frame_data += new_stride * 8 - superblocks_per_row * 8;
-            if (old_frame_data)
+            if (old_frame_data) {
                 old_frame_data += old_stride * 8 - superblocks_per_row * 8;
+            }
             superblock_col_index = 0;
         }
         skip--;
@@ -355,8 +378,9 @@ static int escape124_decode_frame(AVCodecContext *avctx,
            "Escape sizes: %i, %i, %i\n",
            frame_size, buf_size, get_bits_count(&gb) / 8);
 
-    if (s->frame.data[0])
+    if (s->frame.data[0]) {
         avctx->release_buffer(avctx, &s->frame);
+    }
 
     *(AVFrame*)data = s->frame = new_frame;
     *data_size = sizeof(AVFrame);

@@ -736,29 +736,33 @@ const char *av_convert_lang_to(const char *lang, enum AVLangCodespace target_cod
 {
     int i;
     const LangEntry *entry = NULL;
-    const int NB_CODESPACES = sizeof(lang_table_counts)/sizeof(*lang_table_counts);
+    const int NB_CODESPACES = sizeof(lang_table_counts) / sizeof(*lang_table_counts);
 
-    if (target_codespace >= NB_CODESPACES)
+    if (target_codespace >= NB_CODESPACES) {
         return NULL;
+    }
 
-    for (i=0; !entry && i<NB_CODESPACES; i++)
+    for (i = 0; !entry && i < NB_CODESPACES; i++)
         entry = bsearch(lang,
                         lang_table + lang_table_offsets[i],
                         lang_table_counts[i],
                         sizeof(LangEntry),
                         lang_table_compare);
-    if (!entry)
+    if (!entry) {
         return NULL;
+    }
 
-    for (i=0; i<NB_CODESPACES; i++)
+    for (i = 0; i < NB_CODESPACES; i++)
         if (entry >= lang_table + lang_table_offsets[target_codespace] &&
-            entry < lang_table + lang_table_offsets[target_codespace] + lang_table_counts[target_codespace])
+            entry < lang_table + lang_table_offsets[target_codespace] + lang_table_counts[target_codespace]) {
             return entry->str;
-        else
+        } else {
             entry = lang_table + entry->next_equivalent;
+        }
 
-    if (target_codespace == AV_LANG_ISO639_2_TERM)
+    if (target_codespace == AV_LANG_ISO639_2_TERM) {
         return av_convert_lang_to(lang, AV_LANG_ISO639_2_BIBL);
+    }
 
     return NULL;
 }

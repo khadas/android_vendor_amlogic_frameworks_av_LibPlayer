@@ -28,6 +28,9 @@
  */
 
 #include "config.h"
+#include <unistd.h>
+#include <stdio.h>
+
 
 #if defined(__MINGW32__) && !defined(__MINGW32CE__)
 #  include <fcntl.h>
@@ -44,8 +47,9 @@
 static inline int is_dos_path(const char *path)
 {
 #if HAVE_DOS_PATHS
-    if (path[0] && path[1] == ':')
+    if (path[0] && path[1] == ':') {
         return 1;
+    }
 #endif
     return 0;
 }

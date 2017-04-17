@@ -11,7 +11,6 @@
 
 #define LEVEL_SETING_PATH "media.amplayer.loglevel"
 #include  <libavutil/log.h>
-
 #include "system/systemsetting.h"
 
 static int global_level = 35;
@@ -52,7 +51,7 @@ int update_loglevel_setting(void)
         global_level = ret; ///for amplayer
     } else {
     }
-    log_error("loglevel changed to %d\n", global_level);
+    log_error("gxb-wcs--loglevel changed to %d\n", global_level);
     av_log_set_level(global_level);//for ffmpeg//
     return 0;
 }

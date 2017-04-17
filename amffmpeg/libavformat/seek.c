@@ -113,8 +113,10 @@ static void search_hi_lo_keyframes(AVFormatContext *s,
     int64_t pts, dts;   // PTS/DTS from stream
     int64_t ts;         // PTS in stream-local time base or position for byte seeking
     AVRational ts_tb;   // Time base of the stream or 1:1 for byte seeking
+    int cost_time = 0;
+    int max_search_time = 0;
     int64_t starttime = av_gettime();
-
+    max_search_time = am_getconfig_float_def("media.libplayer.maxsearch_hilo", 3000);
     for (;;) {
         if (av_read_frame(s, &pkt) < 0) {
             // EOF or error, make sure high flags are set
@@ -136,7 +138,9 @@ static void search_hi_lo_keyframes(AVFormatContext *s,
         st = s->streams[idx];
         if (st->discard >= AVDISCARD_ALL)
             // this stream is not active, skip packet
+        {
             continue;
+        }
 
         sp = &sync[idx];
 
@@ -146,20 +150,28 @@ static void search_hi_lo_keyframes(AVFormatContext *s,
         dts = pkt.dts;
         if (pts == AV_NOPTS_VALUE)
             // some formats don't provide PTS, only DTS
+        {
             pts = dts;
+        }
 
         av_free_packet(&pkt);
-
+        cost_time = (int)(av_gettime() - starttime) / 1000;
+        if ((cost_time > max_search_time) && (s->pb) && (s->pb->local_playback)) {
+            av_log(NULL, AV_LOG_INFO, "%s:%d,max time reached break,cost:%d ms,max:%d ms\n",
+                   __FUNCTION__, __LINE__, cost_time, max_search_time);
+            break;
+        }
         // Multi-frame packets only return position for the very first frame.
         // Other frames are read with position == -1. Therefore, we note down
         // last known position of a frame and use it if a frame without
         // position arrives. In this way, it's possible to seek to proper
         // position. Additionally, for parsers not providing position at all,
         // an approximation will be used (starting position of this iteration).
-        if (pos < 0)
+        if (pos < 0) {
             pos = sp->last_pos;
-        else
+        } else {
             sp->last_pos = pos;
+        }
 
         // Evaluate key frames with known TS (or any frames, if AVSEEK_FLAG_ANY set).
         if (pts != AV_NOPTS_VALUE &&
@@ -196,8 +208,9 @@ static void search_hi_lo_keyframes(AVFormatContext *s,
                         sp->ts_hi  = INT64_MAX;
                         sp->pos_hi = INT64_MAX - 1;
                     }
-                    if (terminated_count == keyframes_to_find)
-                        break;  // all terminated, iteration done
+                    if (terminated_count == keyframes_to_find) {
+                        break;    // all terminated, iteration done
+                    }
                 }
                 continue;
             }
@@ -245,7 +258,7 @@ static void search_hi_lo_keyframes(AVFormatContext *s,
 
     // Clean up the parser.
     ff_read_frame_flush(s);
-    av_log(NULL,AV_LOG_INFO,"%s:%d cost time:%d ms\n", __FUNCTION__, __LINE__, ((int)(av_gettime() - starttime))/1000 );
+    av_log(NULL, AV_LOG_INFO, "%s:%d cost time:%d ms\n", __FUNCTION__, __LINE__, ((int)(av_gettime() - starttime)) / 1000);
 }
 
 int64_t ff_gen_syncpoint_search(AVFormatContext *s,
@@ -267,7 +280,11 @@ int64_t ff_gen_syncpoint_search(AVFormatContext *s,
     int64_t min_pos = 0;
     int first_iter = 1;
     AVRational time_base;
+    int max_wait_time = 0;
+    int cost_time = 0;
+    max_wait_time = am_getconfig_float_def("media.libplayer.maxsyncsearch", 3000);
     int64_t starttime = av_gettime();
+    av_log(NULL, AV_LOG_INFO, "flags = %d\n", flags);
     if (flags & AVSEEK_FLAG_BYTE) {
         // for byte seeking, we have exact 1:1 "timestamps" - positions
         time_base.num = 1;
@@ -288,7 +305,9 @@ int64_t ff_gen_syncpoint_search(AVFormatContext *s,
     sync = av_malloc(s->nb_streams * sizeof(AVSyncPoint));
     if (!sync)
         // cannot allocate helper structure
+    {
         return -1;
+    }
 
     for (i = 0; i < s->nb_streams; ++i) {
         st = s->streams[i];
@@ -306,8 +325,9 @@ int64_t ff_gen_syncpoint_search(AVFormatContext *s,
 
         st->cur_dts    = AV_NOPTS_VALUE;
 
-        if (st->discard < AVDISCARD_ALL)
+        if (st->discard < AVDISCARD_ALL) {
             ++keyframes_to_find;
+        }
     }
 
     if (!keyframes_to_find) {
@@ -317,12 +337,14 @@ int64_t ff_gen_syncpoint_search(AVFormatContext *s,
     }
     // Find keyframes in all active streams with timestamp/position just before
     // and just after requested timestamp/position.
-    if(s->bit_rate > 0) { // use bitrate as step size, prevent more search loop.
+    if (s->bit_rate > 0) { // use bitrate as step size, prevent more search loop.
         step = s->bit_rate * 2 / 8;
-        if (step < 32 * 1024)
-            step = 32 *1024;
-        if (step > 32 * 1024 * 1024)
-            step = 32 * 1024 *1024;
+        if (step < 32 * 1024) {
+            step = 32 * 1024;
+        }
+        if (step > 32 * 1024 * 1024) {
+            step = 32 * 1024 * 1024;
+        }
     } else {
         step = s->pb->buffer_size;
     }
@@ -336,14 +358,22 @@ int64_t ff_gen_syncpoint_search(AVFormatContext *s,
                                keyframes_to_find,
                                &found_lo, &found_hi,
                                first_iter);
-        if (found_lo == keyframes_to_find && found_hi == keyframes_to_find)
-            break;  // have all keyframes we wanted
-        if (!curpos)
-            break;  // cannot go back anymore
-
+        if (found_lo == keyframes_to_find && found_hi == keyframes_to_find) {
+            break;    // have all keyframes we wanted
+        }
+        if (!curpos) {
+            break;    // cannot go back anymore
+        }
+        cost_time = (int)(av_gettime() - starttime) / 1000;
+        if ((cost_time > max_wait_time) && (s->pb) && (s->pb->local_playback)) {
+            av_log(NULL, AV_LOG_INFO, "%s:%d,max time reached break,cost:%d ms,max:%d ms\n",
+                   __FUNCTION__, __LINE__, cost_time, max_wait_time);
+            break;
+        }
         curpos = pos - step;
-        if (curpos < 0)
+        if (curpos < 0) {
             curpos = 0;
+        }
         step *= 4;
 
         // switch termination positions
@@ -361,9 +391,8 @@ int64_t ff_gen_syncpoint_search(AVFormatContext *s,
             sp->last_pos = curpos;
         }
         first_iter = 0;
-        av_log(NULL,AV_LOG_INFO,"[%s:%d] search_hi_lo_keyframes :lo:%d hi:%d ,step %lld\n",
-            __FUNCTION__, __LINE__, found_lo, found_hi,
-            step);
+        av_log(NULL, AV_LOG_INFO, "[%s:%d]search_hi_lo_keyframes :lo:%d hi:%d ,step %lld\n",
+               __FUNCTION__, __LINE__, found_lo, found_hi, step);
     }
     // Find actual position to start decoding so that decoder synchronizes
     // closest to ts and between ts_min and ts_max.
@@ -397,11 +426,12 @@ int64_t ff_gen_syncpoint_search(AVFormatContext *s,
                 av_free(sync);
                 return -1;
             }
-            if (min_pos < pos)
+            if (min_pos < pos) {
                 pos = min_pos;
+            }
         }
     }
-    av_log(NULL,AV_LOG_INFO,"%s:%d cost time:%d ms\n", __FUNCTION__, __LINE__, ((int)(av_gettime() - starttime))/1000 );
+    av_log(NULL, AV_LOG_INFO, "%s:%d cost time:%d ms\n", __FUNCTION__, __LINE__, ((int)(av_gettime() - starttime)) / 1000);
     avio_seek(s->pb, pos, SEEK_SET);
     av_free(sync);
     return pos;
@@ -413,8 +443,9 @@ AVParserState *ff_store_parser_state(AVFormatContext *s)
     AVStream *st;
     AVParserStreamState *ss;
     AVParserState *state = av_malloc(sizeof(AVParserState));
-    if (!state)
+    if (!state) {
         return NULL;
+    }
 
     state->stream_states = av_malloc(sizeof(AVParserStreamState) * s->nb_streams);
     if (!state->stream_states) {
@@ -470,8 +501,9 @@ void ff_restore_parser_state(AVFormatContext *s, AVParserState *state)
     AVParserStreamState *ss;
     ff_read_frame_flush(s);
 
-    if (!state)
+    if (!state) {
         return;
+    }
 
     avio_seek(s->pb, state->fpos, SEEK_SET);
 
@@ -516,13 +548,15 @@ void ff_free_parser_state(AVFormatContext *s, AVParserState *state)
     int i;
     AVParserStreamState *ss;
 
-    if (!state)
+    if (!state) {
         return;
+    }
 
     for (i = 0; i < state->nb_streams; i++) {
         ss = &state->stream_states[i];
-        if (ss->parser)
+        if (ss->parser) {
             av_parser_close(ss->parser);
+        }
         av_free_packet(&ss->cur_pkt);
     }
 

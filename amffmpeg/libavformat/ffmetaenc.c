@@ -31,8 +31,9 @@ static void write_escape_str(AVIOContext *s, const uint8_t *str)
     const uint8_t *p = str;
 
     while (*p) {
-        if (*p == '#' || *p == ';' || *p == '=' || *p == '\\' || *p == '\n')
+        if (*p == '#' || *p == ';' || *p == '=' || *p == '\\' || *p == '\n') {
             avio_w8(s, '\\');
+        }
         avio_w8(s, *p);
         p++;
     }

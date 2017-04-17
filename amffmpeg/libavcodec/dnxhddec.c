@@ -74,7 +74,7 @@ static int dnxhd_init_vlc(DNXHDContext *ctx, int cid)
         init_vlc(&ctx->ac_vlc, DNXHD_VLC_BITS, 257,
                  ctx->cid_table->ac_bits, 1, 1,
                  ctx->cid_table->ac_codes, 2, 2, 0);
-        init_vlc(&ctx->dc_vlc, DNXHD_DC_VLC_BITS, ctx->cid_table->bit_depth+4,
+        init_vlc(&ctx->dc_vlc, DNXHD_DC_VLC_BITS, ctx->cid_table->bit_depth + 4,
                  ctx->cid_table->dc_bits, 1, 1,
                  ctx->cid_table->dc_codes, 1, 1, 0);
         init_vlc(&ctx->run_vlc, DNXHD_VLC_BITS, 62,
@@ -91,8 +91,9 @@ static int dnxhd_decode_header(DNXHDContext *ctx, const uint8_t *buf, int buf_si
     static const uint8_t header_prefix[] = { 0x00, 0x00, 0x02, 0x80, 0x01 };
     int i;
 
-    if (buf_size < 0x280)
+    if (buf_size < 0x280) {
         return -1;
+    }
 
     if (memcmp(buf, header_prefix, 5)) {
         av_log(ctx->avctx, AV_LOG_ERROR, "error in header\n");
@@ -118,30 +119,32 @@ static int dnxhd_decode_header(DNXHDContext *ctx, const uint8_t *buf, int buf_si
     ctx->cid = AV_RB32(buf + 0x28);
     av_dlog(ctx->avctx, "compression id %d\n", ctx->cid);
 
-    if (dnxhd_init_vlc(ctx, ctx->cid) < 0)
+    if (dnxhd_init_vlc(ctx, ctx->cid) < 0) {
         return -1;
+    }
 
     if (buf_size < ctx->cid_table->coding_unit_size) {
         av_log(ctx->avctx, AV_LOG_ERROR, "incorrect frame size\n");
         return -1;
     }
 
-    ctx->mb_width = ctx->width>>4;
+    ctx->mb_width = ctx->width >> 4;
     ctx->mb_height = buf[0x16d];
 
     av_dlog(ctx->avctx, "mb width %d, mb height %d\n", ctx->mb_width, ctx->mb_height);
 
-    if ((ctx->height+15)>>4 == ctx->mb_height && ctx->picture.interlaced_frame)
+    if ((ctx->height + 15) >> 4 == ctx->mb_height && ctx->picture.interlaced_frame) {
         ctx->height <<= 1;
+    }
 
     if (ctx->mb_height > 68 ||
-        (ctx->mb_height<<ctx->picture.interlaced_frame) > (ctx->height+15)>>4) {
+        (ctx->mb_height << ctx->picture.interlaced_frame) > (ctx->height + 15) >> 4) {
         av_log(ctx->avctx, AV_LOG_ERROR, "mb height too big: %d\n", ctx->mb_height);
         return -1;
     }
 
     for (i = 0; i < ctx->mb_height; i++) {
-        ctx->mb_scan_index[i] = AV_RB32(buf + 0x170 + (i<<2));
+        ctx->mb_scan_index[i] = AV_RB32(buf + 0x170 + (i << 2));
         av_dlog(ctx->avctx, "mb scan index %d\n", ctx->mb_scan_index[i]);
         if (buf_size < ctx->mb_scan_index[i] + 0x280) {
             av_log(ctx->avctx, AV_LOG_ERROR, "invalid mb scan index\n");
@@ -166,8 +169,8 @@ static void dnxhd_decode_dct_block(DNXHDContext *ctx, DCTELEM *block, int n, int
     int level, component, sign;
     const uint8_t *weigth_matrix;
 
-    if (n&2) {
-        component = 1 + (n&1);
+    if (n & 2) {
+        component = 1 + (n & 1);
         weigth_matrix = ctx->cid_table->chroma_weight;
     } else {
         component = 0;
@@ -188,7 +191,7 @@ static void dnxhd_decode_dct_block(DNXHDContext *ctx, DCTELEM *block, int n, int
         sign = get_sbits(&ctx->gb, 1);
 
         if (ctx->cid_table->ac_index_flag[index]) {
-            level += get_bits(&ctx->gb, ctx->cid_table->index_bits)<<6;
+            level += get_bits(&ctx->gb, ctx->cid_table->index_bits) << 6;
         }
 
         if (ctx->cid_table->ac_run_flag[index]) {
@@ -204,18 +207,20 @@ static void dnxhd_decode_dct_block(DNXHDContext *ctx, DCTELEM *block, int n, int
         j = ctx->scantable.permutated[i];
         //av_log(ctx->avctx, AV_LOG_DEBUG, "j %d\n", j);
         //av_log(ctx->avctx, AV_LOG_DEBUG, "level %d, weigth %d\n", level, weigth_matrix[i]);
-        level = (2*level+1) * qscale * weigth_matrix[i];
+        level = (2 * level + 1) * qscale * weigth_matrix[i];
         if (ctx->cid_table->bit_depth == 10) {
-            if (weigth_matrix[i] != 8)
+            if (weigth_matrix[i] != 8) {
                 level += 8;
+            }
             level >>= 4;
         } else {
-            if (weigth_matrix[i] != 32)
+            if (weigth_matrix[i] != 32) {
                 level += 32;
+            }
             level >>= 6;
         }
         //av_log(NULL, AV_LOG_DEBUG, "i %d, j %d, end level %d\n", i, j, level);
-        block[j] = (level^sign) - sign;
+        block[j] = (level ^ sign) - sign;
     }
 }
 
@@ -273,8 +278,8 @@ static int dnxhd_decode_macroblocks(DNXHDContext *ctx, const uint8_t *buf, int b
     int x, y;
     for (y = 0; y < ctx->mb_height; y++) {
         ctx->last_dc[0] =
-        ctx->last_dc[1] =
-        ctx->last_dc[2] = 1<<(ctx->cid_table->bit_depth+2); // for levels +2^(bitdepth-1)
+            ctx->last_dc[1] =
+                ctx->last_dc[2] = 1 << (ctx->cid_table->bit_depth + 2); // for levels +2^(bitdepth-1)
         init_get_bits(&ctx->gb, buf + ctx->mb_scan_index[y], (buf_size - ctx->mb_scan_index[y]) << 3);
         for (x = 0; x < ctx->mb_width; x++) {
             //START_TIMER;
@@ -296,9 +301,10 @@ static int dnxhd_decode_frame(AVCodecContext *avctx, void *data, int *data_size,
 
     av_dlog(avctx, "frame size %d\n", buf_size);
 
- decode_coding_unit:
-    if (dnxhd_decode_header(ctx, buf, buf_size, first_field) < 0)
+decode_coding_unit:
+    if (dnxhd_decode_header(ctx, buf, buf_size, first_field) < 0) {
         return -1;
+    }
 
     if ((avctx->width || avctx->height) &&
         (ctx->width != avctx->width || ctx->height != avctx->height)) {
@@ -308,13 +314,15 @@ static int dnxhd_decode_frame(AVCodecContext *avctx, void *data, int *data_size,
     }
 
     avctx->pix_fmt = PIX_FMT_YUV422P;
-    if (av_image_check_size(ctx->width, ctx->height, 0, avctx))
+    if (av_image_check_size(ctx->width, ctx->height, 0, avctx)) {
         return -1;
+    }
     avcodec_set_dimensions(avctx, ctx->width, ctx->height);
 
     if (first_field) {
-        if (ctx->picture.data[0])
+        if (ctx->picture.data[0]) {
             avctx->release_buffer(avctx, &ctx->picture);
+        }
         if (avctx->get_buffer(avctx, &ctx->picture) < 0) {
             av_log(avctx, AV_LOG_ERROR, "get_buffer() failed\n");
             return -1;
@@ -339,8 +347,9 @@ static av_cold int dnxhd_decode_close(AVCodecContext *avctx)
 {
     DNXHDContext *ctx = avctx->priv_data;
 
-    if (ctx->picture.data[0])
+    if (ctx->picture.data[0]) {
         avctx->release_buffer(avctx, &ctx->picture);
+    }
     free_vlc(&ctx->ac_vlc);
     free_vlc(&ctx->dc_vlc);
     free_vlc(&ctx->run_vlc);

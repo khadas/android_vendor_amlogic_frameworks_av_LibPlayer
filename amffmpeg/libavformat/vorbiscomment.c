@@ -46,7 +46,7 @@ int ff_vorbiscomment_length(AVDictionary *m, const char *vendor_string,
     if (m) {
         AVDictionaryEntry *tag = NULL;
         while ((tag = av_dict_get(m, "", tag, AV_DICT_IGNORE_SUFFIX))) {
-            len += 4 +strlen(tag->key) + 1 + strlen(tag->value);
+            len += 4 + strlen(tag->key) + 1 + strlen(tag->value);
             (*count)++;
         }
     }
@@ -64,12 +64,13 @@ int ff_vorbiscomment_write(uint8_t **p, AVDictionary **m,
         while ((tag = av_dict_get(*m, "", tag, AV_DICT_IGNORE_SUFFIX))) {
             unsigned int len1 = strlen(tag->key);
             unsigned int len2 = strlen(tag->value);
-            bytestream_put_le32(p, len1+1+len2);
+            bytestream_put_le32(p, len1 + 1 + len2);
             bytestream_put_buffer(p, tag->key, len1);
             bytestream_put_byte(p, '=');
             bytestream_put_buffer(p, tag->value, len2);
         }
-    } else
+    } else {
         bytestream_put_le32(p, 0);
+    }
     return 0;
 }

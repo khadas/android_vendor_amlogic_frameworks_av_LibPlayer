@@ -232,7 +232,6 @@ typedef struct AVProbeData {
     AVIOContext *s;
     unsigned long pads[8];
 } AVProbeData;
-
 /**
  * This structure contains the info of streaming protocol.
  */
@@ -464,12 +463,11 @@ typedef struct AVInputFormat {
 #endif
 
     const AVClass *priv_class; ///< AVClass for the private context
-
     /**
      * set some parameters to format, like codec buffer info.
      * hls demuxer
      */
-    int (*set_parameter)(struct AVFormatContext *, int para, int type, int64_t value);
+    int (*set_parameter)(struct AVFormatContext *, int para, int type, int64_t value, int64_t value1);
 
     /**
      * get some parameters like stream info, selected track index.
@@ -707,8 +705,12 @@ typedef struct AVStream {
     int encrypt;
     int no_program;
     int stream_valid;
-
+    int64_t min_pts;
+    int64_t min_pos;
+    int64_t max_pts;
+    int64_t max_pos;
     int need_check_avs_version; //check avs version
+    int video_keyframe_count;  //add for mp4/mov file
 } AVStream;
 
 #define AV_PROGRAM_RUNNING 1
@@ -843,7 +845,6 @@ typedef struct AVFormatContext {
 #define AVFMT_FLAG_SS_NOPR  0x800000 ///< Smoothstreaming only ;
 #define AVFMT_FLAG_SS_PR    0x1000000 ///< Smoothstreaing + Playready;
 #define AVFMT_FLAG_PR_WMV   0x2000000 ///< PlayReady WMV;
-#define AVFMT_FLAG_PR_HLS   0x4000000 ///< PlayReady HLS;
 #define AVFMT_FLAG_RTSP_PROTOCOL 0x800000 ///< only use for rtsp protocol
 #define AVFMT_FLAG_NETWORK_VOD 0x400000 ///< network vod stream
 
@@ -1003,7 +1004,13 @@ typedef struct AVFormatContext {
 
     // hls demuxer.
     int is_hls_demuxer;
+
     const char * headers;
+
+    //
+    int hevc_no_csd_data;
+    int hevc_no_pes_header_support;
+    int pes_pid;
 } AVFormatContext;
 
 typedef struct AVPacketList {
@@ -1441,9 +1448,10 @@ int av_read_pause(AVFormatContext *s);
 /**
  * Set some parameters to format (hls demuxer).
  */
-int av_set_private_parameter(AVFormatContext * s, int para, int type, int64_t value);
+int av_set_private_parameter(AVFormatContext * s, int para, int type, int64_t value, int64_t value1);
 
 /**
+
  * Free a AVFormatContext allocated by av_open_input_stream.
  * @param s context to free
  */
@@ -1772,10 +1780,6 @@ int av_match_ext(const char *filename, const char *extensions);
 
 /*cal low level buffering data.*/
 int av_buffering_data(AVFormatContext *s, int size);
-
-/* 1: support, 0: not support*/
-int av_bluray_supported(AVFormatContext *ic);
-
 
 void ff_read_frame_flush(AVFormatContext *s);
 #define av_read_frame_flush(s) ff_read_frame_flush(s)

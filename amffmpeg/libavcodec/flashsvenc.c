@@ -93,8 +93,9 @@ static int copy_region_enc(uint8_t *sptr, uint8_t *dptr, int dx, int dy,
         }
         dptr += w * 3;
     }
-    if (diff)
+    if (diff) {
         return 1;
+    }
     return 0;
 }
 
@@ -181,8 +182,9 @@ static int encode_bitstream(FlashSVContext *s, AVFrame *p, uint8_t *buf,
 
 
                 //ret = deflateReset(&(s->zstream));
-                if (ret != Z_OK)
+                if (ret != Z_OK) {
                     av_log(s->avctx, AV_LOG_ERROR, "error while compressing block %dx%d\n", i, j);
+                }
 
                 bytestream_put_be16(&ptr, (unsigned int) zsize);
                 buf_pos += zsize + 2;
@@ -195,10 +197,11 @@ static int encode_bitstream(FlashSVContext *s, AVFrame *p, uint8_t *buf,
         }
     }
 
-    if (pred_blocks)
+    if (pred_blocks) {
         *I_frame = 0;
-    else
+    } else {
         *I_frame = 1;
+    }
 
     return buf_pos;
 }
@@ -227,10 +230,11 @@ static int flashsv_encode_frame(AVCodecContext *avctx, uint8_t *buf,
         I_frame = 1;
     }
 
-    if (p->linesize[0] < 0)
+    if (p->linesize[0] < 0) {
         pfptr = s->previous_frame - ((s->image_height - 1) * p->linesize[0]);
-    else
+    } else {
         pfptr = s->previous_frame;
+    }
 
     /* Check the placement of keyframes */
     if (avctx->gop_size > 0) {
@@ -242,7 +246,7 @@ static int flashsv_encode_frame(AVCodecContext *avctx, uint8_t *buf,
     opt_w = 4;
     opt_h = 4;
 
-    if (buf_size < s->image_width*s->image_height*3) {
+    if (buf_size < s->image_width * s->image_height * 3) {
         //Conservative upper bound check for compressed data
         av_log(avctx, AV_LOG_ERROR, "buf_size %d <  %d\n",
                buf_size, s->image_width * s->image_height * 3);
@@ -252,9 +256,9 @@ static int flashsv_encode_frame(AVCodecContext *avctx, uint8_t *buf,
     res = encode_bitstream(s, p, buf, buf_size, opt_w * 16, opt_h * 16, pfptr, &I_frame);
 
     //save the current frame
-    if (p->linesize[0] > 0)
+    if (p->linesize[0] > 0) {
         memcpy(s->previous_frame, p->data[0], s->image_height * p->linesize[0]);
-    else
+    } else
         memcpy(s->previous_frame, p->data[0] + p->linesize[0] * (s->image_height - 1),
                s->image_height * FFABS(p->linesize[0]));
 

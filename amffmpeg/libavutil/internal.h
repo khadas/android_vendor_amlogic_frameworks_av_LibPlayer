@@ -235,8 +235,9 @@ struct AVDictionary {
  */
 static av_always_inline void emms_c(void)
 {
-    if(av_get_cpu_flags() & AV_CPU_FLAG_MMX)
-        __asm__ volatile ("emms" ::: "memory");
+    if (av_get_cpu_flags() & AV_CPU_FLAG_MMX) {
+        __asm__ volatile("emms" ::: "memory");
+    }
 }
 #else /* HAVE_MMX */
 #define emms_c()

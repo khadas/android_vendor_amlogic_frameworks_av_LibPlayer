@@ -30,7 +30,7 @@
 
 /** Markers used in VC-1 AP frame data */
 //@{
-enum VC1Code{
+enum VC1Code {
     VC1_CODE_RES0       = 0x00000100,
     VC1_CODE_ENDOFSEQ   = 0x0000010A,
     VC1_CODE_SLICE,
@@ -153,7 +153,7 @@ enum COTypes {
  * @todo Change size wherever another size is more efficient
  * Many members are only used for Advanced Profile
  */
-typedef struct VC1Context{
+typedef struct VC1Context {
     MpegEncContext s;
     IntraX8Context x8;
     VC1DSPContext vc1dsp;
@@ -169,7 +169,7 @@ typedef struct VC1Context{
     int res_fasttx;       ///< reserved, always 1
     int res_transtab;     ///< reserved, always 0
     int rangered;         ///< RANGEREDFRM (range reduction) syntax element present
-                          ///< at frame level
+    ///< at frame level
     int res_rtm_flag;     ///< reserved, set to 1
     int reserved;         ///< reserved
     //@}
@@ -189,7 +189,7 @@ typedef struct VC1Context{
     int transfer_char;    ///< 8bits, Opto-electronic transfer characteristics
     int matrix_coef;      ///< 8bits, Color primaries->YCbCr transform matrix
     int hrd_param_flag;   ///< Presence of Hypothetical Reference
-                          ///< Decoder parameters
+    ///< Decoder parameters
     int psf;              ///< Progressive Segmented Frame
     //@}
 
@@ -317,7 +317,7 @@ typedef struct VC1Context{
     int bi_type;
     int x8_type;
 
-    DCTELEM (*block)[6][64];
+    DCTELEM(*block)[6][64];
     int n_allocated_blks, cur_blk_idx, left_blk_idx, topleft_blk_idx, top_blk_idx;
     uint32_t *cbp_base, *cbp;
     uint8_t *is_intra_base, *is_intra;
@@ -338,11 +338,14 @@ static av_always_inline const uint8_t* find_next_marker(const uint8_t *src, cons
 {
     uint32_t mrk = 0xFFFFFFFF;
 
-    if(end-src < 4) return end;
-    while(src < end){
+    if (end - src < 4) {
+        return end;
+    }
+    while (src < end) {
         mrk = (mrk << 8) | *src++;
-        if(IS_MARKER(mrk))
-            return src-4;
+        if (IS_MARKER(mrk)) {
+            return src - 4;
+        }
     }
     return end;
 }
@@ -351,17 +354,20 @@ static av_always_inline int vc1_unescape_buffer(const uint8_t *src, int size, ui
 {
     int dsize = 0, i;
 
-    if(size < 4){
-        for(dsize = 0; dsize < size; dsize++) *dst++ = *src++;
+    if (size < 4) {
+        for (dsize = 0; dsize < size; dsize++) {
+            *dst++ = *src++;
+        }
         return size;
     }
-    for(i = 0; i < size; i++, src++) {
-        if(src[0] == 3 && i >= 2 && !src[-1] && !src[-2] && i < size-1 && src[1] < 4) {
+    for (i = 0; i < size; i++, src++) {
+        if (src[0] == 3 && i >= 2 && !src[-1] && !src[-2] && i < size - 1 && src[1] < 4) {
             dst[dsize++] = src[1];
             src++;
             i++;
-        } else
+        } else {
             dst[dsize++] = *src;
+        }
     }
     return dsize;
 }
@@ -377,7 +383,7 @@ int vc1_decode_sequence_header(AVCodecContext *avctx, VC1Context *v, GetBitConte
 
 int vc1_decode_entry_point(AVCodecContext *avctx, VC1Context *v, GetBitContext *gb);
 
-int vc1_parse_frame_header    (VC1Context *v, GetBitContext *gb);
+int vc1_parse_frame_header(VC1Context *v, GetBitContext *gb);
 int vc1_parse_frame_header_adv(VC1Context *v, GetBitContext *gb);
 
 #endif /* AVCODEC_VC1_H */

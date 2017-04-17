@@ -32,7 +32,7 @@
 
 #define FF_DWT_MAX_DECLVLS 32 ///< max number of decomposition levels
 
-enum DWTType{
+enum DWTType {
     FF_DWT97,
     FF_DWT53
 };

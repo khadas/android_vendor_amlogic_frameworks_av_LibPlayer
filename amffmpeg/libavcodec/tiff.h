@@ -32,7 +32,7 @@
 #include <stdint.h>
 
 /** abridged list of TIFF tags */
-enum TiffTags{
+enum TiffTags {
     TIFF_SUBFILE = 0xfe,
     TIFF_WIDTH = 0x100,
     TIFF_HEIGHT,
@@ -62,7 +62,7 @@ enum TiffTags{
 };
 
 /** list of TIFF compression types */
-enum TiffCompr{
+enum TiffCompr {
     TIFF_RAW = 1,
     TIFF_CCITT_RLE,
     TIFF_G3,
@@ -75,7 +75,7 @@ enum TiffCompr{
     TIFF_DEFLATE = 0x80B2
 };
 
-enum TiffTypes{
+enum TiffTypes {
     TIFF_BYTE = 1,
     TIFF_STRING,
     TIFF_SHORT,

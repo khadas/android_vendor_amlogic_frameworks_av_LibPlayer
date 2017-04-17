@@ -35,8 +35,8 @@ int ff_mpegaudio_decode_header(MPADecodeHeader *s, uint32_t header)
 {
     int sample_rate, frame_size, mpeg25, padding;
     int sample_rate_index, bitrate_index;
-    if (header & (1<<20)) {
-        s->lsf = (header & (1<<19)) ? 0 : 1;
+    if (header & (1 << 20)) {
+        s->lsf = (header & (1 << 19)) ? 0 : 1;
         mpeg25 = 0;
     } else {
         s->lsf = 1;
@@ -61,15 +61,16 @@ int ff_mpegaudio_decode_header(MPADecodeHeader *s, uint32_t header)
     //original = (header >> 2) & 1;
     //emphasis = header & 3;
 
-    if (s->mode == MPA_MONO)
+    if (s->mode == MPA_MONO) {
         s->nb_channels = 1;
-    else
+    } else {
         s->nb_channels = 2;
+    }
 
     if (bitrate_index != 0) {
         frame_size = ff_mpa_bitrate_tab[s->lsf][s->layer - 1][bitrate_index];
         s->bit_rate = frame_size * 1000;
-        switch(s->layer) {
+        switch (s->layer) {
         case 1:
             frame_size = (frame_size * 12000) / sample_rate;
             frame_size = (frame_size + padding) * 4;
@@ -92,13 +93,15 @@ int ff_mpegaudio_decode_header(MPADecodeHeader *s, uint32_t header)
 
 #if defined(DEBUG)
     av_dlog(NULL, "layer%d, %d Hz, %d kbits/s, ",
-           s->layer, s->sample_rate, s->bit_rate);
+            s->layer, s->sample_rate, s->bit_rate);
     if (s->nb_channels == 2) {
         if (s->layer == 3) {
-            if (s->mode_ext & MODE_EXT_MS_STEREO)
+            if (s->mode_ext & MODE_EXT_MS_STEREO) {
                 av_dlog(NULL, "ms-");
-            if (s->mode_ext & MODE_EXT_I_STEREO)
+            }
+            if (s->mode_ext & MODE_EXT_I_STEREO) {
                 av_dlog(NULL, "i-");
+            }
         }
         av_dlog(NULL, "stereo");
     } else {
@@ -113,14 +116,15 @@ int ff_mpa_decode_header(AVCodecContext *avctx, uint32_t head, int *sample_rate,
 {
     MPADecodeHeader s1, *s = &s1;
 
-    if (ff_mpa_check_header(head) != 0)
+    if (ff_mpa_check_header(head) != 0) {
         return -1;
+    }
 
     if (ff_mpegaudio_decode_header(s, head) != 0) {
         return -1;
     }
 
-    switch(s->layer) {
+    switch (s->layer) {
     case 1:
         avctx->codec_id = CODEC_ID_MP1;
         *frame_size = 384;
@@ -132,10 +136,11 @@ int ff_mpa_decode_header(AVCodecContext *avctx, uint32_t head, int *sample_rate,
     default:
     case 3:
         avctx->codec_id = CODEC_ID_MP3;
-        if (s->lsf)
+        if (s->lsf) {
             *frame_size = 576;
-        else
+        } else {
             *frame_size = 1152;
+        }
         break;
     }
 

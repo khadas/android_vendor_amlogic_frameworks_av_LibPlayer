@@ -145,7 +145,7 @@ typedef struct {
  * @see av_vlog
  */
 #ifdef __GNUC__
-void av_log(void *avcl, int level, const char *fmt, ...) __attribute__ ((__format__ (__printf__, 3, 4)));
+void av_log(void *avcl, int level, const char *fmt, ...) __attribute__((__format__(__printf__, 3, 4)));
 #else
 void av_log(void *avcl, int level, const char *fmt, ...);
 #endif
@@ -157,7 +157,7 @@ void av_log_set_callback(void (*)(void*, int, const char*, va_list));
 void av_log_default_callback(void* ptr, int level, const char* fmt, va_list vl);
 const char* av_default_item_name(void* ctx);
 
-int av_tag_log(const char * tag,const char *fmt, ...);
+int av_tag_log(const char * tag, const char *fmt, ...);
 
 /**
  * av_dlog macros

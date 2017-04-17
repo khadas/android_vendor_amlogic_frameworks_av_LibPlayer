@@ -69,7 +69,7 @@ int ff_mms_asf_header_parser(MMSContext *mms)
     end = mms->asf_header + mms->asf_header_size;
 
     p += sizeof(ff_asf_guid) + 14;
-    while(end - p >= sizeof(ff_asf_guid) + 8) {
+    while (end - p >= sizeof(ff_asf_guid) + 8) {
         uint64_t chunksize;
         if (!memcmp(p, ff_asf_data_header, sizeof(ff_asf_guid))) {
             chunksize = 50; // see Reference [2] section 5.1
@@ -86,8 +86,8 @@ int ff_mms_asf_header_parser(MMSContext *mms)
             /* read packet size */
             if (end - p > sizeof(ff_asf_guid) * 2 + 68) {
                 mms->asf_packet_len = AV_RL32(p + sizeof(ff_asf_guid) * 2 + 64);
-		   mms->file_size = AV_RL64(p + sizeof(ff_asf_guid) * 2 + 8);
-		   mms->flags =AV_RL32(p+sizeof(ff_asf_guid)*2+56);
+                mms->file_size = AV_RL64(p + sizeof(ff_asf_guid) * 2 + 8);
+                mms->flags = AV_RL32(p + sizeof(ff_asf_guid) * 2 + 56);
                 if (mms->asf_packet_len <= 0 || mms->asf_packet_len > sizeof(mms->in_buffer)) {
                     av_log(NULL, AV_LOG_ERROR,
                            "Corrupt stream (too large pkt_len %d)\n",
@@ -96,16 +96,16 @@ int ff_mms_asf_header_parser(MMSContext *mms)
                 }
             }
         } else if (!memcmp(p, ff_asf_stream_header, sizeof(ff_asf_guid))) {
-            flags     = AV_RL16(p + sizeof(ff_asf_guid)*3 + 24);
+            flags     = AV_RL16(p + sizeof(ff_asf_guid) * 3 + 24);
             stream_id = flags & 0x7F;
             //The second condition is for checking CS_PKT_STREAM_ID_REQUEST packet size,
             //we can calcuate the packet size by stream_num.
             //Please see function send_stream_selection_request().
             if (mms->stream_num < MMS_MAX_STREAMS &&
-                    46 + mms->stream_num * 6 < sizeof(mms->out_buffer)) {
+                46 + mms->stream_num * 6 < sizeof(mms->out_buffer)) {
                 mms->streams = av_fast_realloc(mms->streams,
-                                   &mms->nb_streams_allocated,
-                                   (mms->stream_num + 1) * sizeof(MMSStream));
+                                               &mms->nb_streams_allocated,
+                                               (mms->stream_num + 1) * sizeof(MMSStream));
                 mms->streams[mms->stream_num].id = stream_id;
                 mms->stream_num++;
             } else {
@@ -138,8 +138,9 @@ int ff_mms_asf_header_parser(MMSContext *mms)
                            "Corrupt stream (the last extension system info length is invalid)\n");
                     return AVERROR_INVALIDDATA;
                 }
-                if (chunksize - skip_bytes > 24)
+                if (chunksize - skip_bytes > 24) {
                     chunksize = skip_bytes;
+                }
             }
         } else if (!memcmp(p, ff_asf_head1_guid, sizeof(ff_asf_guid))) {
             chunksize = 46; // see references [2] section 3.4. This should be set 46.

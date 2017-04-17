@@ -35,7 +35,8 @@ struct speex_params {
     int seq;
 };
 
-static int speex_header(AVFormatContext *s, int idx) {
+static int speex_header(AVFormatContext *s, int idx)
+{
     struct ogg *ogg = s->priv_data;
     struct ogg_stream *os = ogg->streams + idx;
     struct speex_params *spxp = os->private;
@@ -47,8 +48,9 @@ static int speex_header(AVFormatContext *s, int idx) {
         os->private = spxp;
     }
 
-    if (spxp->seq > 1)
+    if (spxp->seq > 1) {
         return 0;
+    }
 
     if (spxp->seq == 0) {
         int frames_per_packet;
@@ -64,8 +66,9 @@ static int speex_header(AVFormatContext *s, int idx) {
            byte-aligned. */
         st->codec->frame_size = AV_RL32(p + 56);
         frames_per_packet     = AV_RL32(p + 64);
-        if (frames_per_packet)
+        if (frames_per_packet) {
             st->codec->frame_size *= frames_per_packet;
+        }
 
         st->codec->extradata_size = os->psize;
         st->codec->extradata = av_malloc(st->codec->extradata_size
@@ -73,8 +76,9 @@ static int speex_header(AVFormatContext *s, int idx) {
         memcpy(st->codec->extradata, p, st->codec->extradata_size);
 
         av_set_pts_info(st, 64, 1, st->codec->sample_rate);
-    } else
+    } else {
         ff_vorbis_comment(s, &st->metadata, p, os->psize);
+    }
 
     spxp->seq++;
     return 1;
@@ -85,8 +89,9 @@ static int ogg_page_packets(struct ogg_stream *os)
     int i;
     int packets = 0;
     for (i = 0; i < os->nsegs; i++)
-        if (os->segments[i] < 255)
+        if (os->segments[i] < 255) {
             packets++;
+        }
     return packets;
 }
 
@@ -108,13 +113,16 @@ static int speex_packet(AVFormatContext *s, int idx)
 
     if (!os->lastpts && os->granule > 0)
         /* first packet */
+    {
         os->pduration = os->granule - packet_size * (ogg_page_packets(os) - 1);
-    else if (os->flags & OGG_FLAG_EOS && os->segp == os->nsegs &&
-             spxp->final_packet_duration)
+    } else if (os->flags & OGG_FLAG_EOS && os->segp == os->nsegs &&
+               spxp->final_packet_duration)
         /* final packet */
+    {
         os->pduration = spxp->final_packet_duration;
-    else
+    } else {
         os->pduration = packet_size;
+    }
 
     return 0;
 }

@@ -30,7 +30,7 @@
 #define LATM_MASK       0xFFE000        // top 11 bits
 #define LATM_SIZE_MASK  0x001FFF        // bottom 13 bits
 
-typedef struct LATMParseContext{
+typedef struct LATMParseContext {
     ParseContext pc;
     int count;
 } LATMParseContext;
@@ -53,7 +53,7 @@ static int latm_find_frame_end(AVCodecParserContext *s1, const uint8_t *buf,
     i = 0;
     if (!pic_found) {
         for (i = 0; i < buf_size; i++) {
-            state = (state<<8) | buf[i];
+            state = (state << 8) | buf[i];
             if ((state & LATM_MASK) == LATM_HEADER) {
                 i++;
                 s->count  = -i;
@@ -65,8 +65,9 @@ static int latm_find_frame_end(AVCodecParserContext *s1, const uint8_t *buf,
 
     if (pic_found) {
         /* EOF considered as end of frame */
-        if (buf_size == 0)
+        if (buf_size == 0) {
             return 0;
+        }
         if ((state & LATM_SIZE_MASK) - s->count <= buf_size) {
             pc->frame_start_found = 0;
             pc->state             = -1;

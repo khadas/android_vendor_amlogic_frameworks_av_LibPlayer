@@ -92,7 +92,7 @@ typedef struct WMACodecContext {
     int high_band_values[MAX_CHANNELS][HIGH_BAND_MAX_SIZE];
 
     /* there are two possible tables for spectral coefficients */
-//FIXME the following 3 tables should be shared between decoders
+    //FIXME the following 3 tables should be shared between decoders
     VLC coef_vlc[2];
     uint16_t *run_table[2];
     float *level_table[2];

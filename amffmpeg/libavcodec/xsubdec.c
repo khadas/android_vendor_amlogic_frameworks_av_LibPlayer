@@ -23,7 +23,8 @@
 #include "get_bits.h"
 #include "bytestream.h"
 
-static av_cold int decode_init(AVCodecContext *avctx) {
+static av_cold int decode_init(AVCodecContext *avctx)
+{
     avctx->pix_fmt = PIX_FMT_PAL8;
     return 0;
 }
@@ -31,21 +32,26 @@ static av_cold int decode_init(AVCodecContext *avctx) {
 static const uint8_t tc_offsets[9] = { 0, 1, 3, 4, 6, 7, 9, 10, 11 };
 static const uint8_t tc_muls[9] = { 10, 6, 10, 6, 10, 10, 10, 10, 1 };
 
-static int64_t parse_timecode(const uint8_t *buf, int64_t packet_time) {
+static int64_t parse_timecode(const uint8_t *buf, int64_t packet_time)
+{
     int i;
     int64_t ms = 0;
-    if (buf[2] != ':' || buf[5] != ':' || buf[8] != '.')
+    if (buf[2] != ':' || buf[5] != ':' || buf[8] != '.') {
         return AV_NOPTS_VALUE;
+    }
     for (i = 0; i < sizeof(tc_offsets); i++) {
         uint8_t c = buf[tc_offsets[i]] - '0';
-        if (c > 9) return AV_NOPTS_VALUE;
+        if (c > 9) {
+            return AV_NOPTS_VALUE;
+        }
         ms = (ms + c) * tc_muls[i];
     }
     return ms - packet_time;
 }
 
 static int decode_frame(AVCodecContext *avctx, void *data, int *data_size,
-                        AVPacket *avpkt) {
+                        AVPacket *avpkt)
+{
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;
     AVSubtitle *sub = data;
@@ -54,7 +60,7 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size,
     int w, h, x, y, i;
     int64_t packet_time = 0;
     GetBitContext gb;
-    int has_alpha = avctx->codec_tag == MKTAG('D','X','S','A');
+    int has_alpha = avctx->codec_tag == MKTAG('D', 'X', 'S', 'A');
 
     // check that at least header fits
     if (buf_size < 27 + 7 * 2 + 4 * 3) {
@@ -68,7 +74,9 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size,
         return -1;
     }
     if (avpkt->pts != AV_NOPTS_VALUE)
-        packet_time = av_rescale_q(avpkt->pts, AV_TIME_BASE_Q, (AVRational){1, 1000});
+        packet_time = av_rescale_q(avpkt->pts, AV_TIME_BASE_Q, (AVRational) {
+        1, 1000
+    });
     sub->start_display_time = parse_timecode(buf +  1, packet_time);
     sub->end_display_time   = parse_timecode(buf + 14, packet_time);
     buf += 27;
@@ -76,8 +84,9 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size,
     // read header
     w = bytestream_get_le16(&buf);
     h = bytestream_get_le16(&buf);
-    if (av_image_check_size(w, h, 0, avctx) < 0)
+    if (av_image_check_size(w, h, 0, avctx) < 0) {
         return -1;
+    }
     x = bytestream_get_le16(&buf);
     y = bytestream_get_le16(&buf);
     // skip bottom right position, it gives no new information
@@ -93,8 +102,10 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size,
     sub->rects =  av_mallocz(sizeof(*sub->rects));
     sub->rects[0] = av_mallocz(sizeof(*sub->rects[0]));
     sub->num_rects = 1;
-    sub->rects[0]->x = x; sub->rects[0]->y = y;
-    sub->rects[0]->w = w; sub->rects[0]->h = h;
+    sub->rects[0]->x = x;
+    sub->rects[0]->y = y;
+    sub->rects[0]->w = w;
+    sub->rects[0]->h = h;
     sub->rects[0]->type = SUBTITLE_BITMAP;
     sub->rects[0]->pict.linesize[0] = w;
     sub->rects[0]->pict.data[0] = av_malloc(w * h);
@@ -102,25 +113,31 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size,
     sub->rects[0]->pict.data[1] = av_mallocz(AVPALETTE_SIZE);
 
     // read palette
-    for (i = 0; i < sub->rects[0]->nb_colors; i++)
+    for (i = 0; i < sub->rects[0]->nb_colors; i++) {
         ((uint32_t*)sub->rects[0]->pict.data[1])[i] = bytestream_get_be24(&buf);
+    }
     // make all except background (first entry) non-transparent
-    for (i = 0; i < sub->rects[0]->nb_colors; i++)
+    for (i = 0; i < sub->rects[0]->nb_colors; i++) {
         ((uint32_t*)sub->rects[0]->pict.data[1])[i] |= (has_alpha ? *buf++ : (i ? 0xff : 0)) << 24;
+    }
 
     // process RLE-compressed data
     init_get_bits(&gb, buf, (buf_end - buf) * 8);
     bitmap = sub->rects[0]->pict.data[0];
     for (y = 0; y < h; y++) {
         // interlaced: do odd lines
-        if (y == (h + 1) / 2) bitmap = sub->rects[0]->pict.data[0] + w;
-        for (x = 0; x < w; ) {
+        if (y == (h + 1) / 2) {
+            bitmap = sub->rects[0]->pict.data[0] + w;
+        }
+        for (x = 0; x < w;) {
             int log2 = ff_log2_tab[show_bits(&gb, 8)];
             int run = get_bits(&gb, 14 - 4 * (log2 >> 1));
             int color = get_bits(&gb, 2);
             run = FFMIN(run, w - x);
             // run length 0 means till end of row
-            if (!run) run = w - x;
+            if (!run) {
+                run = w - x;
+            }
             memset(bitmap, color, run);
             bitmap += run;
             x += run;

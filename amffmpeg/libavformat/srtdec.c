@@ -28,12 +28,14 @@ static int srt_probe(AVProbeData *p)
     unsigned char *ptr = p->buf;
     int i, v, num = 0;
 
-    if (AV_RB24(ptr) == 0xEFBBBF)
-        ptr += 3;  /* skip UTF-8 BOM */
+    if (AV_RB24(ptr) == 0xEFBBBF) {
+        ptr += 3;    /* skip UTF-8 BOM */
+    }
 
-    for (i=0; i<2; i++) {
-        if (num == i && sscanf(ptr, "%*d:%*2d:%*2d%*1[,.]%*3d --> %*d:%*2d:%*2d%*1[,.]%3d", &v) == 1)
+    for (i = 0; i < 2; i++) {
+        if (num == i && sscanf(ptr, "%*d:%*2d:%*2d%*1[,.]%*3d --> %*d:%*2d:%*2d%*1[,.]%3d", &v) == 1) {
             return AVPROBE_SCORE_MAX;
+        }
         num = atoi(ptr);
         ptr += strcspn(ptr, "\n") + 1;
     }
@@ -43,8 +45,9 @@ static int srt_probe(AVProbeData *p)
 static int srt_read_header(AVFormatContext *s, AVFormatParameters *ap)
 {
     AVStream *st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return -1;
+    }
     av_set_pts_info(st, 64, 1, 1000);
     st->codec->codec_type = AVMEDIA_TYPE_SUBTITLE;
     st->codec->codec_id   = CODEC_ID_SRT;
@@ -55,12 +58,12 @@ static int64_t get_pts(const char *buf)
 {
     int i, v, hour, min, sec, hsec;
 
-    for (i=0; i<2; i++) {
+    for (i = 0; i < 2; i++) {
         if (sscanf(buf, "%d:%2d:%2d%*1[,.]%3d --> %*d:%*2d:%*2d%*1[,.]%3d",
                    &hour, &min, &sec, &hsec, &v) == 5) {
-            min += 60*hour;
-            sec += 60*min;
-            return sec*1000+hsec;
+            min += 60 * hour;
+            sec += 60 * min;
+            return sec * 1000 + hsec;
         }
         buf += strcspn(buf, "\n") + 1;
     }
@@ -80,10 +83,10 @@ static int srt_read_packet(AVFormatContext *s, AVPacket *pkt)
 
     do {
         ptr2 = ptr;
-        ptr += ff_get_line(s->pb, ptr, sizeof(buffer)+buffer-ptr);
-    } while (!is_eol(*ptr2) && !url_feof(s->pb) && ptr-buffer<sizeof(buffer)-1);
+        ptr += ff_get_line(s->pb, ptr, sizeof(buffer) + buffer - ptr);
+    } while (!is_eol(*ptr2) && !url_feof(s->pb) && ptr - buffer < sizeof(buffer) - 1);
 
-    if (buffer[0] && !(res = av_new_packet(pkt, ptr-buffer))) {
+    if (buffer[0] && !(res = av_new_packet(pkt, ptr - buffer))) {
         memcpy(pkt->data, buffer, pkt->size);
         pkt->flags |= AV_PKT_FLAG_KEY;
         pkt->pos = pos;

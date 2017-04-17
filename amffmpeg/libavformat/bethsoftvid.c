@@ -31,8 +31,7 @@
 #include "avformat.h"
 #include "libavcodec/bethsoftvideo.h"
 
-typedef struct BVID_DemuxContext
-{
+typedef struct BVID_DemuxContext {
     int nframes;
     /** delay value between frames, added to individual frame delay.
      * custom units, which will be added to other custom units (~=16ms according
@@ -50,14 +49,15 @@ typedef struct BVID_DemuxContext
 static int vid_probe(AVProbeData *p)
 {
     // little endian VID tag, file starts with "VID\0"
-    if (AV_RL32(p->buf) != MKTAG('V', 'I', 'D', 0))
+    if (AV_RL32(p->buf) != MKTAG('V', 'I', 'D', 0)) {
         return 0;
+    }
 
     return AVPROBE_SCORE_MAX;
 }
 
 static int vid_read_header(AVFormatContext *s,
-                            AVFormatParameters *ap)
+                           AVFormatParameters *ap)
 {
     BVID_DemuxContext *vid = s->priv_data;
     AVIOContext *pb = s->pb;
@@ -71,8 +71,9 @@ static int vid_read_header(AVFormatContext *s,
     vid->nframes = avio_rl16(pb);
 
     stream = av_new_stream(s, 0);
-    if (!stream)
+    if (!stream) {
         return AVERROR(ENOMEM);
+    }
     av_set_pts_info(stream, 32, 1, 60);     // 16 ms increments, i.e. 60 fps
     stream->codec->codec_type = AVMEDIA_TYPE_VIDEO;
     stream->codec->codec_id = CODEC_ID_BETHSOFTVID;
@@ -84,8 +85,9 @@ static int vid_read_header(AVFormatContext *s,
 
     // done with video codec, set up audio codec
     stream = av_new_stream(s, 0);
-    if (!stream)
+    if (!stream) {
         return AVERROR(ENOMEM);
+    }
     stream->codec->codec_type = AVMEDIA_TYPE_AUDIO;
     stream->codec->codec_id = CODEC_ID_PCM_U8;
     stream->codec->channels = 1;
@@ -108,8 +110,9 @@ static int read_frame(BVID_DemuxContext *vid, AVIOContext *pb, AVPacket *pkt,
     unsigned int vidbuf_capacity;
 
     vidbuf_start = av_malloc(vidbuf_capacity = BUFFER_PADDING_SIZE);
-    if(!vidbuf_start)
+    if (!vidbuf_start) {
         return AVERROR(ENOMEM);
+    }
 
     // save the file position for the packet, include block type
     position = avio_tell(pb) - 1;
@@ -120,42 +123,49 @@ static int read_frame(BVID_DemuxContext *vid, AVIOContext *pb, AVPacket *pkt,
     vid->video_pts += vid->bethsoft_global_delay + avio_rl16(pb);
 
     // set the y offset if it exists (decoder header data should be in data section)
-    if(block_type == VIDEO_YOFF_P_FRAME){
-        if(avio_read(pb, &vidbuf_start[vidbuf_nbytes], 2) != 2)
+    if (block_type == VIDEO_YOFF_P_FRAME) {
+        if (avio_read(pb, &vidbuf_start[vidbuf_nbytes], 2) != 2) {
             goto fail;
+        }
         vidbuf_nbytes += 2;
     }
 
-    do{
+    do {
         vidbuf_start = av_fast_realloc(vidbuf_start, &vidbuf_capacity, vidbuf_nbytes + BUFFER_PADDING_SIZE);
-        if(!vidbuf_start)
+        if (!vidbuf_start) {
             return AVERROR(ENOMEM);
+        }
 
         code = avio_r8(pb);
         vidbuf_start[vidbuf_nbytes++] = code;
 
-        if(code >= 0x80){ // rle sequence
-            if(block_type == VIDEO_I_FRAME)
+        if (code >= 0x80) { // rle sequence
+            if (block_type == VIDEO_I_FRAME) {
                 vidbuf_start[vidbuf_nbytes++] = avio_r8(pb);
-        } else if(code){ // plain sequence
-            if(avio_read(pb, &vidbuf_start[vidbuf_nbytes], code) != code)
+            }
+        } else if (code) { // plain sequence
+            if (avio_read(pb, &vidbuf_start[vidbuf_nbytes], code) != code) {
                 goto fail;
+            }
             vidbuf_nbytes += code;
         }
         bytes_copied += code & 0x7F;
-        if(bytes_copied == npixels){ // sometimes no stop character is given, need to keep track of bytes copied
+        if (bytes_copied == npixels) { // sometimes no stop character is given, need to keep track of bytes copied
             // may contain a 0 byte even if read all pixels
-            if(avio_r8(pb))
+            if (avio_r8(pb)) {
                 avio_seek(pb, -1, SEEK_CUR);
+            }
             break;
         }
-        if(bytes_copied > npixels)
+        if (bytes_copied > npixels) {
             goto fail;
-    } while(code);
+        }
+    } while (code);
 
     // copy data into packet
-    if(av_new_packet(pkt, vidbuf_nbytes) < 0)
+    if (av_new_packet(pkt, vidbuf_nbytes) < 0) {
         goto fail;
+    }
     memcpy(pkt->data, vidbuf_start, vidbuf_nbytes);
     av_free(vidbuf_start);
 
@@ -179,46 +189,49 @@ static int vid_read_packet(AVFormatContext *s,
     int audio_length;
     int ret_value;
 
-    if(vid->is_finished || url_feof(pb))
+    if (vid->is_finished || url_feof(pb)) {
         return AVERROR(EIO);
+    }
 
     block_type = avio_r8(pb);
-    switch(block_type){
-        case PALETTE_BLOCK:
-            avio_seek(pb, -1, SEEK_CUR);     // include block type
-            ret_value = av_get_packet(pb, pkt, 3 * 256 + 1);
-            if(ret_value != 3 * 256 + 1){
-                av_free_packet(pkt);
-                return AVERROR(EIO);
-            }
-            pkt->stream_index = 0;
-            return ret_value;
-
-        case FIRST_AUDIO_BLOCK:
-            avio_rl16(pb);
-            // soundblaster DAC used for sample rate, as on specification page (link above)
-            s->streams[1]->codec->sample_rate = 1000000 / (256 - avio_r8(pb));
-            s->streams[1]->codec->bit_rate = s->streams[1]->codec->channels * s->streams[1]->codec->sample_rate * s->streams[1]->codec->bits_per_coded_sample;
-        case AUDIO_BLOCK:
-            audio_length = avio_rl16(pb);
-            ret_value = av_get_packet(pb, pkt, audio_length);
-            pkt->stream_index = 1;
-            return ret_value != audio_length ? AVERROR(EIO) : ret_value;
-
-        case VIDEO_P_FRAME:
-        case VIDEO_YOFF_P_FRAME:
-        case VIDEO_I_FRAME:
-            return read_frame(vid, pb, pkt, block_type, s,
-                              s->streams[0]->codec->width * s->streams[0]->codec->height);
-
-        case EOF_BLOCK:
-            if(vid->nframes != 0)
-                av_log(s, AV_LOG_VERBOSE, "reached terminating character but not all frames read.\n");
-            vid->is_finished = 1;
+    switch (block_type) {
+    case PALETTE_BLOCK:
+        avio_seek(pb, -1, SEEK_CUR);     // include block type
+        ret_value = av_get_packet(pb, pkt, 3 * 256 + 1);
+        if (ret_value != 3 * 256 + 1) {
+            av_free_packet(pkt);
             return AVERROR(EIO);
-        default:
-            av_log(s, AV_LOG_ERROR, "unknown block (character = %c, decimal = %d, hex = %x)!!!\n",
-                   block_type, block_type, block_type); return -1;
+        }
+        pkt->stream_index = 0;
+        return ret_value;
+
+    case FIRST_AUDIO_BLOCK:
+        avio_rl16(pb);
+        // soundblaster DAC used for sample rate, as on specification page (link above)
+        s->streams[1]->codec->sample_rate = 1000000 / (256 - avio_r8(pb));
+        s->streams[1]->codec->bit_rate = s->streams[1]->codec->channels * s->streams[1]->codec->sample_rate * s->streams[1]->codec->bits_per_coded_sample;
+    case AUDIO_BLOCK:
+        audio_length = avio_rl16(pb);
+        ret_value = av_get_packet(pb, pkt, audio_length);
+        pkt->stream_index = 1;
+        return ret_value != audio_length ? AVERROR(EIO) : ret_value;
+
+    case VIDEO_P_FRAME:
+    case VIDEO_YOFF_P_FRAME:
+    case VIDEO_I_FRAME:
+        return read_frame(vid, pb, pkt, block_type, s,
+                          s->streams[0]->codec->width * s->streams[0]->codec->height);
+
+    case EOF_BLOCK:
+        if (vid->nframes != 0) {
+            av_log(s, AV_LOG_VERBOSE, "reached terminating character but not all frames read.\n");
+        }
+        vid->is_finished = 1;
+        return AVERROR(EIO);
+    default:
+        av_log(s, AV_LOG_ERROR, "unknown block (character = %c, decimal = %d, hex = %x)!!!\n",
+               block_type, block_type, block_type);
+        return -1;
     }
 
     return 0;

@@ -49,8 +49,9 @@ static av_cold int cyuv_decode_init(AVCodecContext *avctx)
     s->avctx = avctx;
     s->width = avctx->width;
     /* width needs to be divisible by 4 for this codec to work */
-    if (s->width & 0x3)
+    if (s->width & 0x3) {
         return -1;
+    }
     s->height = avctx->height;
     avctx->pix_fmt = PIX_FMT_YUV411P;
     avcodec_get_frame_defaults(&s->frame);
@@ -64,7 +65,7 @@ static int cyuv_decode_frame(AVCodecContext *avctx,
 {
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;
-    CyuvDecodeContext *s=avctx->priv_data;
+    CyuvDecodeContext *s = avctx->priv_data;
 
     unsigned char *y_plane;
     unsigned char *u_plane;
@@ -100,8 +101,9 @@ static int cyuv_decode_frame(AVCodecContext *avctx,
     /* pixel data starts 48 bytes in, after 3x16-byte tables */
     stream_ptr = 48;
 
-    if (s->frame.data[0])
+    if (s->frame.data[0]) {
         avctx->release_buffer(avctx, &s->frame);
+    }
 
     s->frame.buffer_hints = FF_BUFFER_HINTS_VALID;
     s->frame.reference = 0;
@@ -162,8 +164,8 @@ static int cyuv_decode_frame(AVCodecContext *avctx,
         }
     }
 
-    *data_size=sizeof(AVFrame);
-    *(AVFrame*)data= s->frame;
+    *data_size = sizeof(AVFrame);
+    *(AVFrame*)data = s->frame;
 
     return buf_size;
 }
@@ -172,8 +174,9 @@ static av_cold int cyuv_decode_end(AVCodecContext *avctx)
 {
     CyuvDecodeContext *s = avctx->priv_data;
 
-    if (s->frame.data[0])
+    if (s->frame.data[0]) {
         avctx->release_buffer(avctx, &s->frame);
+    }
 
     return 0;
 }

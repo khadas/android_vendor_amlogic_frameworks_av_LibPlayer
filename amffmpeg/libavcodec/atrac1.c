@@ -64,7 +64,7 @@ typedef struct {
     DECLARE_ALIGNED(32, float, spec2)[AT1_SU_SAMPLES];     ///< mdct buffer
     DECLARE_ALIGNED(32, float, fst_qmf_delay)[46];         ///< delay line for the 1st stacked QMF filter
     DECLARE_ALIGNED(32, float, snd_qmf_delay)[46];         ///< delay line for the 2nd stacked QMF filter
-    DECLARE_ALIGNED(32, float, last_qmf_delay)[256+23];    ///< delay line for the last stacked QMF filter
+    DECLARE_ALIGNED(32, float, last_qmf_delay)[256 + 23];  ///< delay line for the last stacked QMF filter
 } AT1SUCtx;
 
 /**
@@ -97,8 +97,9 @@ static void at1_imdct(AT1Ctx *q, float *spec, float *out, int nbits,
 
     if (rev_spec) {
         int i;
-        for (i = 0; i < transf_size / 2; i++)
+        for (i = 0; i < transf_size / 2; i++) {
             FFSWAP(float, spec[i], spec[transf_size - 1 - i]);
+        }
     }
     mdct_context->imdct_half(mdct_context, out, spec);
 }
@@ -128,8 +129,9 @@ static int at1_imdct_block(AT1SUCtx* su, AT1Ctx *q)
             /* calc transform size in bits according to the block_size_mode */
             nbits = mdct_long_nbits[band_num] - log2_block_count;
 
-            if (nbits != 5 && nbits != 7 && nbits != 8)
+            if (nbits != 5 && nbits != 7 && nbits != 8) {
                 return -1;
+            }
         } else {
             block_size = 32;
             nbits = 5;
@@ -137,20 +139,21 @@ static int at1_imdct_block(AT1SUCtx* su, AT1Ctx *q)
 
         start_pos = 0;
         prev_buf = &su->spectrum[1][ref_pos + band_samples - 16];
-        for (j=0; j < num_blocks; j++) {
+        for (j = 0; j < num_blocks; j++) {
             at1_imdct(q, &q->spec[pos], &su->spectrum[0][ref_pos + start_pos], nbits, band_num);
 
             /* overlap and window */
             q->dsp.vector_fmul_window(&q->bands[band_num][start_pos], prev_buf,
                                       &su->spectrum[0][ref_pos + start_pos], ff_sine_32, 16);
 
-            prev_buf = &su->spectrum[0][ref_pos+start_pos + 16];
+            prev_buf = &su->spectrum[0][ref_pos + start_pos + 16];
             start_pos += block_size;
             pos += block_size;
         }
 
-        if (num_blocks == 1)
+        if (num_blocks == 1) {
             memcpy(q->bands[band_num] + 32, &su->spectrum[0][ref_pos + 16], 240 * sizeof(float));
+        }
 
         ref_pos += band_samples;
     }
@@ -172,15 +175,17 @@ static int at1_parse_bsm(GetBitContext* gb, int log2_block_cnt[AT1_QMF_BANDS])
     for (i = 0; i < 2; i++) {
         /* low and mid band */
         log2_block_count_tmp = get_bits(gb, 2);
-        if (log2_block_count_tmp & 1)
+        if (log2_block_count_tmp & 1) {
             return -1;
+        }
         log2_block_cnt[i] = 2 - log2_block_count_tmp;
     }
 
     /* high band */
     log2_block_count_tmp = get_bits(gb, 2);
-    if (log2_block_count_tmp != 0 && log2_block_count_tmp != 3)
+    if (log2_block_count_tmp != 0 && log2_block_count_tmp != 3) {
         return -1;
+    }
     log2_block_cnt[IDX_HIGH_BAND] = 3 - log2_block_count_tmp;
 
     skip_bits(gb, 2);
@@ -206,20 +211,23 @@ static int at1_unpack_dequant(GetBitContext* gb, AT1SUCtx* su,
                 (bfu_amount_tab3[get_bits(gb, 3)] << 1);
 
     /* get word length index (idwl) for each BFU */
-    for (i = 0; i < su->num_bfus; i++)
+    for (i = 0; i < su->num_bfus; i++) {
         idwls[i] = get_bits(gb, 4);
+    }
 
     /* get scalefactor index (idsf) for each BFU */
-    for (i = 0; i < su->num_bfus; i++)
+    for (i = 0; i < su->num_bfus; i++) {
         idsfs[i] = get_bits(gb, 6);
+    }
 
     /* zero idwl/idsf for empty BFUs */
-    for (i = su->num_bfus; i < AT1_MAX_BFU; i++)
+    for (i = su->num_bfus; i < AT1_MAX_BFU; i++) {
         idwls[i] = idsfs[i] = 0;
+    }
 
     /* read in the spectral data and reconstruct MDCT spectrum of this channel */
     for (band_num = 0; band_num < AT1_QMF_BANDS; band_num++) {
-        for (bfu_num = bfu_bands_t[band_num]; bfu_num < bfu_bands_t[band_num+1]; bfu_num++) {
+        for (bfu_num = bfu_bands_t[band_num]; bfu_num < bfu_bands_t[band_num + 1]; bfu_num++) {
             int pos;
 
             int num_specs = specs_per_bfu[bfu_num];
@@ -228,8 +236,9 @@ static int at1_unpack_dequant(GetBitContext* gb, AT1SUCtx* su,
             bits_used += word_len * num_specs; /* add number of bits consumed by current BFU */
 
             /* check for bitstream overflow */
-            if (bits_used > AT1_SU_MAX_BITS)
+            if (bits_used > AT1_SU_MAX_BITS) {
                 return -1;
+            }
 
             /* get the position of the 1st spec according to the block size mode */
             pos = su->log2_block_count[band_num] ? bfu_start_short[bfu_num] : bfu_start_long[bfu_num];
@@ -241,7 +250,7 @@ static int at1_unpack_dequant(GetBitContext* gb, AT1SUCtx* su,
                     /* read in a quantized spec and convert it to
                      * signed int and then inverse quantization
                      */
-                    spec[pos+i] = get_sbits(gb, word_len) * scale_factor * max_quant;
+                    spec[pos + i] = get_sbits(gb, word_len) * scale_factor * max_quant;
                 }
             } else { /* word_len = 0 -> empty BFU, zero all specs in the emty BFU */
                 memset(&spec[pos], 0, num_specs * sizeof(float));
@@ -262,7 +271,7 @@ static void at1_subband_synthesis(AT1Ctx *q, AT1SUCtx* su, float *pOut)
     atrac_iqmf(q->bands[0], q->bands[1], 128, temp, su->fst_qmf_delay, iqmf_temp);
 
     /* delay the signal of the high band by 23 samples */
-    memcpy( su->last_qmf_delay,    &su->last_qmf_delay[256], sizeof(float) *  23);
+    memcpy(su->last_qmf_delay,    &su->last_qmf_delay[256], sizeof(float) *  23);
     memcpy(&su->last_qmf_delay[23], q->bands[2],             sizeof(float) * 256);
 
     /* combine (low + middle) and high bands */
@@ -282,7 +291,7 @@ static int atrac1_decode_frame(AVCodecContext *avctx, void *data,
 
 
     if (buf_size < 212 * q->channels) {
-        av_log(q,AV_LOG_ERROR,"Not enought data to decode!\n");
+        av_log(q, AV_LOG_ERROR, "Not enought data to decode!\n");
         return -1;
     }
 
@@ -293,16 +302,19 @@ static int atrac1_decode_frame(AVCodecContext *avctx, void *data,
 
         /* parse block_size_mode, 1st byte */
         ret = at1_parse_bsm(&gb, su->log2_block_count);
-        if (ret < 0)
+        if (ret < 0) {
             return ret;
+        }
 
         ret = at1_unpack_dequant(&gb, su, q->spec);
-        if (ret < 0)
+        if (ret < 0) {
             return ret;
+        }
 
         ret = at1_imdct_block(su, q);
-        if (ret < 0)
+        if (ret < 0) {
             return ret;
+        }
         at1_subband_synthesis(q, su, q->out_samples[ch]);
     }
 
@@ -332,9 +344,9 @@ static av_cold int atrac1_decode_init(AVCodecContext *avctx)
     q->channels = avctx->channels;
 
     /* Init the mdct transforms */
-    ff_mdct_init(&q->mdct_ctx[0], 6, 1, -1.0/ (1 << 15));
-    ff_mdct_init(&q->mdct_ctx[1], 8, 1, -1.0/ (1 << 15));
-    ff_mdct_init(&q->mdct_ctx[2], 9, 1, -1.0/ (1 << 15));
+    ff_mdct_init(&q->mdct_ctx[0], 6, 1, -1.0 / (1 << 15));
+    ff_mdct_init(&q->mdct_ctx[1], 8, 1, -1.0 / (1 << 15));
+    ff_mdct_init(&q->mdct_ctx[2], 9, 1, -1.0 / (1 << 15));
 
     ff_init_ff_sine_windows(5);
 
@@ -356,7 +368,8 @@ static av_cold int atrac1_decode_init(AVCodecContext *avctx)
 }
 
 
-static av_cold int atrac1_decode_end(AVCodecContext * avctx) {
+static av_cold int atrac1_decode_end(AVCodecContext * avctx)
+{
     AT1Ctx *q = avctx->priv_data;
 
     ff_mdct_end(&q->mdct_ctx[0]);

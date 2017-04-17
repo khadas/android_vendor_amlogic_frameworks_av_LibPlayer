@@ -40,10 +40,11 @@ typedef struct BFIContext {
 static int bfi_probe(AVProbeData * p)
 {
     /* Check file header */
-    if (AV_RL32(p->buf) == MKTAG('B', 'F', '&', 'I'))
+    if (AV_RL32(p->buf) == MKTAG('B', 'F', '&', 'I')) {
         return AVPROBE_SCORE_MAX;
-    else
+    } else {
         return 0;
+    }
 }
 
 static int bfi_read_header(AVFormatContext * s, AVFormatParameters * ap)
@@ -56,13 +57,15 @@ static int bfi_read_header(AVFormatContext * s, AVFormatParameters * ap)
 
     /* Initialize the video codec... */
     vstream = av_new_stream(s, 0);
-    if (!vstream)
+    if (!vstream) {
         return AVERROR(ENOMEM);
+    }
 
     /* Initialize the audio codec... */
     astream = av_new_stream(s, 0);
-    if (!astream)
+    if (!astream) {
         return AVERROR(ENOMEM);
+    }
 
     /* Set the total number of frames. */
     avio_skip(pb, 8);
@@ -81,7 +84,7 @@ static int bfi_read_header(AVFormatContext * s, AVFormatParameters * ap)
     vstream->codec->extradata      = av_malloc(768);
     vstream->codec->extradata_size = 768;
     avio_read(pb, vstream->codec->extradata,
-               vstream->codec->extradata_size);
+              vstream->codec->extradata_size);
 
     astream->codec->sample_rate = avio_rl32(pb);
 
@@ -116,10 +119,11 @@ static int bfi_read_packet(AVFormatContext * s, AVPacket * pkt)
     /* If all previous chunks were completely read, then find a new one... */
     if (!bfi->avflag) {
         uint32_t state = 0;
-        while(state != MKTAG('S','A','V','I')){
-            if (url_feof(pb))
+        while (state != MKTAG('S', 'A', 'V', 'I')) {
+            if (url_feof(pb)) {
                 return AVERROR(EIO);
-            state = 256*state + avio_r8(pb);
+            }
+            state = 256 * state + avio_r8(pb);
         }
         /* Now that the chunk's location is confirmed, we proceed... */
         chunk_size      = avio_rl32(pb);
@@ -132,8 +136,9 @@ static int bfi_read_packet(AVFormatContext * s, AVPacket * pkt)
 
         //Tossing an audio packet at the audio decoder.
         ret = av_get_packet(pb, pkt, audio_size);
-        if (ret < 0)
+        if (ret < 0) {
             return ret;
+        }
 
         pkt->pts          = bfi->audio_frame;
         bfi->audio_frame += ret;
@@ -143,8 +148,9 @@ static int bfi_read_packet(AVFormatContext * s, AVPacket * pkt)
 
         //Tossing a video packet at the video decoder.
         ret = av_get_packet(pb, pkt, bfi->video_size);
-        if (ret < 0)
+        if (ret < 0) {
             return ret;
+        }
 
         pkt->pts          = bfi->video_frame;
         bfi->video_frame += ret / bfi->video_size;

@@ -71,12 +71,13 @@ static void fft_ref_init(int nbits, int inverse)
     n = 1 << nbits;
     exptab = av_malloc((n / 2) * sizeof(*exptab));
 
-    for (i = 0; i < (n/2); i++) {
+    for (i = 0; i < (n / 2); i++) {
         alpha = 2 * M_PI * (float)i / (float)n;
         c1 = cos(alpha);
         s1 = sin(alpha);
-        if (!inverse)
+        if (!inverse) {
             s1 = -s1;
+        }
         exptab[i].re = c1;
         exptab[i].im = s1;
     }
@@ -113,13 +114,13 @@ static void fft_ref(FFTComplex *tabr, FFTComplex *tab, int nbits)
 
 static void imdct_ref(FFTSample *out, FFTSample *in, int nbits)
 {
-    int n = 1<<nbits;
+    int n = 1 << nbits;
     int k, i, a;
     double sum, f;
 
     for (i = 0; i < n; i++) {
         sum = 0;
-        for (k = 0; k < n/2; k++) {
+        for (k = 0; k < n / 2; k++) {
             a = (2 * i + 1 + (n / 2)) * (2 * k + 1);
             f = cos(M_PI * a / (double)(2 * n));
             sum += f * in[k];
@@ -131,15 +132,15 @@ static void imdct_ref(FFTSample *out, FFTSample *in, int nbits)
 /* NOTE: no normalisation by 1 / N is done */
 static void mdct_ref(FFTSample *output, FFTSample *input, int nbits)
 {
-    int n = 1<<nbits;
+    int n = 1 << nbits;
     int k, i;
     double a, s;
 
     /* do it by hand */
-    for (k = 0; k < n/2; k++) {
+    for (k = 0; k < n / 2; k++) {
         s = 0;
         for (i = 0; i < n; i++) {
-            a = (2*M_PI*(2*i+1+n/2)*(2*k+1) / (4 * n));
+            a = (2 * M_PI * (2 * i + 1 + n / 2) * (2 * k + 1) / (4 * n));
             s += input[i] * cos(a);
         }
         output[k] = REF_SCALE(s, nbits - 1);
@@ -149,7 +150,7 @@ static void mdct_ref(FFTSample *output, FFTSample *input, int nbits)
 #if CONFIG_FFT_FLOAT
 static void idct_ref(float *output, float *input, int nbits)
 {
-    int n = 1<<nbits;
+    int n = 1 << nbits;
     int k, i;
     double a, s;
 
@@ -157,7 +158,7 @@ static void idct_ref(float *output, float *input, int nbits)
     for (i = 0; i < n; i++) {
         s = 0.5 * input[0];
         for (k = 1; k < n; k++) {
-            a = M_PI*k*(i+0.5) / n;
+            a = M_PI * k * (i + 0.5) / n;
             s += input[k] * cos(a);
         }
         output[i] = 2 * s / n;
@@ -165,7 +166,7 @@ static void idct_ref(float *output, float *input, int nbits)
 }
 static void dct_ref(float *output, float *input, int nbits)
 {
-    int n = 1<<nbits;
+    int n = 1 << nbits;
     int k, i;
     double a, s;
 
@@ -173,7 +174,7 @@ static void dct_ref(float *output, float *input, int nbits)
     for (k = 0; k < n; k++) {
         s = 0;
         for (i = 0; i < n; i++) {
-            a = M_PI*k*(i+0.5) / n;
+            a = M_PI * k * (i + 0.5) / n;
             s += input[i] * cos(a);
         }
         output[k] = s;
@@ -190,15 +191,15 @@ static FFTSample frandom(AVLFG *prng)
 static int64_t gettime(void)
 {
     struct timeval tv;
-    gettimeofday(&tv,NULL);
+    gettimeofday(&tv, NULL);
     return (int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 }
 
 static int check_diff(FFTSample *tab1, FFTSample *tab2, int n, double scale)
 {
     int i;
-    double max= 0;
-    double error= 0;
+    double max = 0;
+    double error = 0;
     int err = 0;
 
     for (i = 0; i < n; i++) {
@@ -208,17 +209,19 @@ static int check_diff(FFTSample *tab1, FFTSample *tab2, int n, double scale)
                    i, tab1[i], tab2[i]);
             err = 1;
         }
-        error+= e*e;
-        if(e>max) max= e;
+        error += e * e;
+        if (e > max) {
+            max = e;
+        }
     }
-    av_log(NULL, AV_LOG_INFO, "max:%f e:%g\n", max, sqrt(error)/n);
+    av_log(NULL, AV_LOG_INFO, "max:%f e:%g\n", max, sqrt(error) / n);
     return err;
 }
 
 
 static void help(void)
 {
-    av_log(NULL, AV_LOG_INFO,"usage: fft-test [-h] [-s] [-i] [-n b]\n"
+    av_log(NULL, AV_LOG_INFO, "usage: fft-test [-h] [-s] [-i] [-n b]\n"
            "-h     print this help\n"
            "-s     speed test\n"
            "-m     (I)MDCT test\n"
@@ -227,7 +230,7 @@ static void help(void)
            "-i     inverse transform test\n"
            "-n b   set the transform size to 2^b\n"
            "-f x   set scale factor for output data of (I)MDCT to x\n"
-           );
+          );
     exit(1);
 }
 
@@ -259,11 +262,12 @@ int main(int argc, char **argv)
     av_lfg_init(&prng, 1);
 
     fft_nbits = 9;
-    for(;;) {
+    for (;;) {
         c = getopt(argc, argv, "hsimrdn:f:");
-        if (c == -1)
+        if (c == -1) {
             break;
-        switch(c) {
+        }
+        switch (c) {
         case 'h':
             help();
             break;
@@ -300,35 +304,39 @@ int main(int argc, char **argv)
 
     switch (transform) {
     case TRANSFORM_MDCT:
-        av_log(NULL, AV_LOG_INFO,"Scale factor is set to %f\n", scale);
-        if (do_inverse)
-            av_log(NULL, AV_LOG_INFO,"IMDCT");
-        else
-            av_log(NULL, AV_LOG_INFO,"MDCT");
+        av_log(NULL, AV_LOG_INFO, "Scale factor is set to %f\n", scale);
+        if (do_inverse) {
+            av_log(NULL, AV_LOG_INFO, "IMDCT");
+        } else {
+            av_log(NULL, AV_LOG_INFO, "MDCT");
+        }
         ff_mdct_init(m, fft_nbits, do_inverse, scale);
         break;
     case TRANSFORM_FFT:
-        if (do_inverse)
-            av_log(NULL, AV_LOG_INFO,"IFFT");
-        else
-            av_log(NULL, AV_LOG_INFO,"FFT");
+        if (do_inverse) {
+            av_log(NULL, AV_LOG_INFO, "IFFT");
+        } else {
+            av_log(NULL, AV_LOG_INFO, "FFT");
+        }
         ff_fft_init(s, fft_nbits, do_inverse);
         fft_ref_init(fft_nbits, do_inverse);
         break;
 #if CONFIG_FFT_FLOAT
     case TRANSFORM_RDFT:
-        if (do_inverse)
-            av_log(NULL, AV_LOG_INFO,"IDFT_C2R");
-        else
-            av_log(NULL, AV_LOG_INFO,"DFT_R2C");
+        if (do_inverse) {
+            av_log(NULL, AV_LOG_INFO, "IDFT_C2R");
+        } else {
+            av_log(NULL, AV_LOG_INFO, "DFT_R2C");
+        }
         ff_rdft_init(r, fft_nbits, do_inverse ? IDFT_C2R : DFT_R2C);
         fft_ref_init(fft_nbits, do_inverse);
         break;
     case TRANSFORM_DCT:
-        if (do_inverse)
-            av_log(NULL, AV_LOG_INFO,"DCT_III");
-        else
-            av_log(NULL, AV_LOG_INFO,"DCT_II");
+        if (do_inverse) {
+            av_log(NULL, AV_LOG_INFO, "DCT_III");
+        } else {
+            av_log(NULL, AV_LOG_INFO, "DCT_II");
+        }
         ff_dct_init(d, fft_nbits, do_inverse ? DCT_III : DCT_II);
         break;
 #endif
@@ -336,7 +344,7 @@ int main(int argc, char **argv)
         av_log(NULL, AV_LOG_ERROR, "Requested transform not supported\n");
         return 1;
     }
-    av_log(NULL, AV_LOG_INFO," %d test\n", fft_size);
+    av_log(NULL, AV_LOG_INFO, " %d test\n", fft_size);
 
     /* generate random data */
 
@@ -346,7 +354,7 @@ int main(int argc, char **argv)
     }
 
     /* checking result */
-    av_log(NULL, AV_LOG_INFO,"Checking...\n");
+    av_log(NULL, AV_LOG_INFO, "Checking...\n");
 
     switch (transform) {
     case TRANSFORM_MDCT:
@@ -376,8 +384,8 @@ int main(int argc, char **argv)
             tab1[         0].im = 0;
             tab1[fft_size_2].im = 0;
             for (i = 1; i < fft_size_2; i++) {
-                tab1[fft_size_2+i].re =  tab1[fft_size_2-i].re;
-                tab1[fft_size_2+i].im = -tab1[fft_size_2-i].im;
+                tab1[fft_size_2 + i].re =  tab1[fft_size_2 - i].re;
+                tab1[fft_size_2 + i].im = -tab1[fft_size_2 - i].im;
             }
 
             memcpy(tab2, tab1, fft_size * sizeof(FFTSample));
@@ -420,10 +428,10 @@ int main(int argc, char **argv)
         int64_t time_start, duration;
         int nb_its;
 
-        av_log(NULL, AV_LOG_INFO,"Speed test...\n");
+        av_log(NULL, AV_LOG_INFO, "Speed test...\n");
         /* we measure during about 1 seconds */
         nb_its = 1;
-        for(;;) {
+        for (;;) {
             time_start = gettime();
             for (it = 0; it < nb_its; it++) {
                 switch (transform) {
@@ -451,11 +459,12 @@ int main(int argc, char **argv)
                 }
             }
             duration = gettime() - time_start;
-            if (duration >= 1000000)
+            if (duration >= 1000000) {
                 break;
+            }
             nb_its *= 2;
         }
-        av_log(NULL, AV_LOG_INFO,"time: %0.1f us/transform [total time=%0.2f s its=%d]\n",
+        av_log(NULL, AV_LOG_INFO, "time: %0.1f us/transform [total time=%0.2f s its=%d]\n",
                (double)duration / nb_its,
                (double)duration / 1000000.0,
                nb_its);

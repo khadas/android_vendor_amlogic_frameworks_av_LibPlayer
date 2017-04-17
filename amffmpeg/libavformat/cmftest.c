@@ -141,7 +141,7 @@ static int cmftest_close(URLContext *h)
     int fd = (intptr_t) h->priv_data;
     return close(fd);
 }
-static int cmftest_getinfo(URLContext *h, uint32_t  cmd, uint32_t flag, int64_t*info)
+static int cmftest_getinfo(URLContext *h, int cmd, int flag, int64_t *info)
 {
     av_log(NULL, AV_LOG_INFO, "call cmftest_getinfo  cmd [%x] [%x]", cmd, flag);
     if (cmd == AVCMD_SLICE_START_OFFSET) {

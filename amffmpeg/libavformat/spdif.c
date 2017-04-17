@@ -37,6 +37,7 @@ void ff_spdif_bswap_buf16(uint16_t *dst, const uint16_t *src, int w)
         dst[i + 6] = av_bswap16(src[i + 6]);
         dst[i + 7] = av_bswap16(src[i + 7]);
     }
-    for (; i < w; i++)
+    for (; i < w; i++) {
         dst[i + 0] = av_bswap16(src[i + 0]);
+    }
 }

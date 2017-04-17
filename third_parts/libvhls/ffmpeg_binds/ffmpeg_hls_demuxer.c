@@ -11,14 +11,14 @@
 AVRational HLS_Rational = {1, AV_TIME_BASE};
 
 #define HLS_DEMUXER_BUFFER_SIZE_DEFAULT (32 * 1024)
-#define HLS_DEMUXER_LPBUFFER_SIZE_DEFAULT (5 * 1024 * 1024)
+#define HLS_DEMUXER_LPBUFFER_SIZE_DEFAULT (10* 1024 * 1024)
 #define HLS_DEMUXER_MEDIA_READ_RETRY_S (30) // second
 #define HLS_DEMUXER_TAG "mhls"
 #define HLOG(...) av_tag_log(HLS_DEMUXER_TAG, __VA_ARGS__)
-
 extern int av_strstart(const char *str, const char *pfx, const char **ptr);
 
-static int hls_interrupt_call_cb(void) {
+static int hls_interrupt_call_cb(void)
+{
     if (url_interrupt_cb()) {
         HLOG("[%s] : url_interrupt_cb !", __FUNCTION__);
         return 1;
@@ -50,6 +50,9 @@ typedef struct _FFMPEG_HLS_STREAM_CONTEXT {
 } FFMPEG_HLS_STREAM_CONTEXT;
 
 typedef struct _FFMPEG_HLS_SESSION_CONTEXT {
+    const AVClass *class;
+    URLContext *h;
+    int notify_id;
     int64_t audio_anchor_timeUs;
     int64_t last_audio_read_timeUs;
     int64_t last_sub_read_timeUs;
@@ -61,10 +64,15 @@ typedef struct _FFMPEG_HLS_SESSION_CONTEXT {
     int prev_read_session_index;
     int codec_vbuf_size;
     int codec_abuf_size;
+    int codec_vdata_len;
+    int codec_adata_len;
     int sub_index;
     int sub_read_flag;
     int audio_stream_index;
     int video_stream_index;
+    int ff_fb;
+    int fffb_changed;
+    int seek_changed;
     FILE * vhandle;
     FILE * ahandle;
     pthread_mutex_t sub_lock; // lock between read and switch.
@@ -80,7 +88,8 @@ static int64_t _get_clock_monotonic_us(void)
     return cpu_clock_us;
 }
 
-static int _hls_iocontext_read(void * opaque, uint8_t * buf, int buf_size) {
+static int _hls_iocontext_read(void * opaque, uint8_t * buf, int buf_size)
+{
     URLContext * uc = (URLContext *)opaque;
     M3ULiveSession * session = (M3ULiveSession *)uc->priv_data;
 
@@ -88,7 +97,8 @@ static int _hls_iocontext_read(void * opaque, uint8_t * buf, int buf_size) {
     return ret;
 }
 
-static void _release_hls_stream_context(AVFormatContext * s) {
+static void _release_hls_stream_context(AVFormatContext * s)
+{
     FFMPEG_HLS_SESSION_CONTEXT * hls_session_ctx = (FFMPEG_HLS_SESSION_CONTEXT *)(s->priv_data);
 
     int i = 0;
@@ -110,7 +120,8 @@ static void _release_hls_stream_context(AVFormatContext * s) {
     pthread_mutex_destroy(&hls_session_ctx->sub_lock);
 }
 
-static int _select_hls_session(AVFormatContext * s) {
+static int _select_hls_session(AVFormatContext * s)
+{
     FFMPEG_HLS_SESSION_CONTEXT * hls_session_ctx = (FFMPEG_HLS_SESSION_CONTEXT *)(s->priv_data);
 
     if (hls_session_ctx->nb_session <= 0) {
@@ -119,10 +130,13 @@ static int _select_hls_session(AVFormatContext * s) {
     }
 #if 1
     int i, non_eof = 0;
+    float a_level = 0.0;
+    float v_level = 0.0;
+    float min_thres = 0.0;
     // TODO: this logic maybe need to modify.
     if (hls_session_ctx->prev_read_session_index < 0) { // init
         for (i = 0; i < hls_session_ctx->nb_session; i++) {
-            if (hls_session_ctx->stream_array[i]->stream_type <= TYPE_VIDEO
+            if (hls_session_ctx->stream_array[i]->stream_type < TYPE_SUBS
                 && hls_session_ctx->stream_array[i]->forbid == 0) {
                 hls_session_ctx->prev_read_session_index = i;
                 return i;
@@ -130,13 +144,54 @@ static int _select_hls_session(AVFormatContext * s) {
         }
     } else {
         for (i = 0; i < hls_session_ctx->nb_session; i++) {
-            if (hls_session_ctx->stream_array[i]->stream_type > TYPE_VIDEO
+            if (hls_session_ctx->stream_array[i]->stream_type >= TYPE_SUBS
                 || hls_session_ctx->stream_array[i]->eof == 1
                 || hls_session_ctx->stream_array[i]->forbid) {
                 continue;
             }
             if (hls_session_ctx->stream_array[i]->eof < 1) {
                 non_eof = 1;
+            }
+            if (hls_session_ctx->ff_fb >= 1) {
+                // HLOG("In ff fb,return video index\n");
+                if (hls_session_ctx->stream_array[i]->stream_type == TYPE_VIDEO) {
+                    hls_session_ctx->prev_read_session_index = i;
+                    return i;
+                } else {
+                    continue;
+                }
+            }
+            if (hls_session_ctx->codec_abuf_size > 0) {
+                a_level = (float)hls_session_ctx->codec_adata_len / hls_session_ctx->codec_abuf_size;
+                a_level = a_level > 1 ? 1 : a_level;
+            }
+            if (hls_session_ctx->codec_vbuf_size > 0) {
+                v_level = (float)hls_session_ctx->codec_vdata_len / hls_session_ctx->codec_vbuf_size;
+                v_level = v_level > 1 ? 1 : v_level;
+            }
+            min_thres = in_get_sys_prop_float("libplayer.hls.minthres");
+            if (min_thres <= 0) {
+                min_thres = 0.1;
+            }
+
+            if (((0 < v_level) && (v_level < min_thres)) && (a_level > min_thres)) {
+                if (hls_session_ctx->stream_array[i]->stream_type == TYPE_VIDEO) {
+                    hls_session_ctx->prev_read_session_index = i;
+                    HLOG("video underflow,v_level:%f,a_level:%f,min_thres:%f", v_level, a_level, min_thres);
+                    return i;
+                } else {
+                    continue;
+                }
+            }
+
+            if (((0 < a_level) && (a_level < min_thres)) && (v_level > min_thres)) {
+                if (hls_session_ctx->stream_array[i]->stream_type == TYPE_AUDIO) {
+                    hls_session_ctx->prev_read_session_index = i;
+                    //    HLOG("audio underflow,v_level:%f,a_level:%f,min_thres:%f", v_level, a_level, min_thres);
+                    return i;
+                } else {
+                    continue;
+                }
             }
             if (i != hls_session_ctx->prev_read_session_index) {
                 hls_session_ctx->prev_read_session_index = i;
@@ -169,7 +224,8 @@ static int _select_hls_session(AVFormatContext * s) {
 #endif
 }
 
-static int _hls_parse_next_segment(AVFormatContext * s, int session_index, int first) {
+static int _hls_parse_next_segment(AVFormatContext * s, int session_index, int first)
+{
     FFMPEG_HLS_SESSION_CONTEXT * hls_session_ctx = (FFMPEG_HLS_SESSION_CONTEXT *)(s->priv_data);
     FFMPEG_HLS_STREAM_CONTEXT * hls_stream_ctx = hls_session_ctx->stream_array[session_index];
     if (!hls_stream_ctx) {
@@ -180,6 +236,10 @@ static int _hls_parse_next_segment(AVFormatContext * s, int session_index, int f
     int ret = 0, nb = 0;
     AVFormatContext * format = hls_stream_ctx->ctx;
     if (first > 0) {
+        int lpbuffersize;
+        if ((lpbuffersize = in_get_sys_prop_float("libplayer.ffmpeg.lpbufsizemax")) < 0) {
+            lpbuffersize = HLS_DEMUXER_LPBUFFER_SIZE_DEFAULT;
+        }
         hls_stream_ctx->buffer_size = HLS_DEMUXER_BUFFER_SIZE_DEFAULT;
         hls_stream_ctx->buffer = (unsigned char *)av_malloc(hls_stream_ctx->buffer_size);
         if (!hls_stream_ctx->buffer) {
@@ -193,7 +253,7 @@ static int _hls_parse_next_segment(AVFormatContext * s, int session_index, int f
         uc->stream_index = session_index;
         URLProtocol * prot = (URLProtocol *)av_mallocz(sizeof(URLProtocol));
         uc->prot = prot;
-        ret = url_lpopen_ex(uc, HLS_DEMUXER_LPBUFFER_SIZE_DEFAULT, 0, _hls_iocontext_read, NULL);
+        ret = url_lpopen_ex(uc, lpbuffersize, 0, _hls_iocontext_read, NULL);
         if (ret) {
             HLOG("[%s:%d] loop buffer open failed ! index : %d, ret(%d)", __FUNCTION__, __LINE__, session_index, ret);
             return AVERROR(ENOMEM);
@@ -211,12 +271,9 @@ static int _hls_parse_next_segment(AVFormatContext * s, int session_index, int f
         pb->seekable = 0;
         pb->mhls_inner_format = 1;
         hls_stream_ctx->pb = pb;
-        HLOG("[%s:%d] allocated iocontext, index : %d", __FUNCTION__, __LINE__, session_index);
+        HLOG("[%s:%d] allocated iocontext,lpbufsize:%d, index : %d", __FUNCTION__, __LINE__, lpbuffersize, session_index);
     } else {
         if (memcmp(format->iformat->name, "mpegts", 6) != 0) {
-            if (format) {
-                av_close_input_stream(format);
-            }
             if (hls_stream_ctx->pb) {
                 avio_reset(hls_stream_ctx->pb, AVIO_FLAG_READ);
                 hls_stream_ctx->pb->support_time_seek = 0;
@@ -232,6 +289,10 @@ static int _hls_parse_next_segment(AVFormatContext * s, int session_index, int f
     }
 
     if (first > 0 || (memcmp(format->iformat->name, "mpegts", 6) != 0)) {
+
+        if (format) {
+            av_close_input_stream(format);
+        }
         format = NULL;
         if (!(format = avformat_alloc_context())) {
             HLOG("[%s:%d] index : %d, avformat_alloc_context failed !", __FUNCTION__, __LINE__, session_index);
@@ -321,13 +382,14 @@ static int _hls_parse_next_segment(AVFormatContext * s, int session_index, int f
         }
     }
     HLOG("[%s:%d] parse new segment, session index : %d, nb_streams : %d",
-        __FUNCTION__, __LINE__, session_index, hls_stream_ctx->stream_nb);
+         __FUNCTION__, __LINE__, session_index, hls_stream_ctx->stream_nb);
     hls_stream_ctx->ctx = format;
     hls_stream_ctx->parsed = 1;
     return 0;
 }
 
-static int hls_read_probe(AVProbeData * p) {
+static int hls_read_probe(AVProbeData * p)
+{
     HLOG("[%s:%d] read probe ! filename : %s ", __FUNCTION__, __LINE__, p->filename);
     if (av_strstart(p->filename, "mhls:", NULL) != 0) {
         HLOG("[%s:%d] hls demuxer has been probed !", __FUNCTION__, __LINE__);
@@ -336,7 +398,8 @@ static int hls_read_probe(AVProbeData * p) {
     return 0;
 }
 
-static int hls_read_header(AVFormatContext * s, AVFormatParameters * ap) {
+static int hls_read_header(AVFormatContext * s, AVFormatParameters * ap)
+{
     FFMPEG_HLS_SESSION_CONTEXT * hls_session_ctx = (FFMPEG_HLS_SESSION_CONTEXT *)(s->priv_data);
 
     int ret = 0;
@@ -347,10 +410,16 @@ static int hls_read_header(AVFormatContext * s, AVFormatParameters * ap) {
         inner_url = s->filename + 5;
     }
 
-    ret = m3u_session_open(inner_url, s->headers, &session, NULL);
+    URLContext *h = malloc(sizeof(URLContext));
+    h->notify_id = hls_session_ctx->notify_id;
+    hls_session_ctx->h = h;
+    ret = m3u_session_open(inner_url, s->headers, &session, h);
     if (ret < 0) {
         HLOG("[%s:%d] Failed to open session !", __FUNCTION__, __LINE__);
         return ret;
+    }
+    if (s->pb) {
+        s->pb->is_segment_media = 1;
     }
     m3u_session_register_interrupt(session, hls_interrupt_call_cb);
     M3ULiveSession * hls_session = (M3ULiveSession *)session;
@@ -367,6 +436,9 @@ static int hls_read_header(AVFormatContext * s, AVFormatParameters * ap) {
     hls_session_ctx->video_stream_index = -1;
     hls_session_ctx->vhandle = NULL;
     hls_session_ctx->ahandle = NULL;
+    hls_session_ctx->ff_fb = 0;
+    hls_session_ctx->fffb_changed = 0;
+    hls_session_ctx->seek_changed = 0;
     pthread_mutex_init(&hls_session_ctx->sub_lock, NULL);
 
     int dumpmode = in_get_sys_prop_float("libplayer.hls.demuxer_dump"); // 1:audio, 2:video 3:both
@@ -396,11 +468,11 @@ static int hls_read_header(AVFormatContext * s, AVFormatParameters * ap) {
         }
         in_dynarray_add(&hls_session_ctx->stream_array, &hls_session_ctx->nb_session, stream_ctx);
         HLOG("[%s:%d] add stream item, index : %d, media type : %d",
-            __FUNCTION__, __LINE__, session_index, hls_session->media_item_array[session_index]->media_type);
+             __FUNCTION__, __LINE__, session_index, hls_session->media_item_array[session_index]->media_type);
     }
     int64_t min_start_time = -1;
     for (session_index = 0; session_index < hls_session_ctx->nb_session; session_index++) {
-        if (hls_session_ctx->stream_array[session_index]->stream_type > TYPE_VIDEO
+        if (hls_session_ctx->stream_array[session_index]->stream_type >= TYPE_SUBS
             || hls_session_ctx->stream_array[session_index]->forbid) { // skip
             continue;
         }
@@ -420,17 +492,38 @@ static int hls_read_header(AVFormatContext * s, AVFormatParameters * ap) {
     }
     s->start_time = min_start_time;
     HLOG("[%s:%d] read header success ! demuxer stream number is : %d, media item number is : %d, start time(%lld us)",
-        __FUNCTION__, __LINE__, hls_session_ctx->nb_session, hls_session->media_item_num, s->start_time);
+         __FUNCTION__, __LINE__, hls_session_ctx->nb_session, hls_session->media_item_num, s->start_time);
     return 0;
 }
 
-static int hls_read_packet(AVFormatContext * s, AVPacket * pkt) {
+static int hls_read_packet(AVFormatContext * s, AVPacket * pkt)
+{
     FFMPEG_HLS_SESSION_CONTEXT * hls_session_ctx = (FFMPEG_HLS_SESSION_CONTEXT *)(s->priv_data);
 
     int ret = 0;
     int prev_stream_index = 0;
     int cur_index = 0;
+    int index = 0;
     AVFormatContext * format = NULL;
+
+    if (hls_session_ctx->fffb_changed) {
+        for (index = 0; index < hls_session_ctx->nb_session; index++) {
+            format = hls_session_ctx->stream_array[index]->ctx;
+            if (!format) {
+                HLOG("[%s:%d] index:%d, format context is null !", __FUNCTION__, __LINE__, index);
+                return AVERROR(EINVAL);
+            }
+            HLOG("flush index:%d cur_pkt\n", index);
+            ff_read_frame_flush(format);
+        }
+
+        if (hls_session_ctx->seek_changed) {
+            hls_session_ctx->seek_changed = 0;
+        }
+        if (hls_session_ctx->fffb_changed) {
+            hls_session_ctx->fffb_changed = 0;
+        }
+    }
 
 RETRY_SELECT:
     // read alternatively.
@@ -442,15 +535,25 @@ RETRY_SELECT:
 
 RETRY_READ:
 
+    if (hls_interrupt_call_cb()) {
+        return AVERROR_EOF;
+    }
+
     // TODO: there may exist solo and multiplex streams in m3u8, need to modify here.
     format = hls_session_ctx->stream_array[cur_index]->ctx;
     if (!format) {
         HLOG("[%s:%d] format context is null !", __FUNCTION__, __LINE__);
         return AVERROR(EINVAL);
     }
+
     ret = av_read_frame(format, pkt);
     if (ret == AVERROR_EOF) {
+        hls_session_ctx->stream_array[cur_index]->eof = 1;
         HLOG("[%s:%d] stream(%d) read to EOF !", __FUNCTION__, __LINE__, cur_index);
+        if (hls_session_ctx->ff_fb >= 1) {
+            return AVERROR_EOF;
+        }
+        goto RETRY_SELECT;
     } else if (ret == AVERROR(EAGAIN)) {
         //HLOG("[%s:%d] stream(%d) eagain, retry read !", __FUNCTION__, __LINE__, cur_index);
         goto RETRY_SELECT;
@@ -460,6 +563,9 @@ RETRY_READ:
     } else if (ret == HLS_STREAM_EOF) {
         hls_session_ctx->stream_array[cur_index]->eof = 1;
         HLOG("[%s:%d] stream(%d) read to the end !", __FUNCTION__, __LINE__, cur_index);
+        if (hls_session_ctx->ff_fb >= 1) {
+            return AVERROR_EOF;
+        }
         goto RETRY_SELECT;
     } else if (ret < 0) {
         HLOG("[%s:%d] stream(%d) unknown err : %d !", __FUNCTION__, __LINE__, cur_index, ret);
@@ -550,7 +656,6 @@ RETRY_READ:
             HLOG("[%s:%d] audio start reading after switch !", __FUNCTION__, __LINE__);
         }
     }
-
     if (pkt->pts >= 0) {
         hls_session_ctx->sub_read_reference_timeUs = _get_clock_monotonic_us() - pkt->pts;
     }
@@ -567,7 +672,8 @@ RETRY_READ:
     return 0;
 }
 
-static int hls_read_seek(AVFormatContext * s, int stream_index, int64_t timestamp, int flags) {
+static int hls_read_seek(AVFormatContext * s, int stream_index, int64_t timestamp, int flags)
+{
     FFMPEG_HLS_SESSION_CONTEXT * hls_session_ctx = (FFMPEG_HLS_SESSION_CONTEXT *)(s->priv_data);
 
     int index = 0, nb = 0;
@@ -589,8 +695,18 @@ static int hls_read_seek(AVFormatContext * s, int stream_index, int64_t timestam
         if (hls_session_ctx->stream_array[index]->pb) {
             avio_reset(hls_session_ctx->stream_array[index]->pb, AVIO_FLAG_READ);
             hls_session_ctx->stream_array[index]->eof = 0;
+
+            AVFormatContext * format = hls_session_ctx->stream_array[index]->ctx;
+            if (!format) {
+                HLOG("[%s:%d] index:%d, format context is null !", __FUNCTION__, __LINE__, index);
+                continue;
+            }
+            HLOG("flush index:%d cur_pkt\n", index);
+            ff_read_frame_flush(format);
         }
     }
+    hls_session_ctx->seek_changed = 0;
+#if 0
     for (index = 0; index < hls_session_ctx->nb_session; index++) {
         if (hls_session_ctx->stream_array[index]->stream_type > TYPE_VIDEO
             || hls_session_ctx->stream_array[index]->forbid) { // skip
@@ -609,19 +725,21 @@ static int hls_read_seek(AVFormatContext * s, int stream_index, int64_t timestam
             hls_session_ctx->stream_array[index]->stream_info_array[nb]->next_pts = 0;
             hls_session_ctx->stream_array[index]->stream_info_array[nb]->inner_segment_start_pts = -1;
             HLOG("[%s:%d] session index(%d), stream index(%d), segment start pts(%lld)us",
-                __FUNCTION__, __LINE__, index, nb, hls_session_ctx->stream_array[index]->stream_info_array[nb]->segment_start_pts);
+                 __FUNCTION__, __LINE__, index, nb, hls_session_ctx->stream_array[index]->stream_info_array[nb]->segment_start_pts);
         }
     }
+#endif
     return 0;
 }
 
-static int hls_read_close(AVFormatContext * s) {
+static int hls_read_close(AVFormatContext * s)
+{
     FFMPEG_HLS_SESSION_CONTEXT * hls_session_ctx = (FFMPEG_HLS_SESSION_CONTEXT *)(s->priv_data);
 
     HLOG("[%s:%d] enter read close !", __FUNCTION__, __LINE__);
     AVFormatContext * format = NULL;
     AVIOContext * pb = NULL;
-    URLContext * h =NULL;
+    URLContext * h = NULL;
     int index = 0;
     for (; index < hls_session_ctx->nb_session; index++) {
         format = hls_session_ctx->stream_array[index]->ctx;
@@ -656,16 +774,22 @@ static int hls_read_close(AVFormatContext * s) {
     if (hls_session_ctx->ahandle) {
         fclose(hls_session_ctx->ahandle);
     }
+    if (hls_session_ctx->h) {
+        free(hls_session_ctx->h);
+        hls_session_ctx->h = NULL;
+    }
     HLOG("[%s:%d] read close successfully !", __FUNCTION__, __LINE__);
     return 0;
 }
 
-static int hls_set_parameter(AVFormatContext * s, int para, int type, int64_t value) {
+static int hls_set_parameter(AVFormatContext * s, int para, int type, int64_t value, int64_t value1)
+{
     FFMPEG_HLS_SESSION_CONTEXT * hls_session_ctx = (FFMPEG_HLS_SESSION_CONTEXT *)(s->priv_data);
 
     int codec_vbuf_data_len = 0;
     int codec_abuf_data_len = 0;
     int index = 0;
+    int ret = -1;
     MediaType type_to_set = TYPE_NONE;
     if (AVCMD_SET_CODEC_BUFFER_INFO == para) {
         if (type == 5) { // audio pts, ms->us
@@ -678,9 +802,11 @@ static int hls_set_parameter(AVFormatContext * s, int para, int type, int64_t va
                 hls_session_ctx->codec_abuf_size = (int)value;
                 return 0;
             } else if (type == 3) { // video buffer data length
+                hls_session_ctx->codec_vdata_len = (int)value;
                 codec_vbuf_data_len = (int)value;
                 type_to_set = TYPE_VIDEO;
             } else if (type == 4) { // audio buffer data length
+                hls_session_ctx->codec_adata_len = (int)value;
                 codec_abuf_data_len = (int)value;
                 type_to_set = TYPE_AUDIO;
             }
@@ -714,6 +840,17 @@ static int hls_set_parameter(AVFormatContext * s, int para, int type, int64_t va
             }
             m3u_session_media_set_codec_buffer_time((void *)hls_session_ctx->session_ctx, index, buffer_time_s);
         }
+    } else if (AVCMD_SET_FF_FB_INFO == para) {
+        hls_session_ctx->fffb_changed = 1;
+        hls_session_ctx->ff_fb = type;
+        ret = m3u_media_session_ff_fb((void *)hls_session_ctx->session_ctx, type, value, value1);
+        int index = 0;
+        for (; index < hls_session_ctx->nb_session; index++) {
+            if (hls_session_ctx->stream_array[index]->pb) {
+                avio_reset(hls_session_ctx->stream_array[index]->pb, AVIO_FLAG_READ);
+                hls_session_ctx->stream_array[index]->eof = 0;
+            }
+        }
     } else {
         HLOG("[%s:%d] unsupported parameter(0x%x) !", __FUNCTION__, __LINE__, para);
         return -1;
@@ -721,7 +858,8 @@ static int hls_set_parameter(AVFormatContext * s, int para, int type, int64_t va
     return 0;
 }
 
-static int hls_get_parameter(AVFormatContext * s, int para, int data1, void * info1, void *** info2) {
+static int hls_get_parameter(AVFormatContext * s, int para, int data1, void * info1, void *** info2)
+{
     FFMPEG_HLS_SESSION_CONTEXT * hls_session_ctx = (FFMPEG_HLS_SESSION_CONTEXT *)(s->priv_data);
 
     HLOG("[%s:%d] get parameter, para(%d)", __FUNCTION__, __LINE__, para);
@@ -767,7 +905,8 @@ static int hls_get_parameter(AVFormatContext * s, int para, int data1, void * in
     return ret;
 }
 
-static int hls_select_stream(AVFormatContext * s, int index, int select) {
+static int hls_select_stream(AVFormatContext * s, int index, int select)
+{
     FFMPEG_HLS_SESSION_CONTEXT * hls_session_ctx = (FFMPEG_HLS_SESSION_CONTEXT *)(s->priv_data);
 
     int ret = -1;
@@ -836,7 +975,8 @@ static int hls_select_stream(AVFormatContext * s, int index, int select) {
     return ret;
 }
 
-static void * hls_read_subtitle(AVFormatContext * s) {
+static void * hls_read_subtitle(AVFormatContext * s)
+{
     FFMPEG_HLS_SESSION_CONTEXT * hls_session_ctx = (FFMPEG_HLS_SESSION_CONTEXT *)(s->priv_data);
 
     pthread_mutex_lock(&hls_session_ctx->sub_lock);
@@ -859,6 +999,18 @@ static void * hls_read_subtitle(AVFormatContext * s) {
     return sub;
 }
 
+static const AVOption options[] = {
+    {"pid", "set notify pid", offsetof(FFMPEG_HLS_SESSION_CONTEXT, notify_id), FF_OPT_TYPE_INT, 0, 0, 100},
+    {NULL},
+};
+
+static const AVClass hls_class = {
+    .class_name = "hls demuxer",
+    .item_name  = av_default_item_name,
+    .option     = options,
+    .version    = LIBAVUTIL_VERSION_INT,
+};
+
 AVInputFormat ff_mhls_demuxer = {
     .name            = "mhls",
     .long_name       = NULL,
@@ -873,4 +1025,5 @@ AVInputFormat ff_mhls_demuxer = {
     .get_parameter   = hls_get_parameter,
     .select_stream   = hls_select_stream,
     .read_subtitle   = hls_read_subtitle,
+    .priv_class      = &hls_class,
 };

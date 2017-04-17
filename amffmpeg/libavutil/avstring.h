@@ -160,8 +160,9 @@ char *av_strtok(char *s, const char *delim, char **saveptr);
  */
 static inline av_const int av_tolower(int c)
 {
-    if (c >= 'A' && c <= 'Z')
+    if (c >= 'A' && c <= 'Z') {
         c ^= 0x20;
+    }
     return c;
 }
 

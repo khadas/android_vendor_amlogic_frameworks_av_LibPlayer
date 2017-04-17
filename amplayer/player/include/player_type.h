@@ -249,6 +249,11 @@ typedef enum {
     PLAYER_EVENTS_VIDEO_SIZE_CHANGED,           ///<ext1 refers to video width,ext2 refers to video height
     PLAYER_EVENTS_SUBTITLE_DATA,            // sub data ext1 refers to subtitledata struct
     PLAYER_EVENTS_BLURAY_INFO,              // ext1=info id, ext2=info data
+    PLAYER_EVENTS_FB_END,
+    PLAYER_EVENTS_FF_END,
+    PLAYER_EVENTS_PLAYER_CACHETIME,
+    PLAYER_EVENTS_GET_FIRST_PCR,
+    PLAYER_EVENTS_UDRM_MSG,
 } player_events;
 
 typedef struct {
@@ -273,6 +278,7 @@ typedef struct {
 
 typedef struct {
     char  *file_name;                       //file url
+    int     local_fd;                           // local_fd
     char  *headers;                         //file name's authentication information,maybe used in network streaming
     //List  *play_list;
     int video_index;                        //video track, no assigned, please set to -1
@@ -297,6 +303,7 @@ typedef struct {
     };
     callback_t callback_fn;                 //callback function
     callback_t subdata_fn;                  // subtitle data notify function
+    callback_t cachetime_fn;                //callback function
     void *subhd;                            // sub handle
     int subdatasource;                      // sub data source
     int byteiobufsize;                      //byteio buffer size used in ffmpeg
@@ -314,7 +321,7 @@ typedef struct {
     int is_type_parser;                      //is try to get file type
     int is_livemode;                               // support timeshift for chinamobile
     int buffing_starttime_s;            //for rest buffing_middle,buffering seconds data to start.
-    int buffing_force_delay_s;
+    float buffing_force_delay_s;
     int lowbuffermode_flag;
     int lowbuffermode_limited_ms;
     int is_ts_soft_demux;

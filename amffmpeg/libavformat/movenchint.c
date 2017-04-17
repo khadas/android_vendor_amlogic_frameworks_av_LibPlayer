@@ -33,19 +33,21 @@ int ff_mov_init_hinting(AVFormatContext *s, int index, int src_index)
     AVStream *src_st    = s->streams[src_index];
     int ret = AVERROR(ENOMEM);
 
-    track->tag = MKTAG('r','t','p',' ');
+    track->tag = MKTAG('r', 't', 'p', ' ');
     track->src_track = src_index;
 
     track->enc = avcodec_alloc_context();
-    if (!track->enc)
+    if (!track->enc) {
         goto fail;
+    }
     track->enc->codec_type = AVMEDIA_TYPE_DATA;
     track->enc->codec_tag  = track->tag;
 
     track->rtp_ctx = ff_rtp_chain_mux_open(s, src_st, NULL,
                                            RTP_MAX_PACKET_SIZE);
-    if (!track->rtp_ctx)
+    if (!track->rtp_ctx) {
         goto fail;
+    }
 
     /* Copy the RTP AVStream timebase back to the hint AVStream */
     track->timescale = track->rtp_ctx->streams[0]->time_base.den;
@@ -68,10 +70,12 @@ fail:
  */
 static void sample_queue_pop(HintSampleQueue *queue)
 {
-    if (queue->len <= 0)
+    if (queue->len <= 0) {
         return;
-    if (queue->samples[0].own_data)
+    }
+    if (queue->samples[0].own_data) {
         av_free(queue->samples[0].data);
+    }
     queue->len--;
     memmove(queue->samples, queue->samples + 1, sizeof(HintSample)*queue->len);
 }
@@ -83,8 +87,9 @@ static void sample_queue_free(HintSampleQueue *queue)
 {
     int i;
     for (i = 0; i < queue->len; i++)
-        if (queue->samples[i].own_data)
+        if (queue->samples[i].own_data) {
             av_free(queue->samples[i].data);
+        }
     av_freep(&queue->samples);
     queue->len = 0;
     queue->size = 0;
@@ -99,14 +104,16 @@ static void sample_queue_push(HintSampleQueue *queue, AVPacket *pkt, int sample)
 {
     /* No need to keep track of smaller samples, since describing them
      * with immediates is more efficient. */
-    if (pkt->size <= 14)
+    if (pkt->size <= 14) {
         return;
+    }
     if (!queue->samples || queue->len >= queue->size) {
         HintSample* samples;
         queue->size += 10;
-        samples = av_realloc(queue->samples, sizeof(HintSample)*queue->size);
-        if (!samples)
+        samples = av_realloc(queue->samples, sizeof(HintSample) * queue->size);
+        if (!samples) {
             return;
+        }
         queue->samples = samples;
     }
     queue->samples[queue->len].data = pkt->data;
@@ -123,14 +130,14 @@ static void sample_queue_push(HintSampleQueue *queue, AVPacket *pkt, int sample)
 static void sample_queue_retain(HintSampleQueue *queue)
 {
     int i;
-    for (i = 0; i < queue->len; ) {
+    for (i = 0; i < queue->len;) {
         HintSample *sample = &queue->samples[i];
         if (!sample->own_data) {
             uint8_t* ptr = av_malloc(sample->size);
             if (!ptr) {
                 /* Unable to allocate memory for this one, remove it */
                 memmove(queue->samples + i, queue->samples + i + 1,
-                        sizeof(HintSample)*(queue->len - i - 1));
+                        sizeof(HintSample) * (queue->len - i - 1));
                 queue->len--;
                 continue;
             }
@@ -170,10 +177,12 @@ static int match_segments(const uint8_t *haystack, int h_len,
 
         /* Check how many bytes match at needle[n_pos] and haystack[h_pos] */
         while (h_pos + match_len < h_len && n_pos + match_len < n_len &&
-               needle[n_pos + match_len] == haystack[h_pos + match_len])
+               needle[n_pos + match_len] == haystack[h_pos + match_len]) {
             match_len++;
-        if (match_len <= 8)
+        }
+        if (match_len <= 8) {
             continue;
+        }
 
         /* If a sufficiently large match was found, try to expand
          * the matched segment backwards. */
@@ -185,8 +194,9 @@ static int match_segments(const uint8_t *haystack, int h_len,
             match_h_pos--;
             match_len++;
         }
-        if (match_len <= 14)
+        if (match_len <= 14) {
             continue;
+        }
         *match_h_offset_ptr = match_h_pos;
         *match_n_offset_ptr = match_n_pos;
         *match_len_ptr = match_len;
@@ -219,8 +229,9 @@ static int find_sample_match(const uint8_t *data, int len,
         HintSample *sample = &queue->samples[0];
         /* If looking for matches in a new sample, skip the first 5 bytes,
          * since they often may be modified/removed in the output packet. */
-        if (sample->offset == 0 && sample->size > 5)
+        if (sample->offset == 0 && sample->size > 5) {
             sample->offset = 5;
+        }
 
         if (match_segments(data, len, sample->data, sample->offset,
                            sample->size, pos, match_offset, match_len) == 0) {
@@ -228,15 +239,16 @@ static int find_sample_match(const uint8_t *data, int len,
             /* Next time, look for matches at this offset, with a little
              * margin to this match. */
             sample->offset = *match_offset + *match_len + 5;
-            if (sample->offset + 10 >= sample->size)
-                sample_queue_pop(queue); /* Not enough useful data left */
+            if (sample->offset + 10 >= sample->size) {
+                sample_queue_pop(queue);    /* Not enough useful data left */
+            }
             return 0;
         }
 
         if (sample->offset < 10 && sample->size > 20) {
             /* No match found from the start of the sample,
              * try from the middle of the sample instead. */
-            sample->offset = sample->size/2;
+            sample->offset = sample->size / 2;
         } else {
             /* No match for this sample, remove it */
             sample_queue_pop(queue);
@@ -250,16 +262,18 @@ static void output_immediate(const uint8_t *data, int size,
 {
     while (size > 0) {
         int len = size;
-        if (len > 14)
+        if (len > 14) {
             len = 14;
+        }
         avio_w8(out, 1); /* immediate constructor */
         avio_w8(out, len); /* amount of valid data */
         avio_write(out, data, len);
         data += len;
         size -= len;
 
-        for (; len < 14; len++)
+        for (; len < 14; len++) {
             avio_w8(out, 0);
+        }
 
         (*entries)++;
     }
@@ -286,8 +300,9 @@ static void describe_payload(const uint8_t *data, int size,
     while (size > 0) {
         int match_sample, match_offset, match_len, pos;
         if (find_sample_match(data, size, queue, &pos, &match_sample,
-                              &match_offset, &match_len) < 0)
+                              &match_offset, &match_len) < 0) {
             break;
+        }
         output_immediate(data, pos, out, entries);
         data += pos;
         size -= pos;
@@ -329,8 +344,9 @@ static int write_hint_packets(AVIOContext *out, const uint8_t *data,
 
         data += 4;
         size -= 4;
-        if (packet_len > size || packet_len <= 12)
+        if (packet_len > size || packet_len <= 12) {
             break;
+        }
         if (data[1] >= 200 && data[1] <= 204) {
             /* RTCP packet, just skip */
             data += packet_len;
@@ -338,20 +354,23 @@ static int write_hint_packets(AVIOContext *out, const uint8_t *data,
             continue;
         }
 
-        if (packet_len > trk->max_packet_size)
+        if (packet_len > trk->max_packet_size) {
             trk->max_packet_size = packet_len;
+        }
 
         seq = AV_RB16(&data[2]);
         ts = AV_RB32(&data[4]);
 
-        if (trk->prev_rtp_ts == 0)
+        if (trk->prev_rtp_ts == 0) {
             trk->prev_rtp_ts = ts;
+        }
         /* Unwrap the 32-bit RTP timestamp that wraps around often
          * into a not (as often) wrapping 64-bit timestamp. */
-        trk->cur_rtp_ts_unwrapped += (int32_t) (ts - trk->prev_rtp_ts);
+        trk->cur_rtp_ts_unwrapped += (int32_t)(ts - trk->prev_rtp_ts);
         trk->prev_rtp_ts = ts;
-        if (*pts == AV_NOPTS_VALUE)
+        if (*pts == AV_NOPTS_VALUE) {
             *pts = trk->cur_rtp_ts_unwrapped;
+        }
 
         count++;
         /* RTPpacket header */
@@ -397,10 +416,12 @@ int ff_mov_add_hinted_packet(AVFormatContext *s, AVPacket *pkt,
     AVPacket hint_pkt;
     int ret = 0, count;
 
-    if (!rtp_ctx)
+    if (!rtp_ctx) {
         return AVERROR(ENOENT);
-    if (!rtp_ctx->pb)
+    }
+    if (!rtp_ctx->pb) {
         return AVERROR(ENOMEM);
+    }
 
     sample_queue_push(&trk->sample_queue, pkt, sample);
 
@@ -411,15 +432,18 @@ int ff_mov_add_hinted_packet(AVFormatContext *s, AVPacket *pkt,
      * for next time. */
     size = avio_close_dyn_buf(rtp_ctx->pb, &buf);
     if ((ret = ffio_open_dyn_packet_buf(&rtp_ctx->pb,
-                                       RTP_MAX_PACKET_SIZE)) < 0)
+                                        RTP_MAX_PACKET_SIZE)) < 0) {
         goto done;
+    }
 
-    if (size <= 0)
+    if (size <= 0) {
         goto done;
+    }
 
     /* Open a buffer for writing the hint */
-    if ((ret = avio_open_dyn_buf(&hintbuf)) < 0)
+    if ((ret = avio_open_dyn_buf(&hintbuf)) < 0) {
         goto done;
+    }
     av_init_packet(&hint_pkt);
     count = write_hint_packets(hintbuf, buf, size, trk, &hint_pkt.dts);
     av_freep(&buf);
@@ -429,24 +453,28 @@ int ff_mov_add_hinted_packet(AVFormatContext *s, AVPacket *pkt,
     hint_pkt.data = buf;
     hint_pkt.pts  = hint_pkt.dts;
     hint_pkt.stream_index = track_index;
-    if (pkt->flags & AV_PKT_FLAG_KEY)
+    if (pkt->flags & AV_PKT_FLAG_KEY) {
         hint_pkt.flags |= AV_PKT_FLAG_KEY;
-    if (count > 0)
+    }
+    if (count > 0) {
         ff_mov_write_packet(s, &hint_pkt);
+    }
 done:
     av_free(buf);
     sample_queue_retain(&trk->sample_queue);
     return ret;
 }
 
-void ff_mov_close_hinting(MOVTrack *track) {
+void ff_mov_close_hinting(MOVTrack *track)
+{
     AVFormatContext* rtp_ctx = track->rtp_ctx;
     uint8_t *ptr;
 
     av_freep(&track->enc);
     sample_queue_free(&track->sample_queue);
-    if (!rtp_ctx)
+    if (!rtp_ctx) {
         return;
+    }
     if (rtp_ctx->pb) {
         av_write_trailer(rtp_ctx);
         avio_close_dyn_buf(rtp_ctx->pb, &ptr);

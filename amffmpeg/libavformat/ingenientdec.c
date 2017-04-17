@@ -27,8 +27,9 @@ static int ingenient_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
     int ret, size, w, h, unk1, unk2;
 
-    if (avio_rl32(s->pb) != MKTAG('M', 'J', 'P', 'G'))
-        return AVERROR(EIO); // FIXME
+    if (avio_rl32(s->pb) != MKTAG('M', 'J', 'P', 'G')) {
+        return AVERROR(EIO);    // FIXME
+    }
 
     size = avio_rl32(s->pb);
 
@@ -42,10 +43,11 @@ static int ingenient_read_packet(AVFormatContext *s, AVPacket *pkt)
     avio_skip(s->pb, 22); // ASCII timestamp
 
     av_log(s, AV_LOG_DEBUG, "Ingenient packet: size=%d, width=%d, height=%d, unk1=%d unk2=%d\n",
-        size, w, h, unk1, unk2);
+           size, w, h, unk1, unk2);
 
-    if (av_new_packet(pkt, size) < 0)
+    if (av_new_packet(pkt, size) < 0) {
         return AVERROR(ENOMEM);
+    }
 
     pkt->pos = avio_tell(s->pb);
     pkt->stream_index = 0;
@@ -65,7 +67,7 @@ AVInputFormat ff_ingenient_demuxer = {
     NULL,
     ff_raw_video_read_header,
     ingenient_read_packet,
-    .flags= AVFMT_GENERIC_INDEX,
+    .flags = AVFMT_GENERIC_INDEX,
     .extensions = "cgi", // FIXME
     .value = CODEC_ID_MJPEG,
     .priv_class = &ff_rawvideo_demuxer_class,

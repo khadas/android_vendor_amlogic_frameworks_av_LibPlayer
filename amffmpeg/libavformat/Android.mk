@@ -8,6 +8,8 @@ LOCAL_C_INCLUDES :=		\
 	$(LOCAL_PATH)/..	\
 	$(AMAVUTILS_PATH)/include/	\
 	$(LOCAL_PATH)/../../third_parts/rtmpdump	\
+	$(LOCAL_PATH)/../../third_parts/udrm	\
+	$(LOCAL_PATH)/../../amplayer/player/include/ \
 	external/zlib
 LOCAL_CFLAGS += $(FFCFLAGS)
 LOCAL_MODULE := $(FFNAME)
@@ -21,10 +23,12 @@ LOCAL_C_INCLUDES :=		\
 	$(LOCAL_PATH)/..	\
 	$(AMAVUTILS_PATH)/include/	\
 	$(LOCAL_PATH)/../../third_parts/rtmpdump	\
+	$(LOCAL_PATH)/../../third_parts/udrm	\
+	$(LOCAL_PATH)/../../amplayer/player/include/ \
 	external/zlib
 LOCAL_CFLAGS += $(FFCFLAGS)
 LOCAL_MODULE := $(FFNAME)
-LOCAL_SHARED_LIBRARIES += librtmp  libutils libmedia libz libbinder libdl libcutils libc libavutil libavcodec libamavutils
+LOCAL_SHARED_LIBRARIES += librtmp  libutils libmedia libz libbinder libdl libcutils libc libavutil libavcodec libamavutils libudrm
 LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_TAGS := optional
 include $(BUILD_SHARED_LIBRARY)

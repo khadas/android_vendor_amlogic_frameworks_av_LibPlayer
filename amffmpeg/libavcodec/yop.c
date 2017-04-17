@@ -53,31 +53,31 @@ typedef struct YopDecContext {
  * Byte 3 contains the number of bytes consumed on the input,
  * equal to max(bytes 0-2) + 1.
  */
-static const uint8_t paint_lut[15][4] =
-    {{1, 2, 3, 4}, {1, 2, 0, 3},
-     {1, 2, 1, 3}, {1, 2, 2, 3},
-     {1, 0, 2, 3}, {1, 0, 0, 2},
-     {1, 0, 1, 2}, {1, 1, 2, 3},
-     {0, 1, 2, 3}, {0, 1, 0, 2},
-     {1, 1, 0, 2}, {0, 1, 1, 2},
-     {0, 0, 1, 2}, {0, 0, 0, 1},
-     {1, 1, 1, 2},
-    };
+static const uint8_t paint_lut[15][4] = {
+    {1, 2, 3, 4}, {1, 2, 0, 3},
+    {1, 2, 1, 3}, {1, 2, 2, 3},
+    {1, 0, 2, 3}, {1, 0, 0, 2},
+    {1, 0, 1, 2}, {1, 1, 2, 3},
+    {0, 1, 2, 3}, {0, 1, 0, 2},
+    {1, 1, 0, 2}, {0, 1, 1, 2},
+    {0, 0, 1, 2}, {0, 0, 0, 1},
+    {1, 1, 1, 2},
+};
 
 /**
  * Lookup table for copying macroblocks. Each entry contains the respective
  * x and y pixel offset for the copy source.
  */
-static const int8_t motion_vector[16][2] =
-    {{-4, -4}, {-2, -4},
-     { 0, -4}, { 2, -4},
-     {-4, -2}, {-4,  0},
-     {-3, -3}, {-1, -3},
-     { 1, -3}, { 3, -3},
-     {-3, -1}, {-2, -2},
-     { 0, -2}, { 2, -2},
-     { 4, -2}, {-2,  0},
-    };
+static const int8_t motion_vector[16][2] = {
+    { -4, -4}, { -2, -4},
+    { 0, -4}, { 2, -4},
+    { -4, -2}, { -4,  0},
+    { -3, -3}, { -1, -3},
+    { 1, -3}, { 3, -3},
+    { -3, -1}, { -2, -2},
+    { 0, -2}, { 2, -2},
+    { 4, -2}, { -2,  0},
+};
 
 static av_cold int yop_decode_init(AVCodecContext *avctx)
 {
@@ -110,8 +110,9 @@ static av_cold int yop_decode_init(AVCodecContext *avctx)
 static av_cold int yop_decode_close(AVCodecContext *avctx)
 {
     YopDecContext *s = avctx->priv_data;
-    if (s->frame.data[0])
+    if (s->frame.data[0]) {
         avctx->release_buffer(avctx, &s->frame);
+    }
     return 0;
 }
 
@@ -167,7 +168,7 @@ static uint8_t yop_get_next_nibble(YopDecContext *s)
     if (s->low_nibble) {
         ret           = *s->low_nibble & 0xf;
         s->low_nibble = NULL;
-    }else {
+    } else {
         s->low_nibble = s->srcptr++;
         ret           = *s->low_nibble >> 4;
     }
@@ -183,7 +184,7 @@ static void yop_next_macroblock(YopDecContext *s)
     if (s->row_pos == s->frame.linesize[0] - 2) {
         s->dstptr  += s->frame.linesize[0];
         s->row_pos =  0;
-    }else {
+    } else {
         s->row_pos += 2;
     }
     s->dstptr += 2;
@@ -197,8 +198,9 @@ static int yop_decode_frame(AVCodecContext *avctx, void *data, int *data_size,
     int ret, i;
     uint32_t *palette;
 
-    if (s->frame.data[0])
+    if (s->frame.data[0]) {
         avctx->release_buffer(avctx, &s->frame);
+    }
 
     ret = avctx->get_buffer(avctx, &s->frame);
     if (ret < 0) {
@@ -233,7 +235,7 @@ static int yop_decode_frame(AVCodecContext *avctx, void *data, int *data_size,
 
         if (tag != 0xf) {
             yop_paint_block(s, tag);
-        }else {
+        } else {
             tag = yop_get_next_nibble(s);
             ret = yop_copy_previous_block(s, tag);
             if (ret < 0) {

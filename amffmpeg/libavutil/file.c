@@ -74,7 +74,7 @@ int av_file_map(const char *filename, uint8_t **bufptr, size_t *size,
     *size = off_size;
 
 #if HAVE_MMAP
-    ptr = mmap(NULL, *size, PROT_READ|PROT_WRITE, MAP_PRIVATE, fd, 0);
+    ptr = mmap(NULL, *size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
     if (ptr == MAP_FAILED) {
         err = AVERROR(errno);
         av_strerror(err, errbuf, sizeof(errbuf));
@@ -137,8 +137,9 @@ int main(void)
 {
     uint8_t *buf;
     size_t size;
-    if (av_file_map("file.c", &buf, &size, 0, NULL) < 0)
+    if (av_file_map("file.c", &buf, &size, 0, NULL) < 0) {
         return 1;
+    }
 
     buf[0] = 's';
     printf("%s", buf);

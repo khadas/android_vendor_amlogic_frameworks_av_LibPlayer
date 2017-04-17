@@ -32,7 +32,7 @@
 
 static inline float round_sample(float *sum)
 {
-    float sum1=*sum;
+    float sum1 = *sum;
     *sum = 0;
     return sum1;
 }
@@ -50,7 +50,7 @@ static inline int round_sample(int64_t *sum)
 {
     int sum1;
     sum1 = (int)((*sum) >> OUT_SHIFT);
-    *sum &= (1<<OUT_SHIFT)-1;
+    *sum &= (1 << OUT_SHIFT) - 1;
     return av_clip_int16(sum1);
 }
 
@@ -59,7 +59,7 @@ static inline int round_sample(int64_t *sum)
 #   define MLSS(rt, ra, rb) MLS64(rt, ra, rb)
 #endif
 
-DECLARE_ALIGNED(16, MPA_INT, RENAME(ff_mpa_synth_window))[512+256];
+DECLARE_ALIGNED(16, MPA_INT, RENAME(ff_mpa_synth_window))[512 + 256];
 
 #define SUM8(op, sum, w, p)               \
 {                                         \
@@ -103,8 +103,8 @@ DECLARE_ALIGNED(16, MPA_INT, RENAME(ff_mpa_synth_window))[512+256];
 }
 
 void RENAME(ff_mpadsp_apply_window)(MPA_INT *synth_buf, MPA_INT *window,
-                                  int *dither_state, OUT_INT *samples,
-                                  int incr)
+                                    int *dither_state, OUT_INT *samples,
+                                    int incr)
 {
     register const MPA_INT *w, *w2, *p;
     int j;
@@ -133,7 +133,7 @@ void RENAME(ff_mpadsp_apply_window)(MPA_INT *synth_buf, MPA_INT *window,
 
     /* we calculate two samples at the same time to avoid one memory
        access per two sample */
-    for(j=1;j<16;j++) {
+    for (j = 1; j < 16; j++) {
         sum2 = 0;
         p = synth_buf + 16 + j;
         SUM8P2(sum, MACS, sum2, MLSS, w, w2, p);
@@ -152,7 +152,7 @@ void RENAME(ff_mpadsp_apply_window)(MPA_INT *synth_buf, MPA_INT *window,
     p = synth_buf + 32;
     SUM8(MLSS, sum, w + 32, p);
     *samples = round_sample(&sum);
-    *dither_state= sum;
+    *dither_state = sum;
 }
 
 /* 32 sub band synthesis filter. Input: 32 sub band samples, Output:
@@ -181,25 +181,29 @@ void av_cold RENAME(ff_mpa_synth_init)(MPA_INT *window)
     int i, j;
 
     /* max = 18760, max sum over all 16 coefs : 44736 */
-    for(i=0;i<257;i++) {
+    for (i = 0; i < 257; i++) {
         INTFLOAT v;
         v = ff_mpa_enwindow[i];
 #if CONFIG_FLOAT
-        v *= 1.0 / (1LL<<(16 + FRAC_BITS));
+        v *= 1.0 / (1LL << (16 + FRAC_BITS));
 #endif
         window[i] = v;
-        if ((i & 63) != 0)
+        if ((i & 63) != 0) {
             v = -v;
-        if (i != 0)
+        }
+        if (i != 0) {
             window[512 - i] = v;
+        }
     }
 
     // Needed for avoiding shuffles in ASM implementations
-    for(i=0; i < 8; i++)
-        for(j=0; j < 16; j++)
-            window[512+16*i+j] = window[64*i+32-j];
+    for (i = 0; i < 8; i++)
+        for (j = 0; j < 16; j++) {
+            window[512 + 16 * i + j] = window[64 * i + 32 - j];
+        }
 
-    for(i=0; i < 8; i++)
-        for(j=0; j < 16; j++)
-            window[512+128+16*i+j] = window[64*i+48-j];
+    for (i = 0; i < 8; i++)
+        for (j = 0; j < 16; j++) {
+            window[512 + 128 + 16 * i + j] = window[64 * i + 48 - j];
+        }
 }

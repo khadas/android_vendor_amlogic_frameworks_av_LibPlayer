@@ -49,11 +49,12 @@ av_cold int ff_mjpeg_encode_init(MpegEncContext *s)
     MJpegContext *m;
 
     m = av_malloc(sizeof(MJpegContext));
-    if (!m)
+    if (!m) {
         return -1;
+    }
 
-    s->min_qcoeff=-1023;
-    s->max_qcoeff= 1023;
+    s->min_qcoeff = -1023;
+    s->max_qcoeff = 1023;
 
     /* build all the huffman tables */
     ff_mjpeg_build_huffman_codes(m->huff_size_dc_luminance,
@@ -93,13 +94,14 @@ static int put_huffman_table(MpegEncContext *s, int table_class, int table_id,
     put_bits(p, 4, table_id);
 
     n = 0;
-    for(i=1;i<=16;i++) {
+    for (i = 1; i <= 16; i++) {
         n += bits_table[i];
         put_bits(p, 8, bits_table[i]);
     }
 
-    for(i=0;i<n;i++)
+    for (i = 0; i < n; i++) {
         put_bits(p, 8, value_table[i]);
+    }
 
     return n + 17;
 }
@@ -119,14 +121,14 @@ static void jpeg_table_header(MpegEncContext *s)
 #endif
     put_bits(p, 4, 0); /* 8 bit precision */
     put_bits(p, 4, 0); /* table 0 */
-    for(i=0;i<64;i++) {
+    for (i = 0; i < 64; i++) {
         j = s->intra_scantable.permutated[i];
         put_bits(p, 8, s->intra_matrix[j]);
     }
 #ifdef TWOMATRIXES
     put_bits(p, 4, 0); /* 8 bit precision */
     put_bits(p, 4, 1); /* table 1 */
-    for(i=0;i<64;i++) {
+    for (i = 0; i < 64; i++) {
         j = s->intra_scantable.permutated[i];
         put_bits(p, 8, s->chroma_intra_matrix[j]);
     }
@@ -156,47 +158,46 @@ static void jpeg_put_comments(MpegEncContext *s)
     int size;
     uint8_t *ptr;
 
-    if (s->avctx->sample_aspect_ratio.num /* && !lossless */)
-    {
-    /* JFIF header */
-    put_marker(p, APP0);
-    put_bits(p, 16, 16);
-    ff_put_string(p, "JFIF", 1); /* this puts the trailing zero-byte too */
-    put_bits(p, 16, 0x0102); /* v 1.02 */
-    put_bits(p, 8, 0); /* units type: 0 - aspect ratio */
-    put_bits(p, 16, s->avctx->sample_aspect_ratio.num);
-    put_bits(p, 16, s->avctx->sample_aspect_ratio.den);
-    put_bits(p, 8, 0); /* thumbnail width */
-    put_bits(p, 8, 0); /* thumbnail height */
+    if (s->avctx->sample_aspect_ratio.num /* && !lossless */) {
+        /* JFIF header */
+        put_marker(p, APP0);
+        put_bits(p, 16, 16);
+        ff_put_string(p, "JFIF", 1); /* this puts the trailing zero-byte too */
+        put_bits(p, 16, 0x0102); /* v 1.02 */
+        put_bits(p, 8, 0); /* units type: 0 - aspect ratio */
+        put_bits(p, 16, s->avctx->sample_aspect_ratio.num);
+        put_bits(p, 16, s->avctx->sample_aspect_ratio.den);
+        put_bits(p, 8, 0); /* thumbnail width */
+        put_bits(p, 8, 0); /* thumbnail height */
     }
 
     /* comment */
-    if(!(s->flags & CODEC_FLAG_BITEXACT)){
+    if (!(s->flags & CODEC_FLAG_BITEXACT)) {
         put_marker(p, COM);
         flush_put_bits(p);
         ptr = put_bits_ptr(p);
         put_bits(p, 16, 0); /* patched later */
         ff_put_string(p, LIBAVCODEC_IDENT, 1);
-        size = strlen(LIBAVCODEC_IDENT)+3;
+        size = strlen(LIBAVCODEC_IDENT) + 3;
         AV_WB16(ptr, size);
     }
 
-    if(  s->avctx->pix_fmt == PIX_FMT_YUV420P
-       ||s->avctx->pix_fmt == PIX_FMT_YUV422P
-       ||s->avctx->pix_fmt == PIX_FMT_YUV444P){
+    if (s->avctx->pix_fmt == PIX_FMT_YUV420P
+        || s->avctx->pix_fmt == PIX_FMT_YUV422P
+        || s->avctx->pix_fmt == PIX_FMT_YUV444P) {
         put_marker(p, COM);
         flush_put_bits(p);
         ptr = put_bits_ptr(p);
         put_bits(p, 16, 0); /* patched later */
         ff_put_string(p, "CS=ITU601", 1);
-        size = strlen("CS=ITU601")+3;
+        size = strlen("CS=ITU601") + 3;
         AV_WB16(ptr, size);
     }
 }
 
 void ff_mjpeg_encode_picture_header(MpegEncContext *s)
 {
-    const int lossless= s->avctx->codec_id != CODEC_ID_MJPEG;
+    const int lossless = s->avctx->codec_id != CODEC_ID_MJPEG;
 
     put_marker(&s->pb, SOI);
 
@@ -204,17 +205,23 @@ void ff_mjpeg_encode_picture_header(MpegEncContext *s)
 
     jpeg_table_header(s);
 
-    switch(s->avctx->codec_id){
-    case CODEC_ID_MJPEG:  put_marker(&s->pb, SOF0 ); break;
-    case CODEC_ID_LJPEG:  put_marker(&s->pb, SOF3 ); break;
-    default: assert(0);
+    switch (s->avctx->codec_id) {
+    case CODEC_ID_MJPEG:
+        put_marker(&s->pb, SOF0);
+        break;
+    case CODEC_ID_LJPEG:
+        put_marker(&s->pb, SOF3);
+        break;
+    default:
+        assert(0);
     }
 
     put_bits(&s->pb, 16, 17);
-    if(lossless && s->avctx->pix_fmt == PIX_FMT_BGRA)
-        put_bits(&s->pb, 8, 9); /* 9 bits/component RCT */
-    else
-        put_bits(&s->pb, 8, 8); /* 8 bits/component */
+    if (lossless && s->avctx->pix_fmt == PIX_FMT_BGRA) {
+        put_bits(&s->pb, 8, 9);    /* 9 bits/component RCT */
+    } else {
+        put_bits(&s->pb, 8, 8);    /* 8 bits/component */
+    }
     put_bits(&s->pb, 16, s->height);
     put_bits(&s->pb, 16, s->width);
     put_bits(&s->pb, 8, 3); /* 3 components */
@@ -265,12 +272,17 @@ void ff_mjpeg_encode_picture_header(MpegEncContext *s)
     put_bits(&s->pb, 4, 1); /* DC huffman table index */
     put_bits(&s->pb, 4, lossless ? 0 : 1); /* AC huffman table index */
 
-    put_bits(&s->pb, 8, lossless ? s->avctx->prediction_method+1 : 0); /* Ss (not used) */
+    put_bits(&s->pb, 8, lossless ? s->avctx->prediction_method + 1 : 0); /* Ss (not used) */
 
-    switch(s->avctx->codec_id){
-    case CODEC_ID_MJPEG:  put_bits(&s->pb, 8, 63); break; /* Se (not used) */
-    case CODEC_ID_LJPEG:  put_bits(&s->pb, 8,  0); break; /* not used */
-    default: assert(0);
+    switch (s->avctx->codec_id) {
+    case CODEC_ID_MJPEG:
+        put_bits(&s->pb, 8, 63);
+        break; /* Se (not used) */
+    case CODEC_ID_LJPEG:
+        put_bits(&s->pb, 8,  0);
+        break; /* not used */
+    default:
+        assert(0);
     }
 
     put_bits(&s->pb, 8, 0); /* Ah/Al (not used) */
@@ -278,62 +290,70 @@ void ff_mjpeg_encode_picture_header(MpegEncContext *s)
 
 static void escape_FF(MpegEncContext *s, int start)
 {
-    int size= put_bits_count(&s->pb) - start*8;
+    int size = put_bits_count(&s->pb) - start * 8;
     int i, ff_count;
-    uint8_t *buf= s->pb.buf + start;
-    int align= (-(size_t)(buf))&3;
+    uint8_t *buf = s->pb.buf + start;
+    int align = (-(size_t)(buf)) & 3;
 
-    assert((size&7) == 0);
+    assert((size & 7) == 0);
     size >>= 3;
 
-    ff_count=0;
-    for(i=0; i<size && i<align; i++){
-        if(buf[i]==0xFF) ff_count++;
+    ff_count = 0;
+    for (i = 0; i < size && i < align; i++) {
+        if (buf[i] == 0xFF) {
+            ff_count++;
+        }
     }
-    for(; i<size-15; i+=16){
+    for (; i < size - 15; i += 16) {
         int acc, v;
 
-        v= *(uint32_t*)(&buf[i]);
-        acc= (((v & (v>>4))&0x0F0F0F0F)+0x01010101)&0x10101010;
-        v= *(uint32_t*)(&buf[i+4]);
-        acc+=(((v & (v>>4))&0x0F0F0F0F)+0x01010101)&0x10101010;
-        v= *(uint32_t*)(&buf[i+8]);
-        acc+=(((v & (v>>4))&0x0F0F0F0F)+0x01010101)&0x10101010;
-        v= *(uint32_t*)(&buf[i+12]);
-        acc+=(((v & (v>>4))&0x0F0F0F0F)+0x01010101)&0x10101010;
+        v = *(uint32_t*)(&buf[i]);
+        acc = (((v & (v >> 4)) & 0x0F0F0F0F) + 0x01010101) & 0x10101010;
+        v = *(uint32_t*)(&buf[i + 4]);
+        acc += (((v & (v >> 4)) & 0x0F0F0F0F) + 0x01010101) & 0x10101010;
+        v = *(uint32_t*)(&buf[i + 8]);
+        acc += (((v & (v >> 4)) & 0x0F0F0F0F) + 0x01010101) & 0x10101010;
+        v = *(uint32_t*)(&buf[i + 12]);
+        acc += (((v & (v >> 4)) & 0x0F0F0F0F) + 0x01010101) & 0x10101010;
 
-        acc>>=4;
-        acc+= (acc>>16);
-        acc+= (acc>>8);
-        ff_count+= acc&0xFF;
+        acc >>= 4;
+        acc += (acc >> 16);
+        acc += (acc >> 8);
+        ff_count += acc & 0xFF;
     }
-    for(; i<size; i++){
-        if(buf[i]==0xFF) ff_count++;
+    for (; i < size; i++) {
+        if (buf[i] == 0xFF) {
+            ff_count++;
+        }
     }
 
-    if(ff_count==0) return;
+    if (ff_count == 0) {
+        return;
+    }
 
     flush_put_bits(&s->pb);
     skip_put_bytes(&s->pb, ff_count);
 
-    for(i=size-1; ff_count; i--){
-        int v= buf[i];
+    for (i = size - 1; ff_count; i--) {
+        int v = buf[i];
 
-        if(v==0xFF){
-//printf("%d %d\n", i, ff_count);
-            buf[i+ff_count]= 0;
+        if (v == 0xFF) {
+            //printf("%d %d\n", i, ff_count);
+            buf[i + ff_count] = 0;
             ff_count--;
         }
 
-        buf[i+ff_count]= v;
+        buf[i + ff_count] = v;
     }
 }
 
 void ff_mjpeg_encode_stuffing(PutBitContext * pbc)
 {
     int length;
-    length= (-put_bits_count(pbc))&7;
-    if(length) put_bits(pbc, length, (1<<length)-1);
+    length = (-put_bits_count(pbc)) & 7;
+    if (length) {
+        put_bits(pbc, length, (1 << length) - 1);
+    }
 }
 
 void ff_mjpeg_encode_picture_trailer(MpegEncContext *s)
@@ -341,9 +361,9 @@ void ff_mjpeg_encode_picture_trailer(MpegEncContext *s)
     ff_mjpeg_encode_stuffing(&s->pb);
     flush_put_bits(&s->pb);
 
-    assert((s->header_bits&7)==0);
+    assert((s->header_bits & 7) == 0);
 
-    escape_FF(s, s->header_bits>>3);
+    escape_FF(s, s->header_bits >> 3);
 
     put_marker(&s->pb, EOI);
 }
@@ -362,7 +382,7 @@ void ff_mjpeg_encode_dc(MpegEncContext *s, int val,
             mant--;
         }
 
-        nbits= av_log2_16bit(val) + 1;
+        nbits = av_log2_16bit(val) + 1;
 
         put_bits(&s->pb, huff_size[nbits], huff_code[nbits]);
 
@@ -379,7 +399,7 @@ static void encode_block(MpegEncContext *s, DCTELEM *block, int n)
     uint16_t *huff_code_ac;
 
     /* DC coef */
-    component = (n <= 3 ? 0 : (n&1) + 1);
+    component = (n <= 3 ? 0 : (n & 1) + 1);
     dc = block[0]; /* overflow is impossible */
     val = dc - s->last_dc[component];
     if (n < 4) {
@@ -397,7 +417,7 @@ static void encode_block(MpegEncContext *s, DCTELEM *block, int n)
 
     run = 0;
     last_index = s->block_last_index[n];
-    for(i=1;i<=last_index;i++) {
+    for (i = 1; i <= last_index; i++) {
         j = s->intra_scantable.permutated[i];
         val = block[j];
         if (val == 0) {
@@ -413,7 +433,7 @@ static void encode_block(MpegEncContext *s, DCTELEM *block, int n)
                 mant--;
             }
 
-            nbits= av_log2(val) + 1;
+            nbits = av_log2(val) + 1;
             code = (run << 4) | nbits;
 
             put_bits(&s->pb, huff_size_ac[code], huff_code_ac[code]);
@@ -424,14 +444,15 @@ static void encode_block(MpegEncContext *s, DCTELEM *block, int n)
     }
 
     /* output EOB only if not already 64 values */
-    if (last_index < 63 || run != 0)
+    if (last_index < 63 || run != 0) {
         put_bits(&s->pb, huff_size_ac[0], huff_code_ac[0]);
+    }
 }
 
 void ff_mjpeg_encode_mb(MpegEncContext *s, DCTELEM block[6][64])
 {
     int i;
-    for(i=0;i<5;i++) {
+    for (i = 0; i < 5; i++) {
         encode_block(s, block[i], i);
     }
     if (s->chroma_format == CHROMA_420) {
@@ -453,6 +474,6 @@ AVCodec ff_mjpeg_encoder = {
     MPV_encode_init,
     MPV_encode_picture,
     MPV_encode_end,
-    .pix_fmts= (const enum PixelFormat[]){PIX_FMT_YUVJ420P, PIX_FMT_YUVJ422P, PIX_FMT_NONE},
-    .long_name= NULL_IF_CONFIG_SMALL("MJPEG (Motion JPEG)"),
+    .pix_fmts = (const enum PixelFormat[]){PIX_FMT_YUVJ420P, PIX_FMT_YUVJ422P, PIX_FMT_NONE},
+    .long_name = NULL_IF_CONFIG_SMALL("MJPEG (Motion JPEG)"),
 };

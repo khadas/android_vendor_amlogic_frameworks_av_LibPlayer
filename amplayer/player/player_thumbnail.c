@@ -5,6 +5,7 @@
 #include "thumbnail_type.h"
 #include "amconfigutils.h"
 
+
 static inline void calc_aspect_ratio(rational *ratio, struct stream *stream)
 {
     int num, den;
@@ -90,6 +91,7 @@ static void find_best_keyframe(AVFormatContext *pFormatCtx, int video_index, int
     } else {
         log_print("[%s]find_best_keyframe failed\n", __FUNCTION__);
     }
+    return;
 }
 
 static void find_thumbnail_frame(AVFormatContext *pFormatCtx, int video_index, int64_t *thumb_time, int64_t *thumb_offset, int *pmaxframesize)
@@ -124,7 +126,7 @@ static void find_thumbnail_frame(AVFormatContext *pFormatCtx, int video_index, i
     init_seek_time *= AV_TIME_BASE;
     log_debug("[find_thumbnail_frame]duration=%" PRId64 " init_seek_time=%" PRId64 "\n", pFormatCtx->duration, init_seek_time);
     //init_seek_time = av_rescale_q(init_seek_time, st->time_base, AV_TIME_BASE_Q);
-    //log_debug("[find_thumbnail_frame]init_seek_time=%" PRId64 " timebase=%d:%d video_index=%d\n",init_seek_time,st->time_base.num,st->time_base.den, video_index);
+    //log_debug("[find_thumbnail_frame]init_seek_time=%lld timebase=%d:%d video_index=%d\n",init_seek_time,st->time_base.num,st->time_base.den, video_index);
     ret = av_seek_frame(pFormatCtx, video_index, init_seek_time, AVSEEK_FLAG_BACKWARD);
     if (ret < 0) {
         avio_seek(pFormatCtx->pb, 0, SEEK_SET);
@@ -332,7 +334,7 @@ int thumbnail_extract_video_frame(void *handle, int64_t time, int flag)
     int tryNum = 0;
     int i = 0;
     int64_t ret = 0;
-    flag = flag;
+
     struct video_frame *frame = (struct video_frame *)handle;
     struct stream *stream = &frame->stream;
     AVFormatContext *pFormatCtx = stream->pFormatCtx;

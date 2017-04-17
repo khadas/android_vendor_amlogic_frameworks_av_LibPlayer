@@ -53,7 +53,7 @@ typedef struct {
 
     /** Adaptive codebook, its size is two units bigger to avoid a
      *  buffer overflow. */
-    uint16_t adapt_cb[146+2];
+    uint16_t adapt_cb[146 + 2];
 } RA144Context;
 
 void ff_copy_and_dup(int16_t *target, const int16_t *source, int offset);

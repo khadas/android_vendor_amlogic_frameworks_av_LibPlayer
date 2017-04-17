@@ -40,8 +40,9 @@ static int read_header(AVFormatContext *s,
     AVIOContext *pb = s->pb;
     AVStream *st;
 
-    if (!s->pb->seekable)
+    if (!s->pb->seekable) {
         return AVERROR(EIO);
+    }
 
     avio_seek(pb, avio_size(pb) - 36, SEEK_SET);
     if (avio_rb32(pb) != RAND_TAG) {
@@ -50,8 +51,9 @@ static int read_header(AVFormatContext *s,
     }
 
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
 
     st->nb_frames = avio_rb32(pb);
     if (avio_rb16(pb) != 0) {
@@ -80,13 +82,15 @@ static int read_packet(AVFormatContext *s,
     FilmstripDemuxContext *film = s->priv_data;
     AVStream *st = s->streams[0];
 
-    if (url_feof(s->pb))
+    if (url_feof(s->pb)) {
         return AVERROR(EIO);
+    }
     pkt->dts = avio_tell(s->pb) / (st->codec->width * (st->codec->height + film->leading) * 4);
     pkt->size = av_get_packet(s->pb, pkt, st->codec->width * st->codec->height * 4);
     avio_skip(s->pb, st->codec->width * film->leading * 4);
-    if (pkt->size < 0)
+    if (pkt->size < 0) {
         return pkt->size;
+    }
     pkt->flags |= AV_PKT_FLAG_KEY;
     return 0;
 }

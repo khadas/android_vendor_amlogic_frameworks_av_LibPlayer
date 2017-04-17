@@ -37,7 +37,7 @@ static int dnxhd_find_frame_end(ParseContext *pc,
 
     if (!pic_found) {
         for (i = 0; i < buf_size; i++) {
-            state = (state<<8) | buf[i];
+            state = (state << 8) | buf[i];
             if ((state & 0xffffffffffLL) == DNXHD_HEADER_PREFIX) {
                 i++;
                 pic_found = 1;
@@ -47,14 +47,15 @@ static int dnxhd_find_frame_end(ParseContext *pc,
     }
 
     if (pic_found) {
-        if (!buf_size) /* EOF considered as end of frame */
+        if (!buf_size) { /* EOF considered as end of frame */
             return 0;
+        }
         for (; i < buf_size; i++) {
-            state = (state<<8) | buf[i];
+            state = (state << 8) | buf[i];
             if ((state & 0xffffffffffLL) == DNXHD_HEADER_PREFIX) {
                 pc->frame_start_found = 0;
                 pc->state64 = -1;
-                return i-4;
+                return i - 4;
             }
         }
     }

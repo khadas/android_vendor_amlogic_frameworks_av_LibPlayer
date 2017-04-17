@@ -20,6 +20,7 @@
  */
 
 #include "amconfigutils.h"
+#include <amthreadpool.h>
 #include "libavformat/avformat.h"
 #include "libavformat/internal.h"
 #include "libavformat/url.h"
@@ -34,8 +35,9 @@ typedef struct _CURLFFContext {
     int read_retry;
     int force_interrupt;
     int64_t read_waittime_s;
-    FILE * dump_handle;
     CFContext * cfc_h;
+    int64_t latest_get_time_ms;
+    int report_flag;
 } CURLFFContext;
 
 static const AVOption options[] = {{NULL}};
@@ -60,14 +62,15 @@ static int curl_ffmpeg_need_retry(int arg)
 {
     int ret = -1;
     switch (arg) {
-    case CURLERROR(56 + C_ERROR_PERFORM_BASE_ERROR):  // recv failure
-    case CURLERROR(18 + C_ERROR_PERFORM_BASE_ERROR):  // partial file
-    case CURLERROR(28 + C_ERROR_PERFORM_BASE_ERROR):  // operation timeout
+    case CURLERROR(CURLE_RECV_ERROR  + C_ERROR_PERFORM_BASE_ERROR):  // recv failure
+    case CURLERROR(CURLE_PARTIAL_FILE  + C_ERROR_PERFORM_BASE_ERROR):  // partial file
     case CURLERROR(C_ERROR_PERFORM_SELECT_ERROR):
         ret = 0;
         break;
-    case CURLERROR(7 + C_ERROR_PERFORM_BASE_ERROR): // couldn't connect
-    case CURLERROR(6 + C_ERROR_PERFORM_BASE_ERROR): // couldn't resolve host
+    case CURLERROR(CURLE_COULDNT_CONNECT  + C_ERROR_PERFORM_BASE_ERROR): // couldn't connect
+    case CURLERROR(CURLE_COULDNT_RESOLVE_HOST  + C_ERROR_PERFORM_BASE_ERROR): // couldn't resolve host
+    case CURLERROR(CURLE_OPERATION_TIMEDOUT + C_ERROR_PERFORM_BASE_ERROR):
+    case CURLERROR(CURLE_GOT_NOTHING + C_ERROR_PERFORM_BASE_ERROR):
         ret = 1;
         break;
     default:
@@ -85,30 +88,40 @@ static void curl_ffmpeg_register_interrupt(CURLFFContext *h, interruptcallbackwi
     curl_fetch_set_parent_pid(h->cfc_h, h);
     return;
 }
-
+#define PLAYER_EVENTS_ERROR 3
 static int curl_ffmpeg_open(URLContext *h, const char *uri, int flags)
 {
     CLOGI("curl_ffmpeg_open enter, flags=%d\n", flags);
     int ret = -1;
+    char redirect_url[MAX_CURL_URI_SIZE] = {0};
+    int clear_redirect_url = 0;
     CURLFFContext * handle = NULL;
     if (!uri || strlen(uri) < 1 || strlen(uri) > MAX_CURL_URI_SIZE) {
         CLOGE("Invalid curl-ffmpeg uri\n");
         return ret;
     }
     int retries = 0;
+    int max_retry = am_getconfig_int_def("libplayer.curl.openretry", 20);
 RETRY:
+    if (url_interrupt_cb()) {
+        return AVERROR(EINTR);
+    }
     handle = (CURLFFContext *)av_mallocz(sizeof(CURLFFContext));
     if (!handle) {
         CLOGE("Failed to allocate memory for CURLFFContext handle\n");
         return ret;
     }
     memset(handle->uri, 0, sizeof(handle->uri));
-    if (av_stristart(uri, "curl:", NULL)) {
-        av_strlcpy(handle->uri, uri + 5, sizeof(handle->uri));
+    if (ret == 1 && redirect_url[0] != '\0') {
+        av_strlcpy(handle->uri, redirect_url, strlen(redirect_url));
     } else {
-        av_strlcpy(handle->uri, uri, sizeof(handle->uri));
+        if (av_stristart(uri, "curl:", NULL)) {
+            av_strlcpy(handle->uri, uri + 5, sizeof(handle->uri));
+        } else {
+            av_strlcpy(handle->uri, uri, sizeof(handle->uri));
+        }
     }
-    handle->cfc_h = curl_fetch_init(handle->uri, h->headers, flags);
+    handle->cfc_h = curl_fetch_init(handle->uri, h->headers, clear_redirect_url);
     if (!handle->cfc_h) {
         CLOGE("curl_fetch_init failed\n");
         return ret;
@@ -118,20 +131,28 @@ RETRY:
     handle->force_interrupt = 0;
     ret = curl_fetch_open(handle->cfc_h);
     if (ret) {
+        h->http_code = handle->cfc_h->http_code;
+        if (ret == 1 && redirect_url[0] == '\0') {
+            av_strlcpy(redirect_url, handle->cfc_h->relocation, strlen(handle->cfc_h->relocation));
+            clear_redirect_url = 0;
+        } else {
+            clear_redirect_url = 1; //need clear redirect url
+            redirect_url[0] = '\0';
+        }
         curl_fetch_close(handle->cfc_h);
         av_free(handle);
         handle = NULL;
-        if (++retries < 3) {
+        if (++retries < max_retry) {
             goto RETRY;
         }
-        return ret;
+        if ((h->http_code >= 400 && h->http_code < 600 && h->http_code != 401) || h->http_code == ETIMEDOUT) {
+            return (-h->http_code);
+        } else {
+            return ret;
+        }
     }
     handle->read_retry = (int)am_getconfig_float_def("libplayer.curl.readretry", 10);
     handle->read_waittime_s = (int64_t)am_getconfig_float_def("libplayer.curl.readwaitS", 3600);
-    handle->dump_handle = NULL;
-    if (am_getconfig_bool_def("libplayer.curl.dump", 0) > 0) {
-        handle->dump_handle = fopen("/data/tmp/curl_dump.dat", "ab+");
-    }
     h->http_code = handle->cfc_h->http_code;
     h->is_slowmedia = 1;
     h->is_streamed = handle->cfc_h->seekable ? 0 : 1;
@@ -143,12 +164,13 @@ RETRY:
 static int curl_ffmpeg_read(URLContext *h, uint8_t *buf, int size)
 {
     int ret = -1;
+    int64_t curtime;
     CURLFFContext * s = (CURLFFContext *)h->priv_data;
     if (!s) {
         CLOGE("CURLFFContext invalid\n");
         return ret;
     }
-    int counts = 200, retries = 0;
+    int counts = 1000, retries = 0;// 10s
     int wait_flag = 0;
     int64_t start_watitime_s = 0;
 #if 1
@@ -159,11 +181,32 @@ static int curl_ffmpeg_read(URLContext *h, uint8_t *buf, int size)
         ret = curl_fetch_read(s->cfc_h, buf, size);
 
         if (ret == C_ERROR_EAGAIN) {
-            usleep(10 * 1000);
+            amthreadpool_thread_usleep(10 * 1000);
         }
-        if (ret >= 0 || ret == C_ERROR_UNKNOW) {
+        if (ret <= 0) {
+            curtime = av_gettime();
+            if (s->latest_get_time_ms <= 0) {
+                s->latest_get_time_ms = curtime;
+            }
+            if (am_getconfig_bool("media.player.gd_report.enable") && (s->report_flag == 0) && (curtime >  s->latest_get_time_ms + 30 * 1000 * 1000)) {
+                s->report_flag = 1;
+                ffmpeg_notify(h, PLAYER_EVENTS_ERROR, 54000, 0);
+            }
+
+        } else {
+            s->latest_get_time_ms = 0;
+            s->report_flag = 0;
+        }
+        if (ret > 0 || ret == C_ERROR_UNKNOW) {
             break;
         }
+
+        if (ret <= 0) {
+            if (am_getconfig_int_def("net.ethwifi.up", 3) == 0) {
+                return C_ERROR_EAGAIN;
+            }
+        }
+
         /* just temporary, need to modify later */
         if (ret < C_ERROR_EAGAIN) {
             if (!curl_ffmpeg_need_retry(ret)) {
@@ -180,28 +223,42 @@ static int curl_ffmpeg_read(URLContext *h, uint8_t *buf, int size)
                 CLOGI("curl_ffmpeg_read need wait to reconnect!\n");
                 if (av_gettime() / 1000000 - start_watitime_s <= s->read_waittime_s) {
                     curl_fetch_seek(s->cfc_h, s->cfc_h->cwd->size, SEEK_SET);
-                    usleep(100 * 1000);
+                    amthreadpool_thread_usleep(100 * 1000);
                     counts = 200;
                 }
             } else if (ret == CURLERROR(33 + C_ERROR_PERFORM_BASE_ERROR)) {
                 /*live stream with file size > 0, return -33 CURLE_RANGE_ERROR*/
-                curl_fetch_seek(s->cfc_h, 0, SEEK_SET); // reset
                 ret = AVERROR(ENOSR);
-                break;
             } else {
                 ret = AVERROR(ENETRESET);
                 break;
             }
+        } else if (s->cfc_h->cwc_h && (s->cfc_h->cwc_h->is_use_block_request == 1) && (ret == 0) && (s->cfc_h->cwd->size < s->cfc_h->filesize - 1)) {
+            if (retries++ < s->read_retry) {
+                curl_fetch_seek(s->cfc_h, s->cfc_h->cwd->size, SEEK_SET);
+                counts = 200;
+            }
+            CLOGI("%s %d use block request\n", __FUNCTION__, __LINE__);
+        }
+        /*change the code place,date read fail  do not seek right postion*/
+        if (am_getconfig_int_def("net.ethwifi.up", 3) == 0) {
+
+            return AVERROR(EINTR);
         }
     } while (counts-- > 0);
 #else
     ret = curl_fetch_read(s->cfc_h, buf, size);
 #endif
 
-    if (s->dump_handle && ret > 0) {
-        fwrite(buf, 1, ret, s->dump_handle);
-        fflush(s->dump_handle);
+
+#if 0
+    FILE * fp = fopen("/temp/curl_dump.dat", "ab+");
+    if (fp) {
+        fwrite(buf, 1, ret, fp);
+        fflush(fp);
+        fclose(fp);
     }
+#endif
 
     return ret;
 }
@@ -245,15 +302,12 @@ static int curl_ffmpeg_close(URLContext *h)
     }
     s->force_interrupt = 1;
     curl_fetch_close(s->cfc_h);
-    if (s->dump_handle) {
-        fclose(s->dump_handle);
-    }
     av_free(s);
     s = NULL;
     return 0;
 }
 
-static int curl_ffmpeg_get_info(URLContext *h, uint32_t  cmd, uint32_t flag, int64_t *info)
+static int curl_ffmpeg_get_info(URLContext *h, int  cmd, int flag, int64_t *info)
 {
     CURLFFContext * s = (CURLFFContext *)h->priv_data;
     if (!s) {
@@ -266,6 +320,14 @@ static int curl_ffmpeg_get_info(URLContext *h, uint32_t  cmd, uint32_t flag, int
             ret = curl_fetch_get_info(s->cfc_h, C_INFO_SPEED_DOWNLOAD, flag, (void *)&tmp_info);
             if (!ret) {
                 *info = (int64_t)(tmp_info * 8);
+            } else {
+                *info = 0;
+            }
+        } else if (flag == 3) {
+            int64_t http_code = 0;
+            ret = curl_fetch_get_info(s->cfc_h, C_INFO_RESPONSE_CODE, flag, (void *)&http_code);
+            if (!ret) {
+                *info = http_code;
             } else {
                 *info = 0;
             }

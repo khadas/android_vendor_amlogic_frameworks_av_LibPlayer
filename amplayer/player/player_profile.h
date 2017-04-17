@@ -28,7 +28,6 @@ typedef struct {
     int support_compressed;
 } sys_vp9_profile_t;
 
-
 typedef struct {
     int progressive_enable;
     int interlace_enable;

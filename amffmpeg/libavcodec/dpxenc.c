@@ -83,13 +83,13 @@ static void encode_rgb48_10bit(AVCodecContext *avctx, const AVPicture *pic, uint
         for (x = 0; x < avctx->width; x++) {
             int value;
             if ((avctx->pix_fmt & 1)) {
-                value = ((AV_RB16(src + 6*x + 4) & 0xFFC0) >> 4)
-                      | ((AV_RB16(src + 6*x + 2) & 0xFFC0) << 6)
-                      | ((AV_RB16(src + 6*x + 0) & 0xFFC0) << 16);
+                value = ((AV_RB16(src + 6 * x + 4) & 0xFFC0) >> 4)
+                        | ((AV_RB16(src + 6 * x + 2) & 0xFFC0) << 6)
+                        | ((AV_RB16(src + 6 * x + 0) & 0xFFC0) << 16);
             } else {
-                value = ((AV_RL16(src + 6*x + 4) & 0xFFC0) >> 4)
-                      | ((AV_RL16(src + 6*x + 2) & 0xFFC0) << 6)
-                      | ((AV_RL16(src + 6*x + 0) & 0xFFC0) << 16);
+                value = ((AV_RL16(src + 6 * x + 4) & 0xFFC0) >> 4)
+                        | ((AV_RL16(src + 6 * x + 2) & 0xFFC0) << 6)
+                        | ((AV_RL16(src + 6 * x + 0) & 0xFFC0) << 16);
             }
             write32(dst, value);
             dst += 4;
@@ -104,18 +104,19 @@ static int encode_frame(AVCodecContext *avctx, unsigned char *buf, int buf_size,
     int size;
 
 #define HEADER_SIZE 1664  /* DPX Generic header */
-    if (buf_size < HEADER_SIZE)
+    if (buf_size < HEADER_SIZE) {
         return -1;
+    }
 
     memset(buf, 0, HEADER_SIZE);
 
     /* File information header */
-    write32(buf,       MKBETAG('S','D','P','X'));
+    write32(buf,       MKBETAG('S', 'D', 'P', 'X'));
     write32(buf +   4, HEADER_SIZE);
-    memcpy (buf +   8, "V1.0", 4);
+    memcpy(buf +   8, "V1.0", 4);
     write32(buf +  20, 1); /* new image */
     write32(buf +  24, HEADER_SIZE);
-    memcpy (buf + 160, LIBAVCODEC_IDENT, FFMIN(sizeof(LIBAVCODEC_IDENT), 100));
+    memcpy(buf + 160, LIBAVCODEC_IDENT, FFMIN(sizeof(LIBAVCODEC_IDENT), 100));
     write32(buf + 660, 0xFFFFFFFF); /* unencrypted */
 
     /* Image information header */
@@ -133,19 +134,21 @@ static int encode_frame(AVCodecContext *avctx, unsigned char *buf, int buf_size,
     write32(buf + 1628, avctx->sample_aspect_ratio.num);
     write32(buf + 1632, avctx->sample_aspect_ratio.den);
 
-    switch(s->bits_per_component) {
+    switch (s->bits_per_component) {
     case 8:
     case 16:
         size = avpicture_layout(data, avctx->pix_fmt,
                                 avctx->width, avctx->height,
                                 buf + HEADER_SIZE, buf_size - HEADER_SIZE);
-        if (size < 0)
+        if (size < 0) {
             return size;
+        }
         break;
     case 10:
         size = avctx->height * avctx->width * 4;
-        if (buf_size < HEADER_SIZE + size)
+        if (buf_size < HEADER_SIZE + size) {
             return -1;
+        }
         encode_rgb48_10bit(avctx, data, buf + HEADER_SIZE);
         break;
     default:
@@ -166,11 +169,13 @@ AVCodec ff_dpx_encoder = {
     .priv_data_size = sizeof(DPXContext),
     .init   = encode_init,
     .encode = encode_frame,
-    .pix_fmts = (const enum PixelFormat[]){
+    .pix_fmts = (const enum PixelFormat[])
+    {
         PIX_FMT_RGB24,
         PIX_FMT_RGBA,
         PIX_FMT_RGB48LE,
         PIX_FMT_RGB48BE,
-        PIX_FMT_NONE},
+        PIX_FMT_NONE
+    },
     .long_name = NULL_IF_CONFIG_SMALL("DPX image"),
 };

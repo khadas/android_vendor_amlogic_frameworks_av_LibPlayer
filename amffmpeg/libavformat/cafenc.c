@@ -29,7 +29,8 @@ typedef struct {
     int64_t data;
 } CAFContext;
 
-static uint32_t codec_flags(enum CodecID codec_id) {
+static uint32_t codec_flags(enum CodecID codec_id)
+{
     switch (codec_id) {
     case CODEC_ID_PCM_F32BE:
     case CODEC_ID_PCM_F64BE:
@@ -46,7 +47,8 @@ static uint32_t codec_flags(enum CodecID codec_id) {
     }
 }
 
-static uint32_t samples_per_packet(enum CodecID codec_id) {
+static uint32_t samples_per_packet(enum CodecID codec_id)
+{
     switch (codec_id) {
     case CODEC_ID_PCM_S8:
     case CODEC_ID_PCM_S16LE:
@@ -107,7 +109,7 @@ static int caf_write_header(AVFormatContext *s)
     case CODEC_ID_PCM_F64BE:
     case CODEC_ID_PCM_ALAW:
     case CODEC_ID_PCM_MULAW:
-        codec_tag = MKBETAG('l','p','c','m');
+        codec_tag = MKBETAG('l', 'p', 'c', 'm');
     }
 
     if (!codec_tag) {
@@ -182,5 +184,5 @@ AVOutputFormat ff_caf_muxer = {
     caf_write_header,
     caf_write_packet,
     caf_write_trailer,
-    .codec_tag= (const AVCodecTag* const []){ff_codec_caf_tags, 0},
+    .codec_tag = (const AVCodecTag* const []){ff_codec_caf_tags, 0},
 };

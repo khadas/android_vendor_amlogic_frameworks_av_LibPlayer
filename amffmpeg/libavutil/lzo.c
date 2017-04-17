@@ -40,9 +40,11 @@ typedef struct LZOContext {
  * \brief Reads one byte from the input buffer, avoiding an overrun.
  * \return byte read
  */
-static inline int get_byte(LZOContext *c) {
-    if (c->in < c->in_end)
+static inline int get_byte(LZOContext *c)
+{
+    if (c->in < c->in_end) {
         return *c->in++;
+    }
     c->error |= AV_LZO_INPUT_DEPLETED;
     return 1;
 }
@@ -59,10 +61,13 @@ static inline int get_byte(LZOContext *c) {
  * \param mask bits used from x
  * \return decoded length value
  */
-static inline int get_len(LZOContext *c, int x, int mask) {
+static inline int get_len(LZOContext *c, int x, int mask)
+{
     int cnt = x & mask;
     if (!cnt) {
-        while (!(x = get_byte(c))) cnt += 255;
+        while (!(x = get_byte(c))) {
+            cnt += 255;
+        }
         cnt += mask + x;
     }
     return cnt;
@@ -85,7 +90,8 @@ static inline int get_len(LZOContext *c, int x, int mask) {
  * \brief Copies bytes from input to output buffer with checking.
  * \param cnt number of bytes to copy, must be >= 0
  */
-static inline void copy(LZOContext *c, int cnt) {
+static inline void copy(LZOContext *c, int cnt)
+{
     register const uint8_t *src = c->in;
     register uint8_t *dst = c->out;
     if (cnt > c->in_end - src) {
@@ -118,7 +124,8 @@ static inline void memcpy_backptr(uint8_t *dst, int back, int cnt);
  * cnt > back is valid, this will copy the bytes we just copied,
  * thus creating a repeating pattern with a period length of back.
  */
-static inline void copy_backptr(LZOContext *c, int back, int cnt) {
+static inline void copy_backptr(LZOContext *c, int back, int cnt)
+{
     register const uint8_t *src = &c->out[-back];
     register uint8_t *dst = c->out;
     if (src < c->out_start || src > dst) {
@@ -133,7 +140,8 @@ static inline void copy_backptr(LZOContext *c, int back, int cnt) {
     c->out = dst + cnt;
 }
 
-static inline void memcpy_backptr(uint8_t *dst, int back, int cnt) {
+static inline void memcpy_backptr(uint8_t *dst, int back, int cnt)
+{
     const uint8_t *src = &dst[-back];
     if (back == 1) {
         memset(dst, *src, cnt);
@@ -167,20 +175,24 @@ static inline void memcpy_backptr(uint8_t *dst, int back, int cnt) {
     }
 }
 
-void av_memcpy_backptr(uint8_t *dst, int back, int cnt) {
+void av_memcpy_backptr(uint8_t *dst, int back, int cnt)
+{
     memcpy_backptr(dst, back, cnt);
 }
 
-int av_lzo1x_decode(void *out, int *outlen, const void *in, int *inlen) {
-    int state= 0;
+int av_lzo1x_decode(void *out, int *outlen, const void *in, int *inlen)
+{
+    int state = 0;
     int x;
     LZOContext c;
     if (!*outlen || !*inlen) {
         int res = 0;
-        if (!*outlen)
+        if (!*outlen) {
             res |= AV_LZO_OUTPUT_FULL;
-        if (!*inlen)
+        }
+        if (!*inlen) {
             res |= AV_LZO_INPUT_DEPLETED;
+        }
         return res;
     }
     c.in = in;
@@ -192,10 +204,13 @@ int av_lzo1x_decode(void *out, int *outlen, const void *in, int *inlen) {
     if (x > 17) {
         copy(&c, x - 17);
         x = GETB(c);
-        if (x < 16) c.error |= AV_LZO_ERROR;
+        if (x < 16) {
+            c.error |= AV_LZO_ERROR;
+        }
     }
-    if (c.in > c.in_end)
+    if (c.in > c.in_end) {
         c.error |= AV_LZO_INPUT_DEPLETED;
+    }
     while (!c.error) {
         int cnt, back;
         if (x > 15) {
@@ -212,32 +227,35 @@ int av_lzo1x_decode(void *out, int *outlen, const void *in, int *inlen) {
                 x = GETB(c);
                 back += (GETB(c) << 6) + (x >> 2);
                 if (back == (1 << 14)) {
-                    if (cnt != 1)
+                    if (cnt != 1) {
                         c.error |= AV_LZO_ERROR;
+                    }
                     break;
                 }
             }
-        } else if(!state){
-                cnt = get_len(&c, x, 15);
-                copy(&c, cnt + 3);
-                x = GETB(c);
-                if (x > 15)
-                    continue;
-                cnt = 1;
-                back = (1 << 11) + (GETB(c) << 2) + (x >> 2) + 1;
+        } else if (!state) {
+            cnt = get_len(&c, x, 15);
+            copy(&c, cnt + 3);
+            x = GETB(c);
+            if (x > 15) {
+                continue;
+            }
+            cnt = 1;
+            back = (1 << 11) + (GETB(c) << 2) + (x >> 2) + 1;
         } else {
-                cnt = 0;
-                back = (GETB(c) << 2) + (x >> 2) + 1;
+            cnt = 0;
+            back = (GETB(c) << 2) + (x >> 2) + 1;
         }
         copy_backptr(&c, back, cnt + 2);
-        state=
-        cnt = x & 3;
+        state =
+            cnt = x & 3;
         copy(&c, cnt);
         x = GETB(c);
     }
     *inlen = c.in_end - c.in;
-    if (c.in > c.in_end)
+    if (c.in > c.in_end) {
         *inlen = 0;
+    }
     *outlen = c.out_end - c.out;
     return c.error;
 }
@@ -253,10 +271,11 @@ int av_lzo1x_decode(void *out, int *outlen, const void *in, int *inlen) {
 #define BENCHMARK_LIBLZO_SAFE   0
 #define BENCHMARK_LIBLZO_UNSAFE 0
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     FILE *in = fopen(argv[1], "rb");
     uint8_t *orig = av_malloc(MAXSZ + 16);
-    uint8_t *comp = av_malloc(2*MAXSZ + 16);
+    uint8_t *comp = av_malloc(2 * MAXSZ + 16);
     uint8_t *decomp = av_malloc(MAXSZ + 16);
     size_t s = fread(orig, 1, MAXSZ, in);
     lzo_uint clen = 0;
@@ -266,8 +285,9 @@ int main(int argc, char *argv[]) {
     av_log_set_level(AV_LOG_DEBUG);
     lzo1x_999_compress(orig, s, comp, &clen, tmp);
     for (i = 0; i < 300; i++) {
-START_TIMER
-        inlen = clen; outlen = MAXSZ;
+        START_TIMER
+        inlen = clen;
+        outlen = MAXSZ;
 #if BENCHMARK_LIBLZO_SAFE
         if (lzo1x_decompress_safe(comp, inlen, decomp, &outlen, NULL))
 #elif BENCHMARK_LIBLZO_UNSAFE
@@ -276,12 +296,13 @@ START_TIMER
         if (av_lzo1x_decode(decomp, &outlen, comp, &inlen))
 #endif
             av_log(NULL, AV_LOG_ERROR, "decompression error\n");
-STOP_TIMER("lzod")
+        STOP_TIMER("lzod")
     }
-    if (memcmp(orig, decomp, s))
+    if (memcmp(orig, decomp, s)) {
         av_log(NULL, AV_LOG_ERROR, "decompression incorrect\n");
-    else
+    } else {
         av_log(NULL, AV_LOG_ERROR, "decompression OK\n");
+    }
     return 0;
 }
 #endif

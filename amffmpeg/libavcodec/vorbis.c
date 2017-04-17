@@ -36,8 +36,9 @@ unsigned int ff_vorbis_nth_root(unsigned int x, unsigned int n)
 
     do {
         ++ret;
-        for (i = 0, j = ret; i < n - 1; i++)
+        for (i = 0, j = ret; i < n - 1; i++) {
             j *= ret;
+        }
     } while (j <= x);
 
     return ret - 1;
@@ -61,49 +62,58 @@ int ff_vorbis_len2vlc(uint8_t *bits, uint32_t *codes, unsigned num)
     for (p = 0; (bits[p] == 0) && (p < num); ++p)
         ;
     if (p == num) {
-//        av_log(vc->avccontext, AV_LOG_INFO, "An empty codebook. Heh?! \n");
+        //        av_log(vc->avccontext, AV_LOG_INFO, "An empty codebook. Heh?! \n");
         return 0;
     }
 
     codes[p] = 0;
-    if (bits[p] > 32)
+    if (bits[p] > 32) {
         return 1;
-    for (i = 0; i < bits[p]; ++i)
-        exit_at_level[i+1] = 1 << i;
+    }
+    for (i = 0; i < bits[p]; ++i) {
+        exit_at_level[i + 1] = 1 << i;
+    }
 
 #ifdef DEBUG
     av_log(NULL, AV_LOG_INFO, " %u. of %u code len %d code %d - ", p, num, bits[p], codes[p]);
     init_get_bits(&gb, (uint8_t *)&codes[p], bits[p]);
-    for (i = 0; i < bits[p]; ++i)
+    for (i = 0; i < bits[p]; ++i) {
         av_log(NULL, AV_LOG_INFO, "%s", get_bits1(&gb) ? "1" : "0");
+    }
     av_log(NULL, AV_LOG_INFO, "\n");
 #endif
 
     ++p;
 
     for (; p < num; ++p) {
-        if (bits[p] > 32)
-             return 1;
-        if (bits[p] == 0)
-             continue;
+        if (bits[p] > 32) {
+            return 1;
+        }
+        if (bits[p] == 0) {
+            continue;
+        }
         // find corresponding exit(node which the tree can grow further from)
         for (i = bits[p]; i > 0; --i)
-            if (exit_at_level[i])
+            if (exit_at_level[i]) {
                 break;
-        if (!i) // overspecified tree
-             return 1;
+            }
+        if (!i) { // overspecified tree
+            return 1;
+        }
         code = exit_at_level[i];
         exit_at_level[i] = 0;
         // construct code (append 0s to end) and introduce new exits
-        for (j = i + 1 ;j <= bits[p]; ++j)
+        for (j = i + 1 ; j <= bits[p]; ++j) {
             exit_at_level[j] = code + (1 << (j - 1));
+        }
         codes[p] = code;
 
 #ifdef DEBUG
         av_log(NULL, AV_LOG_INFO, " %d. code len %d code %d - ", p, bits[p], codes[p]);
         init_get_bits(&gb, (uint8_t *)&codes[p], bits[p]);
-        for (i = 0; i < bits[p]; ++i)
+        for (i = 0; i < bits[p]; ++i) {
             av_log(NULL, AV_LOG_INFO, "%s", get_bits1(&gb) ? "1" : "0");
+        }
         av_log(NULL, AV_LOG_INFO, "\n");
 #endif
 
@@ -111,8 +121,9 @@ int ff_vorbis_len2vlc(uint8_t *bits, uint32_t *codes, unsigned num)
 
     //no exits should be left (underspecified tree - ie. unused valid vlcs - not allowed by SPEC)
     for (p = 1; p < 33; p++)
-        if (exit_at_level[p])
+        if (exit_at_level[p]) {
             return 1;
+        }
 
     return 0;
 }
@@ -130,11 +141,13 @@ void ff_vorbis_ready_floor1_list(vorbis_floor1_entry * list, int values)
         for (j = 2; j < i; j++) {
             int tmp = list[j].x;
             if (tmp < list[i].x) {
-                if (tmp > list[list[i].low].x)
+                if (tmp > list[list[i].low].x) {
                     list[i].low  =  j;
+                }
             } else {
-                if (tmp < list[list[i].high].x)
+                if (tmp < list[list[i].high].x) {
                     list[i].high = j;
+                }
             }
         }
     }
@@ -167,8 +180,9 @@ static inline void render_line_unrolled(intptr_t x, intptr_t y, int x1,
         buf[x] = ff_vorbis_floor1_inverse_db_table[y];
     }
     if (x <= 0) {
-        if (err + ady >= 0)
+        if (err + ady >= 0) {
             y += sy;
+        }
         buf[x] = ff_vorbis_floor1_inverse_db_table[y];
     }
 }
@@ -180,7 +194,7 @@ static void render_line(int x0, int y0, int x1, int y1, float *buf)
     int ady = FFABS(dy);
     int sy  = dy < 0 ? -1 : 1;
     buf[x0] = ff_vorbis_floor1_inverse_db_table[y0];
-    if (ady*2 <= adx) { // optimized common case
+    if (ady * 2 <= adx) { // optimized common case
         render_line_unrolled(x0, y0, x1, sy, ady, adx, buf);
     } else {
         int base = dy / adx;
@@ -212,14 +226,17 @@ void ff_vorbis_floor1_render_list(vorbis_floor1_entry * list, int values,
         if (flag[pos]) {
             int x1 = list[pos].x;
             int y1 = y_list[pos] * multiplier;
-            if (lx < samples)
-                render_line(lx, ly, FFMIN(x1,samples), y1, out);
+            if (lx < samples) {
+                render_line(lx, ly, FFMIN(x1, samples), y1, out);
+            }
             lx = x1;
             ly = y1;
         }
-        if (lx >= samples)
+        if (lx >= samples) {
             break;
+        }
     }
-    if (lx < samples)
+    if (lx < samples) {
         render_line(lx, ly, samples, ly, out);
+    }
 }

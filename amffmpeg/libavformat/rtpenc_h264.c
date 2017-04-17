@@ -95,7 +95,7 @@ void ff_rtp_send_h264(AVFormatContext *s1, const uint8_t *buf1, int size)
             }
             r += s->nal_length_size;
         } else {
-            while(!*(r++));
+            while (!*(r++));
             r1 = ff_avc_find_startcode(r, buf1 + size);
         }
         nal_send(s1, r, r1 - r, (r1 == buf1 + size));

@@ -5,7 +5,6 @@ include $(CLEAR_VARS)
 
 include $(TOP)/hardware/amlogic/media/media_base_config.mk
 
-
 ifneq ($(BOARD_VOUT_USES_FREESCALE),false)
 LOCAL_CFLAGS += -DENABLE_FREE_SCALE
 endif
@@ -48,7 +47,8 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/include \
 	$(AMCODEC_NEED_INCLUDE)\
 	$(LOCAL_PATH)/../common\
 	$(LOCAL_PATH)/../../amffmpeg\
-	$(TOP)/vendor/amlogic/external/libiconv/include
+	$(TOP)/vendor/amlogic/external/libiconv/include \
+	$(LOCAL_PATH)/../../third_parts/udrm
 
 LOCAL_MODULE := libamplayer
 
@@ -80,10 +80,11 @@ LOCAL_SRC_FILES := $(notdir $(wildcard $(LOCAL_PATH)/*.c))
 LOCAL_SRC_FILES +=system/android.c system/systemsetting.c
 
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/include \
-	$(LOCAL_PATH)/../common\
-	$(AMCODEC_NEED_INCLUDE)\
-        $(LOCAL_PATH)/../../amffmpeg\
-	$(TOP)/vendor/amlogic/external/libiconv/include
+	$(LOCAL_PATH)/../common \
+	$(AMCODEC_NEED_INCLUDE) \
+	$(LOCAL_PATH)/../../amffmpeg \
+	$(TOP)/vendor/amlogic/external/libiconv/include \
+	$(LOCAL_PATH)/../../third_parts/udrm
 
 LOCAL_CFLAGS+=-DHAVE_VERSION_INFO
 LOCAL_CFLAGS+=-DLIBPLAYER_GIT_VERSION=\"${LIBPLAYER_GIT_VERSION}${LIBPLAYER_GIT_DIRTY}\"
@@ -100,7 +101,7 @@ LOCAL_LDFLAGS := -Wl,--no-warn-shared-textrel
 endif
 LOCAL_STATIC_LIBRARIES := libavformat librtmp libswscale libavcodec libavutil
 LOCAL_SHARED_LIBRARIES := libamcodec  libamadec libiconv
-LOCAL_SHARED_LIBRARIES += libutils libmedia libz libbinder libdl libcutils libc libamavutils libssl libcrypto
+LOCAL_SHARED_LIBRARIES += libutils libmedia libz libbinder libdl libcutils libc libamavutils libssl libcrypto libudrm
 
 LOCAL_MODULE := libamplayer
 LOCAL_MODULE_TAGS := optional

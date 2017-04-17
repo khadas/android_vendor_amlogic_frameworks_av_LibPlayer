@@ -74,20 +74,23 @@ static void mp_read_changes_map(MotionPixelsContext *mp, GetBitContext *gb, int 
         offset = get_bits_long(gb, mp->offset_bits_len);
         w      = get_bits(gb, bits_len) + 1;
         h      = get_bits(gb, bits_len) + 1;
-        if (read_color)
+        if (read_color) {
             color = get_bits(gb, 15);
+        }
         x = offset % mp->avctx->width;
         y = offset / mp->avctx->width;
-        if (y >= mp->avctx->height)
+        if (y >= mp->avctx->height) {
             continue;
+        }
         w = FFMIN(w, mp->avctx->width  - x);
         h = FFMIN(h, mp->avctx->height - y);
         pixels = (uint16_t *)&mp->frame.data[0][y * mp->frame.linesize[0] + x * 2];
         while (h--) {
             mp->changes_map[offset] = w;
             if (read_color)
-                for (i = 0; i < w; ++i)
+                for (i = 0; i < w; ++i) {
                     pixels[i] = color;
+                }
             offset += mp->avctx->width;
             pixels += mp->frame.linesize[0] / 2;
         }
@@ -121,11 +124,12 @@ static void mp_read_codes_table(MotionPixelsContext *mp, GetBitContext *gb)
         int i;
 
         mp->max_codes_bits = get_bits(gb, 4);
-        for (i = 0; i < mp->codes_count; ++i)
+        for (i = 0; i < mp->codes_count; ++i) {
             mp->codes[i].delta = get_bits(gb, 4);
+        }
         mp->current_codes_count = 0;
         mp_get_code(mp, gb, 0, 0);
-   }
+    }
 }
 
 static int mp_gradient(MotionPixelsContext *mp, int component, int v)
@@ -225,13 +229,14 @@ static void mp_decode_frame_helper(MotionPixelsContext *mp, GetBitContext *gb)
         }
     }
     for (y0 = 0; y0 < 2; ++y0)
-        for (y = y0; y < mp->avctx->height; y += 2)
+        for (y = y0; y < mp->avctx->height; y += 2) {
             mp_decode_line(mp, gb, y);
+        }
 }
 
 static int mp_decode_frame(AVCodecContext *avctx,
-                                 void *data, int *data_size,
-                                 AVPacket *avpkt)
+                           void *data, int *data_size,
+                           AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;
@@ -248,11 +253,13 @@ static int mp_decode_frame(AVCodecContext *avctx,
 
     /* le32 bitstream msb first */
     av_fast_malloc(&mp->bswapbuf, &mp->bswapbuf_size, buf_size + FF_INPUT_BUFFER_PADDING_SIZE);
-    if (!mp->bswapbuf)
+    if (!mp->bswapbuf) {
         return AVERROR(ENOMEM);
+    }
     mp->dsp.bswap_buf((uint32_t *)mp->bswapbuf, (const uint32_t *)buf, buf_size / 4);
-    if (buf_size & 3)
+    if (buf_size & 3) {
         memcpy(mp->bswapbuf + (buf_size & ~3), buf + (buf_size & ~3), buf_size & 3);
+    }
     init_get_bits(&gb, mp->bswapbuf, buf_size * 8);
 
     memset(mp->changes_map, 0, avctx->width * avctx->height);
@@ -264,8 +271,9 @@ static int mp_decode_frame(AVCodecContext *avctx,
     }
 
     mp->codes_count = get_bits(&gb, 4);
-    if (mp->codes_count == 0)
+    if (mp->codes_count == 0) {
         goto end;
+    }
 
     if (mp->changes_map[0] == 0) {
         *(uint16_t *)mp->frame.data[0] = get_bits(&gb, 15);
@@ -274,10 +282,12 @@ static int mp_decode_frame(AVCodecContext *avctx,
     mp_read_codes_table(mp, &gb);
 
     sz = get_bits(&gb, 18);
-    if (avctx->extradata[0] != 5)
+    if (avctx->extradata[0] != 5) {
         sz += get_bits(&gb, 18);
-    if (sz == 0)
+    }
+    if (sz == 0) {
         goto end;
+    }
 
     init_vlc(&mp->vlc, mp->max_codes_bits, mp->codes_count, &mp->codes[0].size, sizeof(HuffCode), 1, &mp->codes[0].code, sizeof(HuffCode), 4, 0);
     mp_decode_frame_helper(mp, &gb);
@@ -297,8 +307,9 @@ static av_cold int mp_decode_end(AVCodecContext *avctx)
     av_freep(&mp->vpt);
     av_freep(&mp->hpt);
     av_freep(&mp->bswapbuf);
-    if (mp->frame.data[0])
+    if (mp->frame.data[0]) {
         avctx->release_buffer(avctx, &mp->frame);
+    }
 
     return 0;
 }

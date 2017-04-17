@@ -85,8 +85,9 @@ static int quantize(int value, const int16_t *table, unsigned int size)
         int index = (low + high) >> 1;
         int error = table[index] - value;
 
-        if (index == low)
+        if (index == low) {
             return table[high] + error > value ? low : high;
+        }
         if (error > 0) {
             high = index;
         } else {
@@ -112,8 +113,9 @@ static void orthogonalize(float *v, const float *u)
         den += u[i] * u[i];
     }
     num /= den;
-    for (i = 0; i < BLOCKSIZE; i++)
+    for (i = 0; i < BLOCKSIZE; i++) {
         v[i] -= num * u[i];
+    }
 }
 
 
@@ -138,10 +140,12 @@ static void get_match_score(float *work, const float *coefs, float *vect,
     int i;
 
     ff_celp_lp_synthesis_filterf(work, coefs, vect, BLOCKSIZE, LPC_ORDER);
-    if (ortho1)
+    if (ortho1) {
         orthogonalize(work, ortho1);
-    if (ortho2)
+    }
+    if (ortho2) {
         orthogonalize(work, ortho2);
+    }
     c = g = 0;
     for (i = 0; i < BLOCKSIZE; i++) {
         g += work[i] * work[i];
@@ -168,11 +172,13 @@ static void create_adapt_vect(float *vect, const int16_t *cb, int lag)
     int i;
 
     cb += BUFFERSIZE - lag;
-    for (i = 0; i < FFMIN(BLOCKSIZE, lag); i++)
+    for (i = 0; i < FFMIN(BLOCKSIZE, lag); i++) {
         vect[i] = cb[i];
+    }
     if (lag < BLOCKSIZE)
-        for (i = 0; i < BLOCKSIZE - lag; i++)
+        for (i = 0; i < BLOCKSIZE - lag; i++) {
             vect[lag + i] = cb[i];
+        }
 }
 
 
@@ -203,8 +209,9 @@ static int adaptive_cb_search(const int16_t *adapt_cb, float *work,
             best_gain = gain;
         }
     }
-    if (!best_score)
+    if (!best_score) {
         return 0;
+    }
 
     /**
      * Re-calculate the filtered vector from the vector with maximum match score
@@ -212,8 +219,9 @@ static int adaptive_cb_search(const int16_t *adapt_cb, float *work,
      */
     create_adapt_vect(exc, adapt_cb, best_vect);
     ff_celp_lp_synthesis_filterf(work, coefs, exc, BLOCKSIZE, LPC_ORDER);
-    for (i = 0; i < BLOCKSIZE; i++)
+    for (i = 0; i < BLOCKSIZE; i++) {
         data[i] -= best_gain * work[i];
+    }
     return (best_vect - BLOCKSIZE / 2 + 1);
 }
 
@@ -245,8 +253,9 @@ static void find_best_vect(float *work, const float *coefs,
 
     *idx = *gain = best_score = 0;
     for (i = 0; i < FIXED_CB_SIZE; i++) {
-        for (j = 0; j < BLOCKSIZE; j++)
+        for (j = 0; j < BLOCKSIZE; j++) {
             vect[j] = cb[i][j];
+        }
         get_match_score(work, coefs, vect, ortho1, ortho2, data, &score, &g);
         if (score > best_score) {
             best_score = score;
@@ -281,8 +290,9 @@ static void fixed_cb_search(float *work, const float *coefs, float *data,
      * The filtered vector from the adaptive codebook can be retrieved from
      * work, because this function is called just after adaptive_cb_search().
      */
-    if (cba_idx)
+    if (cba_idx) {
         memcpy(cba_vect, work, sizeof(cba_vect));
+    }
 
     find_best_vect(work, coefs, ff_cb1_vects, cba_idx ? cba_vect : NULL, NULL,
                    data, cb1_idx, &gain);
@@ -292,17 +302,21 @@ static void fixed_cb_search(float *work, const float *coefs, float *data,
      * and remove its contribution from input data.
      */
     if (gain) {
-        for (i = 0; i < BLOCKSIZE; i++)
+        for (i = 0; i < BLOCKSIZE; i++) {
             vect[i] = ff_cb1_vects[*cb1_idx][i];
+        }
         ff_celp_lp_synthesis_filterf(work, coefs, vect, BLOCKSIZE, LPC_ORDER);
-        if (cba_idx)
+        if (cba_idx) {
             orthogonalize(work, cba_vect);
-        for (i = 0; i < BLOCKSIZE; i++)
+        }
+        for (i = 0; i < BLOCKSIZE; i++) {
             data[i] -= gain * work[i];
+        }
         memcpy(cb1_vect, work, sizeof(cb1_vect));
         ortho_cb1 = 1;
-    } else
+    } else {
         ortho_cb1 = 0;
+    }
 
     find_best_vect(work, coefs, ff_cb2_vects, cba_idx ? cba_vect : NULL,
                    ortho_cb1 ? cb1_vect : NULL, data, cb2_idx, &gain);
@@ -334,7 +348,7 @@ static void ra144_encode_subblock(RA144Context *ractx,
 
     for (i = 0; i < LPC_ORDER; i++) {
         work[i] = ractx->curr_sblock[BLOCKSIZE + i];
-        coefs[i] = lpc_coefs[i] * (1/4096.0);
+        coefs[i] = lpc_coefs[i] * (1 / 4096.0);
     }
 
     /**
@@ -385,13 +399,13 @@ static void ra144_encode_subblock(RA144Context *ractx,
     gain = 0;
     for (n = 0; n < 256; n++) {
         g[1] = ((ff_gain_val_tab[n][1] * m[1]) >> ff_gain_exp_tab[n]) *
-               (1/4096.0);
+               (1 / 4096.0);
         g[2] = ((ff_gain_val_tab[n][2] * m[2]) >> ff_gain_exp_tab[n]) *
-               (1/4096.0);
+               (1 / 4096.0);
         error = 0;
         if (cba_idx) {
             g[0] = ((ff_gain_val_tab[n][0] * m[0]) >> ff_gain_exp_tab[n]) *
-                   (1/4096.0);
+                   (1 / 4096.0);
             for (i = 0; i < BLOCKSIZE; i++) {
                 data[i] = zero[i] + g[0] * cba[i] + g[1] * cb1[i] +
                           g[2] * cb2[i];
@@ -502,14 +516,14 @@ static int ra144_encode_frame(AVCodecContext *avctx, uint8_t *frame,
     ractx->old_energy = energy;
     ractx->lpc_refl_rms[1] = ractx->lpc_refl_rms[0];
     FFSWAP(unsigned int *, ractx->lpc_coef[0], ractx->lpc_coef[1]);
-    for (i = 0; i < NBLOCKS * BLOCKSIZE; i++)
+    for (i = 0; i < NBLOCKS * BLOCKSIZE; i++) {
         ractx->curr_block[i] = *((int16_t *)data + i) >> 2;
+    }
     return FRAMESIZE;
 }
 
 
-AVCodec ff_ra_144_encoder =
-{
+AVCodec ff_ra_144_encoder = {
     "real_144",
     AVMEDIA_TYPE_AUDIO,
     CODEC_ID_RA_144,

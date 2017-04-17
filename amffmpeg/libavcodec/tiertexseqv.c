@@ -85,8 +85,9 @@ static const unsigned char *seq_decode_op1(SeqVideoContext *seq, const unsigned 
         case 2:
             src = seq_unpack_rle_block(src, block, sizeof(block));
             for (i = 0; i < 8; i++) {
-                for (b = 0; b < 8; b++)
+                for (b = 0; b < 8; b++) {
                     dst[b * seq->frame.linesize[0]] = block[i * 8 + b];
+                }
                 ++dst;
             }
             break;
@@ -95,10 +96,12 @@ static const unsigned char *seq_decode_op1(SeqVideoContext *seq, const unsigned 
         color_table = src;
         src += len;
         bits = ff_log2_tab[len - 1] + 1;
-        init_get_bits(&gb, src, bits * 8 * 8); src += bits * 8;
+        init_get_bits(&gb, src, bits * 8 * 8);
+        src += bits * 8;
         for (b = 0; b < 8; b++) {
-            for (i = 0; i < 8; i++)
+            for (i = 0; i < 8; i++) {
                 dst[i] = color_table[get_bits(&gb, bits)];
+            }
             dst += seq->frame.linesize[0];
         }
     }
@@ -145,15 +148,17 @@ static void seqvideo_decode(SeqVideoContext *seq, const unsigned char *data, int
     if (flags & 1) {
         palette = (uint32_t *)seq->frame.data[1];
         for (i = 0; i < 256; i++) {
-            for (j = 0; j < 3; j++, data++)
+            for (j = 0; j < 3; j++, data++) {
                 c[j] = (*data << 2) | (*data >> 4);
+            }
             palette[i] = AV_RB24(c);
         }
         seq->frame.palette_has_changed = 1;
     }
 
     if (flags & 2) {
-        init_get_bits(&gb, data, 128 * 8); data += 128;
+        init_get_bits(&gb, data, 128 * 8);
+        data += 128;
         for (y = 0; y < 128; y += 8)
             for (x = 0; x < 256; x += 8) {
                 dst = &seq->frame.data[0][y * seq->frame.linesize[0] + x];
@@ -214,8 +219,9 @@ static av_cold int seqvideo_decode_end(AVCodecContext *avctx)
 {
     SeqVideoContext *seq = avctx->priv_data;
 
-    if (seq->frame.data[0])
+    if (seq->frame.data[0]) {
         avctx->release_buffer(avctx, &seq->frame);
+    }
 
     return 0;
 }

@@ -50,8 +50,9 @@ static int vaapi_mpeg2_start_frame(AVCodecContext *avctx, av_unused const uint8_
 
     /* Fill in VAPictureParameterBufferMPEG2 */
     pic_param = ff_vaapi_alloc_pic_param(vactx, sizeof(VAPictureParameterBufferMPEG2));
-    if (!pic_param)
+    if (!pic_param) {
         return -1;
+    }
     pic_param->horizontal_size                                  = s->width;
     pic_param->vertical_size                                    = s->height;
     pic_param->forward_reference_picture                        = VA_INVALID_ID;
@@ -74,7 +75,7 @@ static int vaapi_mpeg2_start_frame(AVCodecContext *avctx, av_unused const uint8_
     switch (s->pict_type) {
     case AV_PICTURE_TYPE_B:
         pic_param->backward_reference_picture = ff_vaapi_get_surface_id(&s->next_picture);
-        // fall-through
+    // fall-through
     case AV_PICTURE_TYPE_P:
         pic_param->forward_reference_picture = ff_vaapi_get_surface_id(&s->last_picture);
         break;
@@ -82,8 +83,9 @@ static int vaapi_mpeg2_start_frame(AVCodecContext *avctx, av_unused const uint8_
 
     /* Fill in VAIQMatrixBufferMPEG2 */
     iq_matrix = ff_vaapi_alloc_iq_matrix(vactx, sizeof(VAIQMatrixBufferMPEG2));
-    if (!iq_matrix)
+    if (!iq_matrix) {
         return -1;
+    }
     iq_matrix->load_intra_quantiser_matrix              = 1;
     iq_matrix->load_non_intra_quantiser_matrix          = 1;
     iq_matrix->load_chroma_intra_quantiser_matrix       = 1;
@@ -121,15 +123,17 @@ static int vaapi_mpeg2_decode_slice(AVCodecContext *avctx, const uint8_t *buffer
     intra_slice_flag = get_bits1(&gb);
     if (intra_slice_flag) {
         skip_bits(&gb, 8);
-        while (get_bits1(&gb) != 0)
+        while (get_bits1(&gb) != 0) {
             skip_bits(&gb, 8);
+        }
     }
     macroblock_offset = get_bits_count(&gb);
 
     /* Fill in VASliceParameterBufferMPEG2 */
     slice_param = (VASliceParameterBufferMPEG2 *)ff_vaapi_alloc_slice(avctx->hwaccel_context, buffer, size);
-    if (!slice_param)
+    if (!slice_param) {
         return -1;
+    }
     slice_param->macroblock_offset              = macroblock_offset;
     slice_param->slice_horizontal_position      = s->mb_x;
     slice_param->slice_vertical_position        = s->mb_y;

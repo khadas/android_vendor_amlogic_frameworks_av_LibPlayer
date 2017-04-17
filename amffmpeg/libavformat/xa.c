@@ -43,9 +43,10 @@ typedef struct MaxisXADemuxContext {
 static int xa_probe(AVProbeData *p)
 {
     int channels, srate, bits_per_sample;
-    if (p->buf_size < 24)
+    if (p->buf_size < 24) {
         return 0;
-    switch(AV_RL32(p->buf)) {
+    }
+    switch (AV_RL32(p->buf)) {
     case XA00_TAG:
     case XAI0_TAG:
     case XAJ0_TAG:
@@ -57,13 +58,14 @@ static int xa_probe(AVProbeData *p)
     srate           = AV_RL32(p->buf + 12);
     bits_per_sample = AV_RL16(p->buf + 22);
     if (!channels || channels > 8 || !srate || srate > 192000 ||
-        bits_per_sample < 4 || bits_per_sample > 32)
+        bits_per_sample < 4 || bits_per_sample > 32) {
         return 0;
-    return AVPROBE_SCORE_MAX/2;
+    }
+    return AVPROBE_SCORE_MAX / 2;
 }
 
 static int xa_read_header(AVFormatContext *s,
-               AVFormatParameters *ap)
+                          AVFormatParameters *ap)
 {
     MaxisXADemuxContext *xa = s->priv_data;
     AVIOContext *pb = s->pb;
@@ -71,8 +73,9 @@ static int xa_read_header(AVFormatContext *s,
 
     /*Set up the XA Audio Decoder*/
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
 
     st->codec->codec_type   = AVMEDIA_TYPE_AUDIO;
     st->codec->codec_id     = CODEC_ID_ADPCM_EA_MAXIS_XA;
@@ -100,14 +103,16 @@ static int xa_read_packet(AVFormatContext *s,
     unsigned int packet_size;
     int ret;
 
-    if(xa->sent_bytes > xa->out_size)
+    if (xa->sent_bytes > xa->out_size) {
         return AVERROR(EIO);
+    }
     /* 1 byte header and 14 bytes worth of samples * number channels per block */
-    packet_size = 15*st->codec->channels;
+    packet_size = 15 * st->codec->channels;
 
     ret = av_get_packet(pb, pkt, packet_size);
-    if(ret < 0)
+    if (ret < 0) {
         return ret;
+    }
 
     pkt->stream_index = st->index;
     xa->sent_bytes += packet_size;

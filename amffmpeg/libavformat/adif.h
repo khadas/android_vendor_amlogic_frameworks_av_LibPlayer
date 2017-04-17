@@ -12,10 +12,10 @@
 #define MAX_NUM_LCE                      3
 #define MAX_NUM_ADE                      7
 #define MAX_NUM_CCE                     15
-#define MAX_NUM_PCE_ADIF	16
+#define MAX_NUM_PCE_ADIF    16
 
 #define CHAN_ELEM_IS_CPE(x)             (((x) & 0x10) >> 4)  /* bit 4 = SCE/CPE flag */
-#define NUM_SAMPLE_RATES	12
+#define NUM_SAMPLE_RATES    12
 
 #define ADIF_COPYID_SIZE        9
 
@@ -53,7 +53,7 @@ typedef struct _ProgConfigElement {
     unsigned char cce[MAX_NUM_BCE];               /* channel coupling elements: bit 4 = switching flag, bits 3-0 = inst tag */
 } ProgConfigElement;
 
-extern  int adif_header_parse(AVStream *st,ByteIOContext *pb);
+extern  int adif_header_parse(AVStream *st, ByteIOContext *pb);
 int  adts_bitrate_parse(AVFormatContext *s, int *bitrate, int64_t old_offset);
 
 

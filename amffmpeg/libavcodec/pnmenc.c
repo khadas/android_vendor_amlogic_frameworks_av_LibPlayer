@@ -43,7 +43,7 @@ static int pnm_encode_frame(AVCodecContext *avctx, unsigned char *outbuf,
     p->key_frame = 1;
 
     s->bytestream_start =
-    s->bytestream       = outbuf;
+        s->bytestream       = outbuf;
     s->bytestream_end   = outbuf + buf_size;
 
     h  = avctx->height;
@@ -104,8 +104,8 @@ static int pnm_encode_frame(AVCodecContext *avctx, unsigned char *outbuf,
             s->bytestream += n;
             memcpy(s->bytestream, ptr2, n);
             s->bytestream += n;
-                ptr1 += p->linesize[1];
-                ptr2 += p->linesize[2];
+            ptr1 += p->linesize[1];
+            ptr2 += p->linesize[2];
         }
     }
     return s->bytestream - s->bytestream_start;

@@ -17,7 +17,7 @@
 
 #include "player.h"
 #include "player_type.h"
-
+//#include "streamsource.h"
 typedef enum {
     //EMU_STEP_NONE = 0,
     EMU_STEP_PAUSE = 2,
@@ -72,13 +72,13 @@ int _media_info_dump(media_info_t* minfo)
         printf("======||audio counts:%d\n", minfo->stream_info.total_audio_num);
 
         if (NULL != minfo->audio_info[0] && minfo->audio_info[0]->audio_tag) {
-            printf("======||track title:%s", strlen(minfo->audio_info[0]->audio_tag->title) > 0? minfo->audio_info[0]->audio_tag->title : "unknow");
-            printf("\n======||track album:%s", strlen(minfo->audio_info[0]->audio_tag->album) > 0? minfo->audio_info[0]->audio_tag->album : "unknow");
-            printf("\n======||track author:%s\n", strlen(minfo->audio_info[0]->audio_tag->author) > 0? minfo->audio_info[0]->audio_tag->author : "unknow");
-            printf("\n======||track year:%s\n", strlen(minfo->audio_info[0]->audio_tag->year) > 0? minfo->audio_info[0]->audio_tag->year : "unknow");
-            printf("\n======||track comment:%s\n", strlen(minfo->audio_info[0]->audio_tag->comment) > 0? minfo->audio_info[0]->audio_tag->comment : "unknow");
-            printf("\n======||track genre:%s\n", strlen(minfo->audio_info[0]->audio_tag->genre) > 0? minfo->audio_info[0]->audio_tag->genre : "unknow");
-            printf("\n======||track copyright:%s\n", strlen(minfo->audio_info[0]->audio_tag->copyright) > 0? minfo->audio_info[0]->audio_tag->copyright : "unknow");
+            printf("======||track title:%s", strlen(minfo->audio_info[0]->audio_tag->title) > 0 ? minfo->audio_info[0]->audio_tag->title : "unknow");
+            printf("\n======||track album:%s", strlen(minfo->audio_info[0]->audio_tag->album) > 0 ? minfo->audio_info[0]->audio_tag->album : "unknow");
+            printf("\n======||track author:%s\n", strlen(minfo->audio_info[0]->audio_tag->author) > 0 ? minfo->audio_info[0]->audio_tag->author : "unknow");
+            printf("\n======||track year:%s\n", strlen(minfo->audio_info[0]->audio_tag->year) > 0 ? minfo->audio_info[0]->audio_tag->year : "unknow");
+            printf("\n======||track comment:%s\n", strlen(minfo->audio_info[0]->audio_tag->comment) > 0 ? minfo->audio_info[0]->audio_tag->comment : "unknow");
+            printf("\n======||track genre:%s\n", strlen(minfo->audio_info[0]->audio_tag->genre) > 0 ? minfo->audio_info[0]->audio_tag->genre : "unknow");
+            printf("\n======||track copyright:%s\n", strlen(minfo->audio_info[0]->audio_tag->copyright) > 0 ? minfo->audio_info[0]->audio_tag->copyright : "unknow");
             printf("\n======||track track:%d\n", minfo->audio_info[0]->audio_tag->track);
         }
 
@@ -205,6 +205,7 @@ int main(int argc, char *argv[])
         return -1;
     }
     player_init();
+    //    streamsource_init();
     set_display_axis(0);        //move osd out of screen to set video layer out
 
     player_register_update_callback(&pCtrl->callback_fn, &update_player_info, 1000);

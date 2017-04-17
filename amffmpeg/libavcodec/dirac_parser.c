@@ -72,23 +72,23 @@ static int find_frame_end(DiracParseContext *pc,
         pc->sync_offset = 0;
         for (; i < buf_size; i++) {
             if (state == DIRAC_PARSE_INFO_PREFIX) {
-                if ((buf_size-i) >= pc->header_bytes_needed) {
+                if ((buf_size - i) >= pc->header_bytes_needed) {
                     pc->state = -1;
                     return i + pc->header_bytes_needed;
                 } else {
-                    pc->header_bytes_needed = 9-(buf_size-i);
+                    pc->header_bytes_needed = 9 - (buf_size - i);
                     break;
                 }
-            } else
-              state = (state << 8) | buf[i];
+            } else {
+                state = (state << 8) | buf[i];
+            }
         }
     }
     pc->state = state;
     return -1;
 }
 
-typedef struct DiracParseUnit
-{
+typedef struct DiracParseUnit {
     int next_pu_offset;
     int prev_pu_offset;
     uint8_t pu_type;
@@ -99,15 +99,17 @@ static int unpack_parse_unit(DiracParseUnit *pu, DiracParseContext *pc,
 {
     uint8_t *start = pc->buffer + offset;
     uint8_t *end   = pc->buffer + pc->index;
-    if (start < pc->buffer || (start+13 > end))
+    if (start < pc->buffer || (start + 13 > end)) {
         return 0;
+    }
     pu->pu_type = start[4];
 
-    pu->next_pu_offset = AV_RB32(start+5);
-    pu->prev_pu_offset = AV_RB32(start+9);
+    pu->next_pu_offset = AV_RB32(start + 5);
+    pu->prev_pu_offset = AV_RB32(start + 9);
 
-    if (pu->pu_type == 0x10 && pu->next_pu_offset == 0)
+    if (pu->pu_type == 0x10 && pu->next_pu_offset == 0) {
         pu->next_pu_offset = 13;
+    }
 
     return 1;
 }
@@ -131,13 +133,13 @@ static int dirac_combine_frame(AVCodecParserContext *s, AVCodecContext *avctx,
         }
     }
 
-    if ( next == -1) {
+    if (next == -1) {
         /* Found a possible frame start but not a frame end */
         void *new_buffer = av_fast_realloc(pc->buffer, &pc->buffer_size,
                                            pc->index + (*buf_size -
-                                                        pc->sync_offset));
+                                                   pc->sync_offset));
         pc->buffer = new_buffer;
-        memcpy(pc->buffer+pc->index, (*buf + pc->sync_offset),
+        memcpy(pc->buffer + pc->index, (*buf + pc->sync_offset),
                *buf_size - pc->sync_offset);
         pc->index += *buf_size - pc->sync_offset;
         return -1;
@@ -160,7 +162,7 @@ static int dirac_combine_frame(AVCodecParserContext *s, AVCodecContext *avctx,
             !unpack_parse_unit(&pu, pc, pc->index - 13 - pu1.prev_pu_offset) ||
             pu.next_pu_offset != pu1.prev_pu_offset) {
             pc->index -= 9;
-            *buf_size = next-9;
+            *buf_size = next - 9;
             pc->header_bytes_needed = 9;
             return -1;
         }
@@ -174,7 +176,7 @@ static int dirac_combine_frame(AVCodecParserContext *s, AVCodecContext *avctx,
 
         pc->dirac_unit_size += pu.next_pu_offset;
 
-        if ((pu.pu_type&0x08) != 0x08) {
+        if ((pu.pu_type & 0x08) != 0x08) {
             pc->header_bytes_needed = 9;
             *buf_size = next;
             return -1;
@@ -185,23 +187,26 @@ static int dirac_combine_frame(AVCodecParserContext *s, AVCodecContext *avctx,
             uint8_t *cur_pu = pc->buffer +
                               pc->index - 13 - pu1.prev_pu_offset;
             int pts =  AV_RB32(cur_pu + 13);
-            if (s->last_pts == 0 && s->last_dts == 0)
+            if (s->last_pts == 0 && s->last_dts == 0) {
                 s->dts = pts - 1;
-            else
-                s->dts = s->last_dts+1;
+            } else {
+                s->dts = s->last_dts + 1;
+            }
             s->pts = pts;
-            if (!avctx->has_b_frames && (cur_pu[4] & 0x03))
+            if (!avctx->has_b_frames && (cur_pu[4] & 0x03)) {
                 avctx->has_b_frames = 1;
+            }
         }
-        if (avctx->has_b_frames && s->pts == s->dts)
-             s->pict_type = AV_PICTURE_TYPE_B;
+        if (avctx->has_b_frames && s->pts == s->dts) {
+            s->pict_type = AV_PICTURE_TYPE_B;
+        }
 
         /* Finally have a complete Dirac data unit */
         *buf      = pc->dirac_unit;
         *buf_size = pc->dirac_unit_size;
 
         pc->dirac_unit_size     = 0;
-        pc->overread_index      = pc->index-13;
+        pc->overread_index      = pc->index - 13;
         pc->header_bytes_needed = 9;
     }
     return next;
@@ -243,8 +248,9 @@ static void dirac_parse_close(AVCodecParserContext *s)
 {
     DiracParseContext *pc = s->priv_data;
 
-    if (pc->buffer_size > 0)
+    if (pc->buffer_size > 0) {
         av_free(pc->buffer);
+    }
 }
 
 AVCodecParser ff_dirac_parser = {

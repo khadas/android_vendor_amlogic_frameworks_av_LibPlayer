@@ -23,9 +23,12 @@
 #include "player_profile.h"
 
 #include <amthreadpool.h>
+#include "player_ffmpeg_cache.h"
 
 struct stream_decoder;
 struct am_packet;
+struct av_packet_cache;
+
 
 #define  MALLOC(s)      malloc(s)
 ///#define  FREE(d)        free(d)
@@ -49,7 +52,7 @@ do { \
 #define MIN_RAW_DATA_SIZE   (0x1000)        //4k
 #define RESERVE_VIDEO_SIZE  (256)
 #define RESERVE_AUDIO_SIZE  (64)
-#define MAX_PACKET_SIZE     (64*1024*1024+0x400)
+#define MAX_PACKET_SIZE     (8*1024*1024+0x400)
 #define FILE_BUFFER_SIZE    (512)//(1024*512)   
 #define CHECK_END_COUNT     (40)
 #define CHECK_AUDIO_HALT_CNT (50)
@@ -137,6 +140,7 @@ typedef struct {
 typedef struct play_para {
     play_control_t  *start_param;
     int player_id;
+    int cache_thread_id;
     char            *file_name;
     char            *sub_filename; //for idx+sub
     pfile_type      file_type;
@@ -149,9 +153,9 @@ typedef struct play_para {
     int             first_index;
     int             max_raw_size;
     int    discontinue_point;
+    int    hls_discontinue_point; // just used for hls
     unsigned int    discontinue_time;
     unsigned int    discontinue_flag;
-    int             flag_initacodec;
     check_end_info_t check_end;
 
     read_write_size read_size;
@@ -182,6 +186,7 @@ typedef struct play_para {
     player_info_t state;
     const struct stream_decoder *decoder;
     callback_t update_state;
+    callback_t cachetime_cb;
     message_pool_t message_pool;
     player_thread_mgt_t thread_mgt;
     unsigned long extern_priv;/*used for uper level controler*/
@@ -224,11 +229,18 @@ typedef struct play_para {
     int retry_cnt;  // -1: means retry forever; >0 mean the retry cnt
     int force_enter_buffering;
     int64_t buffering_enter_time; // system time when entering buffering - ms
+    int64_t buffering_state_starttime_sec;
+    int64_t network_disconnect_starttime;
+    int64_t  last_network_err_time;
+    int64_t  last_network_stable_time;
+    int player_need_reset;
     int resume_play_flag;
+    long first_pcr;
 
     int pre_seek_flag; // seekto comming prior to start
     int audio_digital_raw;
-    int need_reset_sub_flag; /*used after seek*/
+    // avlist
+    struct av_packet_cache avpkt_cache;
 } play_para_t;
 
 typedef struct media_type_t {
@@ -256,7 +268,6 @@ player_cmd_t * get_message_locked(play_para_t *para);
 int send_message_update(play_para_t *para, player_cmd_t *cmd);
 player_cmd_t * peek_message(play_para_t *para);
 
-
 player_cmd_t * get_message(play_para_t *para);
 int update_player_states(play_para_t *para, int force);
 void set_player_error_no(play_para_t *player, int error_no);
@@ -272,11 +283,9 @@ int nextcmd_is_cmd(play_para_t *player, ctrl_cmd_t c_cmd);
 int update_dump_dir_path(void);
 int player_force_enter_buffering(play_para_t *player, int nForce);
 int player_pre_switch_audio(play_para_t *para, int aid);
-
+int check_network_playback_status(play_para_t *p_para);
+int player_avlevel_underflow_reset(play_para_t *p_para);
 int player_read_streaming_subtitle(play_para_t * player);
-
 int match_types(const char *filetypestr, const char *typesetting);
-
-
 
 #endif

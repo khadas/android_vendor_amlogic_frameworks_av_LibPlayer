@@ -99,8 +99,9 @@ static int decode_gop_header(IVI5DecContext *ctx, AVCodecContext *avctx)
 
     ctx->gop_hdr_size = (ctx->gop_flags & 1) ? get_bits(&ctx->gb, 16) : 0;
 
-    if (ctx->gop_flags & IVI5_IS_PROTECTED)
+    if (ctx->gop_flags & IVI5_IS_PROTECTED) {
         ctx->lock_word = get_bits_long(&ctx->gb, 32);
+    }
 
     tile_size = (ctx->gop_flags & 0x40) ? 64 << get_bits(&ctx->gb, 2) : 0;
     if (tile_size > 256) {
@@ -213,7 +214,7 @@ static int decode_gop_header(IVI5DecContext *ctx, AVCodecContext *avctx)
 
             /* select dequant matrix according to plane and band number */
             if (!p) {
-                quant_mat = (pic_conf.luma_bands > 1) ? i+1 : 0;
+                quant_mat = (pic_conf.luma_bands > 1) ? i + 1 : 0;
             } else {
                 quant_mat = 5;
             }
@@ -274,8 +275,9 @@ static int decode_gop_header(IVI5DecContext *ctx, AVCodecContext *avctx)
             return -1;
         }
 
-        if (get_bits1(&ctx->gb))
-            skip_bits_long(&ctx->gb, 24); /* skip transparency fill color */
+        if (get_bits1(&ctx->gb)) {
+            skip_bits_long(&ctx->gb, 24);    /* skip transparency fill color */
+        }
     }
 
     align_get_bits(&ctx->gb);
@@ -306,8 +308,10 @@ static inline void skip_hdr_extension(GetBitContext *gb)
 
     do {
         len = get_bits(gb, 8);
-        for (i = 0; i < len; i++) skip_bits(gb, 8);
-    } while(len);
+        for (i = 0; i < len; i++) {
+            skip_bits(gb, 8);
+        }
+    } while (len);
 }
 
 
@@ -335,8 +339,9 @@ static int decode_pic_hdr(IVI5DecContext *ctx, AVCodecContext *avctx)
     ctx->frame_num = get_bits(&ctx->gb, 8);
 
     if (ctx->frame_type == FRAMETYPE_INTRA) {
-        if (decode_gop_header(ctx, avctx))
+        if (decode_gop_header(ctx, avctx)) {
             return -1;
+        }
     }
 
     if (ctx->frame_type != FRAMETYPE_NULL) {
@@ -347,12 +352,14 @@ static int decode_pic_hdr(IVI5DecContext *ctx, AVCodecContext *avctx)
         ctx->checksum = (ctx->frame_flags & 0x10) ? get_bits(&ctx->gb, 16) : 0;
 
         /* skip unknown extension if any */
-        if (ctx->frame_flags & 0x20)
-            skip_hdr_extension(&ctx->gb); /* XXX: untested */
+        if (ctx->frame_flags & 0x20) {
+            skip_hdr_extension(&ctx->gb);    /* XXX: untested */
+        }
 
         /* decode macroblock huffman codebook */
-        if (ff_ivi_dec_huff_desc(&ctx->gb, ctx->frame_flags & 0x40, IVI_MB_HUFF, &ctx->mb_vlc, avctx))
+        if (ff_ivi_dec_huff_desc(&ctx->gb, ctx->frame_flags & 0x40, IVI_MB_HUFF, &ctx->mb_vlc, avctx)) {
             return -1;
+        }
 
         skip_bits(&ctx->gb, 3); /* FIXME: unknown meaning! */
     }
@@ -389,7 +396,9 @@ static int decode_band_hdr(IVI5DecContext *ctx, IVIBandDesc *band,
     band->inherit_mv     = band_flags & 2;
     band->inherit_qdelta = band_flags & 8;
     band->qdelta_present = band_flags & 4;
-    if (!band->qdelta_present) band->inherit_qdelta = 1;
+    if (!band->qdelta_present) {
+        band->inherit_qdelta = 1;
+    }
 
     /* decode rvmap probability corrections if any */
     band->num_corr = 0; /* there are no corrections */
@@ -402,20 +411,23 @@ static int decode_band_hdr(IVI5DecContext *ctx, IVIBandDesc *band,
         }
 
         /* read correction pairs */
-        for (i = 0; i < band->num_corr * 2; i++)
+        for (i = 0; i < band->num_corr * 2; i++) {
             band->corr[i] = get_bits(&ctx->gb, 8);
+        }
     }
 
     /* select appropriate rvmap table for this band */
     band->rvmap_sel = (band_flags & 0x40) ? get_bits(&ctx->gb, 3) : 8;
 
     /* decode block huffman codebook */
-    if (ff_ivi_dec_huff_desc(&ctx->gb, band_flags & 0x80, IVI_BLK_HUFF, &band->blk_vlc, avctx))
+    if (ff_ivi_dec_huff_desc(&ctx->gb, band_flags & 0x80, IVI_BLK_HUFF, &band->blk_vlc, avctx)) {
         return -1;
+    }
 
     band->checksum_present = get_bits1(&ctx->gb);
-    if (band->checksum_present)
+    if (band->checksum_present) {
         band->checksum = get_bits(&ctx->gb, 16);
+    }
 
     band->glob_quant = get_bits(&ctx->gb, 5);
 
@@ -481,7 +493,7 @@ static int decode_mb_info(IVI5DecContext *ctx, IVIBandDesc *band,
                 }
 
                 mb->mv_x = mb->mv_y = 0; /* no motion vector coded */
-                if (band->inherit_mv){
+                if (band->inherit_mv) {
                     /* motion vector inheritance */
                     if (mv_scale) {
                         mb->mv_x = ivi_scale_mv(ref_mb->mv_x, mv_scale);
@@ -506,7 +518,9 @@ static int decode_mb_info(IVI5DecContext *ctx, IVIBandDesc *band,
                 mb->q_delta = 0;
                 if (band->qdelta_present) {
                     if (band->inherit_qdelta) {
-                        if (ref_mb) mb->q_delta = ref_mb->q_delta;
+                        if (ref_mb) {
+                            mb->q_delta = ref_mb->q_delta;
+                        }
                     } else if (mb->cbp || (!band->plane && !band->band_num &&
                                            (ctx->frame_flags & 8))) {
                         mb->q_delta = get_vlc2(&ctx->gb, ctx->mb_vlc.tab->table,
@@ -518,7 +532,7 @@ static int decode_mb_info(IVI5DecContext *ctx, IVIBandDesc *band,
                 if (!mb->type) {
                     mb->mv_x = mb->mv_y = 0; /* there is no motion vector in intra-macroblocks */
                 } else {
-                    if (band->inherit_mv){
+                    if (band->inherit_mv) {
                         /* motion vector inheritance */
                         if (mv_scale) {
                             mb->mv_x = ivi_scale_mv(ref_mb->mv_x, mv_scale);
@@ -542,8 +556,9 @@ static int decode_mb_info(IVI5DecContext *ctx, IVIBandDesc *band,
             }
 
             mb++;
-            if (ref_mb)
+            if (ref_mb) {
                 ref_mb++;
+            }
             mb_offset += band->mb_size;
         }
 
@@ -590,8 +605,8 @@ static int decode_band(IVI5DecContext *ctx, int plane_num,
 
     /* apply corrections to the selected rvmap table if present */
     for (i = 0; i < band->num_corr; i++) {
-        idx1 = band->corr[i*2];
-        idx2 = band->corr[i*2+1];
+        idx1 = band->corr[i * 2];
+        idx2 = band->corr[i * 2 + 1];
         FFSWAP(uint8_t, band->rv_map->runtab[idx1], band->rv_map->runtab[idx2]);
         FFSWAP(int16_t, band->rv_map->valtab[idx1], band->rv_map->valtab[idx2]);
     }
@@ -609,8 +624,9 @@ static int decode_band(IVI5DecContext *ctx, int plane_num,
             tile->data_size = ff_ivi_dec_tile_data_size(&ctx->gb);
 
             result = decode_mb_info(ctx, band, tile, avctx);
-            if (result < 0)
+            if (result < 0) {
                 break;
+            }
 
             result = ff_ivi_decode_blocks(&ctx->gb, band, tile);
             if (result < 0 || (get_bits_count(&ctx->gb) - pos) >> 3 != tile->data_size) {
@@ -622,9 +638,9 @@ static int decode_band(IVI5DecContext *ctx, int plane_num,
     }
 
     /* restore the selected rvmap table by applying its corrections in reverse order */
-    for (i = band->num_corr-1; i >= 0; i--) {
-        idx1 = band->corr[i*2];
-        idx2 = band->corr[i*2+1];
+    for (i = band->num_corr - 1; i >= 0; i--) {
+        idx1 = band->corr[i * 2];
+        idx2 = band->corr[i * 2 + 1];
         FFSWAP(uint8_t, band->rv_map->runtab[idx1], band->rv_map->runtab[idx2]);
         FFSWAP(int16_t, band->rv_map->valtab[idx1], band->rv_map->valtab[idx2]);
     }
@@ -675,7 +691,7 @@ static void switch_buffers(IVI5DecContext *ctx)
     switch (ctx->frame_type) {
     case FRAMETYPE_INTRA:
         ctx->buf_switch = 0;
-        /* FALLTHROUGH */
+    /* FALLTHROUGH */
     case FRAMETYPE_INTER:
         ctx->inter_scal = 0;
         ctx->dst_buf = ctx->buf_switch;
@@ -776,8 +792,9 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size,
 
     //STOP_TIMER("decode_planes");
 
-    if (ctx->frame.data[0])
+    if (ctx->frame.data[0]) {
         avctx->release_buffer(avctx, &ctx->frame);
+    }
 
     ctx->frame.reference = 0;
     if (avctx->get_buffer(avctx, &ctx->frame) < 0) {
@@ -786,7 +803,7 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size,
     }
 
     if (ctx->is_scalable) {
-        ff_ivi_recompose53 (&ctx->planes[0], ctx->frame.data[0], ctx->frame.linesize[0], 4);
+        ff_ivi_recompose53(&ctx->planes[0], ctx->frame.data[0], ctx->frame.linesize[0], 4);
     } else {
         ff_ivi_output_plane(&ctx->planes[0], ctx->frame.data[0], ctx->frame.linesize[0]);
     }
@@ -810,11 +827,13 @@ static av_cold int decode_close(AVCodecContext *avctx)
 
     ff_ivi_free_buffers(&ctx->planes[0]);
 
-    if (ctx->mb_vlc.cust_tab.table)
+    if (ctx->mb_vlc.cust_tab.table) {
         free_vlc(&ctx->mb_vlc.cust_tab);
+    }
 
-    if (ctx->frame.data[0])
+    if (ctx->frame.data[0]) {
         avctx->release_buffer(avctx, &ctx->frame);
+    }
 
     return 0;
 }

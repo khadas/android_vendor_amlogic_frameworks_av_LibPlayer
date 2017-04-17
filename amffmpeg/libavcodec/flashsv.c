@@ -109,10 +109,12 @@ static int flashsv_decode_frame(AVCodecContext *avctx, void *data,
     GetBitContext gb;
 
     /* no supplementary picture */
-    if (buf_size == 0)
+    if (buf_size == 0) {
         return 0;
-    if (buf_size < 4)
+    }
+    if (buf_size < 4) {
         return -1;
+    }
 
     init_get_bits(&gb, buf, buf_size * 8);
 
@@ -149,7 +151,7 @@ static int flashsv_decode_frame(AVCodecContext *avctx, void *data,
     if ((avctx->width != s->image_width) || (avctx->height != s->image_height)) {
         av_log(avctx, AV_LOG_ERROR, "Frame width or height differs from first frames!\n");
         av_log(avctx, AV_LOG_ERROR, "fh = %d, fv %d  vs  ch = %d, cv = %d\n", avctx->height,
-        avctx->width, s->image_height, s->image_width);
+               avctx->width, s->image_height, s->image_width);
         return -1;
     }
 
@@ -232,8 +234,9 @@ static av_cold int flashsv_decode_end(AVCodecContext *avctx)
     FlashSVContext *s = avctx->priv_data;
     inflateEnd(&(s->zstream));
     /* release the frame if needed */
-    if (s->frame.data[0])
+    if (s->frame.data[0]) {
         avctx->release_buffer(avctx, &s->frame);
+    }
 
     /* free the tmpblock */
     av_free(s->tmpblock);

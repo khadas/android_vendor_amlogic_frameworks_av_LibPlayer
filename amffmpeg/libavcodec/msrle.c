@@ -81,7 +81,7 @@ static int msrle_decode_frame(AVCodecContext *avctx,
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;
     MsrleContext *s = avctx->priv_data;
-    int istride = FFALIGN(avctx->width*avctx->bits_per_coded_sample, 32) / 8;
+    int istride = FFALIGN(avctx->width * avctx->bits_per_coded_sample, 32) / 8;
 
     s->buf = buf;
     s->size = buf_size;
@@ -109,17 +109,18 @@ static int msrle_decode_frame(AVCodecContext *avctx,
     if (avctx->height * istride == avpkt->size) { /* assume uncompressed */
         int linesize = avctx->width * avctx->bits_per_coded_sample / 8;
         uint8_t *ptr = s->frame.data[0];
-        uint8_t *buf = avpkt->data + (avctx->height-1)*istride;
+        uint8_t *buf = avpkt->data + (avctx->height - 1) * istride;
         int i, j;
 
         for (i = 0; i < avctx->height; i++) {
             if (avctx->bits_per_coded_sample == 4) {
                 for (j = 0; j < avctx->width - 1; j += 2) {
-                    ptr[j+0] = buf[j>>1] >> 4;
-                    ptr[j+1] = buf[j>>1] & 0xF;
+                    ptr[j + 0] = buf[j >> 1] >> 4;
+                    ptr[j + 1] = buf[j >> 1] & 0xF;
                 }
-                if (avctx->width & 1)
-                    ptr[j+0] = buf[j>>1] >> 4;
+                if (avctx->width & 1) {
+                    ptr[j + 0] = buf[j >> 1] >> 4;
+                }
             } else {
                 memcpy(ptr, buf, linesize);
             }
@@ -142,8 +143,9 @@ static av_cold int msrle_decode_end(AVCodecContext *avctx)
     MsrleContext *s = avctx->priv_data;
 
     /* release the last frame */
-    if (s->frame.data[0])
+    if (s->frame.data[0]) {
         avctx->release_buffer(avctx, &s->frame);
+    }
 
     return 0;
 }
@@ -158,5 +160,5 @@ AVCodec ff_msrle_decoder = {
     msrle_decode_end,
     msrle_decode_frame,
     CODEC_CAP_DR1,
-    .long_name= NULL_IF_CONFIG_SMALL("Microsoft RLE"),
+    .long_name = NULL_IF_CONFIG_SMALL("Microsoft RLE"),
 };

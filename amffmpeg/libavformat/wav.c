@@ -42,6 +42,9 @@ typedef struct {
     int w64;
 } WAVContext;
 
+int dts_in_wav;
+
+
 #if CONFIG_WAV_MUXER
 static int wav_write_header(AVFormatContext *s)
 {
@@ -86,12 +89,13 @@ static int wav_write_packet(AVFormatContext *s, AVPacket *pkt)
     AVIOContext *pb  = s->pb;
     WAVContext    *wav = s->priv_data;
     avio_write(pb, pkt->data, pkt->size);
-    if(pkt->pts != AV_NOPTS_VALUE) {
+    if (pkt->pts != AV_NOPTS_VALUE) {
         wav->minpts        = FFMIN(wav->minpts, pkt->pts);
         wav->maxpts        = FFMAX(wav->maxpts, pkt->pts);
         wav->last_duration = pkt->duration;
-    } else
+    } else {
         av_log(s, AV_LOG_ERROR, "wav_write_packet: NOPTS\n");
+    }
     return 0;
 }
 
@@ -114,13 +118,13 @@ static int wav_write_trailer(AVFormatContext *s)
 
         avio_flush(pb);
 
-        if(s->streams[0]->codec->codec_tag != 0x01) {
+        if (s->streams[0]->codec->codec_tag != 0x01) {
             /* Update num_samps in fact chunk */
             int number_of_samples;
             number_of_samples = av_rescale(wav->maxpts - wav->minpts + wav->last_duration,
                                            s->streams[0]->codec->sample_rate * (int64_t)s->streams[0]->time_base.num,
                                            s->streams[0]->time_base.den);
-            avio_seek(pb, wav->data-12, SEEK_SET);
+            avio_seek(pb, wav->data - 12, SEEK_SET);
             avio_wl32(pb, number_of_samples);
             avio_seek(pb, file_size, SEEK_SET);
             avio_flush(pb);
@@ -140,7 +144,7 @@ AVOutputFormat ff_wav_muxer = {
     wav_write_header,
     wav_write_packet,
     wav_write_trailer,
-    .codec_tag= (const AVCodecTag* const []){ff_codec_wav_tags, 0},
+    .codec_tag = (const AVCodecTag* const []){ff_codec_wav_tags, 0},
 };
 #endif /* CONFIG_WAV_MUXER */
 
@@ -160,11 +164,13 @@ static int64_t find_tag(AVIOContext *pb, uint32_t tag1)
     int64_t size;
 
     for (;;) {
-        if (url_feof(pb))
+        if (url_feof(pb)) {
             return -1;
+        }
         size = next_tag(pb, &tag);
-        if (tag == tag1)
+        if (tag == tag1) {
             break;
+        }
         avio_skip(pb, size);
     }
     return size;
@@ -175,66 +181,72 @@ static int dts_in_wav_probe(AVProbeData *p)
     uint32_t state = -1;
     int markers[3] = {0};
     int sum, max;
-    av_log(NULL,AV_LOG_INFO,"dts_in_wav_probe in,buf size %d\n",p->buf_size);
+    av_log(NULL, AV_LOG_INFO, "dts_in_wav_probe in,buf size %d\n", p->buf_size);
     buf = p->buf;
-    for(; buf < (p->buf+p->buf_size)-2; buf+=2) {
+    for (; buf < (p->buf + p->buf_size) - 2; buf += 2) {
         bufp = buf;
         state = (state << 16) | bytestream_get_be16(&bufp);
 
         /* regular bitstream */
-        if (state == DCA_MARKER_RAW_BE || state == DCA_MARKER_RAW_LE)
+        if (state == DCA_MARKER_RAW_BE || state == DCA_MARKER_RAW_LE) {
             markers[0]++;
+        }
 
         /* 14 bits big-endian bitstream */
         if (state == DCA_MARKER_14B_BE)
-            if ((bytestream_get_be16(&bufp) & 0xFFF0) == 0x07F0)
+            if ((bytestream_get_be16(&bufp) & 0xFFF0) == 0x07F0) {
                 markers[1]++;
+            }
 
         /* 14 bits little-endian bitstream */
         if (state == DCA_MARKER_14B_LE)
-            if ((bytestream_get_be16(&bufp) & 0xF0FF) == 0xF007)
+            if ((bytestream_get_be16(&bufp) & 0xF0FF) == 0xF007) {
                 markers[2]++;
+            }
     }
     sum = markers[0] + markers[1] + markers[2];
     max = markers[1] > markers[0];
     max = markers[2] > markers[max] ? 2 : max;
-	/*wav file probe,may does not have much dts frames,so only check 1 frame.as maybe one frame in 2048 bytes probed  */
-    if (markers[max]>= 1){
-        return AVPROBE_SCORE_MAX/4;
-    }		
-    else if (markers[max] > 3 && p->buf_size / markers[max] < 32*1024 &&
-        markers[max] * 4 > sum * 3){        
-        return AVPROBE_SCORE_MAX/2+1;
+    /*wav file probe,may does not have much dts frames,so only check 1 frame.as maybe one frame in 2048 bytes probed  */
+    if (markers[max] >= 1) {
+        return AVPROBE_SCORE_MAX / 4;
+    } else if (markers[max] > 3 && p->buf_size / markers[max] < 32 * 1024 &&
+               markers[max] * 4 > sum * 3) {
+        return AVPROBE_SCORE_MAX / 2 + 1;
     }
-    return 0;	
- 
+    return 0;
+
 }
 static int wav_probe(AVProbeData *p)
 {
     /* check file header */
-    if (p->buf_size <= 32)
+    if (p->buf_size <= 32) {
         return 0;
-    unsigned dts_score = 0;	
+    }
+    unsigned dts_score = 0;
     if (!memcmp(p->buf + 8, "WAVE", 4)) {
-        if (!memcmp(p->buf, "RIFF", 4)){
+        if (!memcmp(p->buf, "RIFF", 4)) {
             /*
               Since ACT demuxer has standard WAV header at top of it's own,
               returning score is decreased to avoid probe conflict
               between ACT and WAV.
             */
-            /* probe dts in wav at least 4k size */            
-            if(p->buf_size < 4096)
-	     		return 0;
-  	     dts_score = dts_in_wav_probe(p);	
-	     if(dts_score >= AVPROBE_SCORE_MAX/4){
-		 	av_log(NULL,AV_LOG_INFO,"DTS in wav may found, check more data to verify \n");
-			return AVPROBE_SCORE_MAX/4;
-	     }
+            /* probe dts in wav at least 4k size */
+            if (p->buf_size < 4096) {
+                return 0;
+            }
+            dts_score = dts_in_wav_probe(p);
+            if (dts_score >= AVPROBE_SCORE_MAX / 4) {
+                av_log(NULL, AV_LOG_INFO, "DTS in wav may found, check more data to verify \n");
+                dts_in_wav = 1;
+                return AVPROBE_SCORE_MAX - 1;
+            }
+            dts_in_wav = 0;
             return AVPROBE_SCORE_MAX - 1;
-        }		
-        else if (!memcmp(p->buf,      "RF64", 4) &&
-                 !memcmp(p->buf + 12, "ds64", 4))
+        } else if (!memcmp(p->buf,      "RF64", 4) &&
+                   !memcmp(p->buf + 12, "ds64", 4)) {
             return AVPROBE_SCORE_MAX;
+        }
     }
     return 0;
 }
@@ -246,12 +258,14 @@ static int wav_parse_fmt_tag(AVFormatContext *s, int64_t size, AVStream **st)
 
     /* parse fmt header */
     *st = av_new_stream(s, 0);
-    if (!*st)
+    if (!*st) {
         return AVERROR(ENOMEM);
+    }
 
     ret = ff_get_wav_header(pb, (*st)->codec, size);
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
+    }
     (*st)->need_parsing = AVSTREAM_PARSE_FULL;
 
     av_set_pts_info(*st, 64, 1, (*st)->codec->sample_rate);
@@ -264,13 +278,15 @@ static inline int wav_parse_bext_string(AVFormatContext *s, const char *key, int
     char temp[257];
     int ret;
 
-    if ((ret = avio_read(s->pb, temp, length)) < 0)
+    if ((ret = avio_read(s->pb, temp, length)) < 0) {
         return ret;
+    }
 
     temp[length] = 0;
 
-    if (strlen(temp))
+    if (strlen(temp)) {
         return av_dict_set(&s->metadata, key, temp, 0);
+    }
 
     return 0;
 }
@@ -286,18 +302,21 @@ static int wav_parse_bext_tag(AVFormatContext *s, int64_t size)
         (ret = wav_parse_bext_string(s, "originator", 32)) < 0 ||
         (ret = wav_parse_bext_string(s, "originator_reference", 32)) < 0 ||
         (ret = wav_parse_bext_string(s, "origination_date", 10)) < 0 ||
-        (ret = wav_parse_bext_string(s, "origination_time", 8)) < 0)
+        (ret = wav_parse_bext_string(s, "origination_time", 8)) < 0) {
         return ret;
+    }
 
     time_reference = avio_rl64(s->pb);
     snprintf(temp, sizeof(temp), "%"PRIu64, time_reference);
-    if ((ret = av_dict_set(&s->metadata, "time_reference", temp, 0)) < 0)
+    if ((ret = av_dict_set(&s->metadata, "time_reference", temp, 0)) < 0) {
         return ret;
+    }
 
     /* check if version is >= 1, in which case an UMID may be present */
     if (avio_rl16(s->pb) >= 1) {
-        for (x = 0; x < 8; x++)
+        for (x = 0; x < 8; x++) {
             umid_mask |= umid_parts[x] = avio_rb64(s->pb);
+        }
 
         if (umid_mask) {
             /* the string formatting below is per SMPTE 330M-2004 Annex C */
@@ -308,33 +327,38 @@ static int wav_parse_bext_tag(AVFormatContext *s, int64_t size)
             } else {
                 /* extended UMID */
                 snprintf(temp, sizeof(temp), "0x%016"PRIX64"%016"PRIX64"%016"PRIX64"%016"PRIX64
-                                             "0x%016"PRIX64"%016"PRIX64"%016"PRIX64"%016"PRIX64,
+                         "0x%016"PRIX64"%016"PRIX64"%016"PRIX64"%016"PRIX64,
                          umid_parts[0], umid_parts[1], umid_parts[2], umid_parts[3],
                          umid_parts[4], umid_parts[5], umid_parts[6], umid_parts[7]);
             }
 
-            if ((ret = av_dict_set(&s->metadata, "umid", temp, 0)) < 0)
+            if ((ret = av_dict_set(&s->metadata, "umid", temp, 0)) < 0) {
                 return ret;
+            }
         }
 
         avio_skip(s->pb, 190);
-    } else
+    } else {
         avio_skip(s->pb, 254);
+    }
 
     if (size > 602) {
         /* CodingHistory present */
         size -= 602;
 
-        if (!(coding_history = av_malloc(size+1)))
+        if (!(coding_history = av_malloc(size + 1))) {
             return AVERROR(ENOMEM);
+        }
 
-        if ((ret = avio_read(s->pb, coding_history, size)) < 0)
+        if ((ret = avio_read(s->pb, coding_history, size)) < 0) {
             return ret;
+        }
 
         coding_history[size] = 0;
         if ((ret = av_dict_set(&s->metadata, "coding_history", coding_history,
-                               AV_METADATA_DONT_STRDUP_VAL)) < 0)
+                               AV_METADATA_DONT_STRDUP_VAL)) < 0) {
             return ret;
+        }
     }
 
     return 0;
@@ -353,7 +377,7 @@ static int wav_read_header(AVFormatContext *s,
                            AVFormatParameters *ap)
 {
     int64_t size, av_uninit(data_size);
-    int64_t sample_count=0;
+    int64_t sample_count = 0;
     int rf64;
     unsigned int tag;
     AVIOContext *pb = s->pb;
@@ -361,26 +385,30 @@ static int wav_read_header(AVFormatContext *s,
     WAVContext *wav = s->priv_data;
     int ret, got_fmt = 0;
     int64_t next_tag_ofs, data_ofs = -1;
-    int min_samples_est0=0;
-	int min_samples_est1=0;
-	unsigned char bit_per_sample = 0;
+    int64_t min_samples_est0 = 0;
+    int64_t min_samples_est1 = 0;
+    unsigned char bit_per_sample = 0;
     /* check RIFF header */
     tag = avio_rl32(pb);
 
     rf64 = tag == MKTAG('R', 'F', '6', '4');
-    if (!rf64 && tag != MKTAG('R', 'I', 'F', 'F'))
+    if (!rf64 && tag != MKTAG('R', 'I', 'F', 'F')) {
         return -1;
+    }
     avio_rl32(pb); /* file size */
     tag = avio_rl32(pb);
-    if (tag != MKTAG('W', 'A', 'V', 'E'))
+    if (tag != MKTAG('W', 'A', 'V', 'E')) {
         return -1;
+    }
 
     if (rf64) {
-        if (avio_rl32(pb) != MKTAG('d', 's', '6', '4'))
+        if (avio_rl32(pb) != MKTAG('d', 's', '6', '4')) {
             return -1;
+        }
         size = avio_rl32(pb);
-        if (size < 24)
+        if (size < 24) {
             return -1;
+        }
         avio_rl64(pb); /* RIFF size */
         data_size = avio_rl64(pb);
         sample_count = avio_rl64(pb);
@@ -397,16 +425,18 @@ static int wav_read_header(AVFormatContext *s,
         size = next_tag(pb, &tag);
         next_tag_ofs = avio_tell(pb) + size;
 
-        if (url_feof(pb))
+        if (url_feof(pb)) {
             break;
+        }
 
         switch (tag) {
         case MKTAG('f', 'm', 't', ' '):
             /* only parse the first 'fmt ' tag found */
             if (!got_fmt && (ret = wav_parse_fmt_tag(s, size, &st) < 0)) {
                 return ret;
-            } else if (got_fmt)
+            } else if (got_fmt) {
                 av_log(s, AV_LOG_WARNING, "found more than one 'fmt ' tag\n");
+            }
 
             got_fmt = 1;
             break;
@@ -428,16 +458,19 @@ static int wav_read_header(AVFormatContext *s,
             /* don't look for footer metadata if we can't seek or if we don't
              * know where the data tag ends
              */
-            if (!pb->seekable || (!rf64 && !size))
+            if (!pb->seekable || (!rf64 && !size)) {
                 goto break_loop;
+            }
             break;
-        case MKTAG('f','a','c','t'):
-            if(!sample_count)
+        case MKTAG('f', 'a', 'c', 't'):
+            if (!sample_count) {
                 sample_count = avio_rl32(pb);
+            }
             break;
-        case MKTAG('b','e','x','t'):
-            if ((ret = wav_parse_bext_tag(s, size)) < 0)
+        case MKTAG('b', 'e', 'x', 't'):
+            if ((ret = wav_parse_bext_tag(s, size)) < 0) {
                 return ret;
+            }
             break;
         }
 
@@ -454,20 +487,28 @@ break_loop:
     }
 
     avio_seek(pb, data_ofs, SEEK_SET);
-	bit_per_sample = av_get_bits_per_sample(st->codec->codec_id);
-	if (!sample_count && st->codec->channels && av_get_bits_per_sample(st->codec->codec_id))
-		sample_count = (data_size<<3) / (st->codec->channels * (uint64_t)av_get_bits_per_sample(st->codec->codec_id));
-	if(bit_per_sample&&st->codec->channels&&st->codec->bit_rate){//PCM audio
-		min_samples_est0 = (size<<3) / (st->codec->channels * (uint64_t)av_get_bits_per_sample(st->codec->codec_id));
-	    min_samples_est1 = (size<<3) / st->codec->bit_rate * st->codec->sample_rate;
-		if (sample_count){
-	      if(sample_count <= min_samples_est0)//:indecate that sample_count is unvalid
-	            st->duration = min_samples_est1;
-			else
-				st->duration = (min_samples_est1 > sample_count? min_samples_est1:sample_count);
-	    }
-	}	
-	
+    bit_per_sample = av_get_bits_per_sample(st->codec->codec_id);
+    if (!sample_count && st->codec->channels && av_get_bits_per_sample(st->codec->codec_id)) {
+        sample_count = (data_size << 3) / (st->codec->channels * (uint64_t)av_get_bits_per_sample(st->codec->codec_id));
+    }
+    if (bit_per_sample && st->codec->channels && st->codec->bit_rate) { //PCM audio
+        min_samples_est0 = (size << 3) / (st->codec->channels * (uint64_t)av_get_bits_per_sample(st->codec->codec_id));
+        min_samples_est1 = (size << 3) / st->codec->bit_rate * st->codec->sample_rate;
+        if (sample_count) {
+            if (sample_count <= min_samples_est0) { //:indecate that sample_count is unvalid
+                st->duration = min_samples_est0;
+            } else {
+                st->duration = (min_samples_est1 > sample_count ? min_samples_est1 : sample_count);
+            }
+        }
+    }
+
+    st->start_time = 0;
+
+    if (dts_in_wav) {
+        st->codec->codec_id = CODEC_ID_DTS;
+    }
+
     ff_metadata_conv_ctx(s, NULL, wav_metadata_conv);
 
     return 0;
@@ -484,17 +525,20 @@ static int64_t find_guid(AVIOContext *pb, const uint8_t guid1[16])
     while (!url_feof(pb)) {
         avio_read(pb, guid, 16);
         size = avio_rl64(pb);
-        if (size <= 24)
+        if (size <= 24) {
             return -1;
-        if (!memcmp(guid, guid1, 16))
+        }
+        if (!memcmp(guid, guid1, 16)) {
             return size;
+        }
         avio_skip(pb, FFALIGN(size, INT64_C(8)) - 24);
     }
     return -1;
 }
 
 static const uint8_t guid_data[16] = { 'd', 'a', 't', 'a',
-    0xF3, 0xAC, 0xD3, 0x11, 0x8C, 0xD1, 0x00, 0xC0, 0x4F, 0x8E, 0xDB, 0x8A };
+                                       0xF3, 0xAC, 0xD3, 0x11, 0x8C, 0xD1, 0x00, 0xC0, 0x4F, 0x8E, 0xDB, 0x8A
+                                     };
 
 #define MAX_SIZE 4096
 
@@ -509,26 +553,30 @@ static int wav_read_packet(AVFormatContext *s,
     st = s->streams[0];
 
     left = wav->data_end - avio_tell(s->pb);
-    if (left <= 0){
-        if (CONFIG_W64_DEMUXER && wav->w64)
+    if (left <= 0) {
+        if (CONFIG_W64_DEMUXER && wav->w64) {
             left = find_guid(s->pb, guid_data) - 24;
-        else
+        } else {
             left = find_tag(s->pb, MKTAG('d', 'a', 't', 'a'));
-        if (left < 0)
+        }
+        if (left < 0) {
             return AVERROR_EOF;
-        wav->data_end= avio_tell(s->pb) + left;
+        }
+        wav->data_end = avio_tell(s->pb) + left;
     }
 
     size = MAX_SIZE;
     if (st->codec->block_align > 1) {
-        if (size < st->codec->block_align)
+        if (size < st->codec->block_align) {
             size = st->codec->block_align;
+        }
         size = (size / st->codec->block_align) * st->codec->block_align;
     }
     size = FFMIN(size, left);
     ret  = av_get_packet(s->pb, pkt, size);
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
+    }
     pkt->stream_index = 0;
 
     return ret;
@@ -562,31 +610,36 @@ AVInputFormat ff_wav_demuxer = {
     wav_read_packet,
     NULL,
     wav_read_seek,
-    .flags= AVFMT_GENERIC_INDEX,
-    .codec_tag= (const AVCodecTag* const []){ff_codec_wav_tags, 0},
+    .flags = AVFMT_GENERIC_INDEX,
+    .codec_tag = (const AVCodecTag* const []){ff_codec_wav_tags, 0},
 };
 #endif /* CONFIG_WAV_DEMUXER */
 
 
 #if CONFIG_W64_DEMUXER
 static const uint8_t guid_riff[16] = { 'r', 'i', 'f', 'f',
-    0x2E, 0x91, 0xCF, 0x11, 0xA5, 0xD6, 0x28, 0xDB, 0x04, 0xC1, 0x00, 0x00 };
+                                       0x2E, 0x91, 0xCF, 0x11, 0xA5, 0xD6, 0x28, 0xDB, 0x04, 0xC1, 0x00, 0x00
+                                     };
 
 static const uint8_t guid_wave[16] = { 'w', 'a', 'v', 'e',
-    0xF3, 0xAC, 0xD3, 0x11, 0x8C, 0xD1, 0x00, 0xC0, 0x4F, 0x8E, 0xDB, 0x8A };
+                                       0xF3, 0xAC, 0xD3, 0x11, 0x8C, 0xD1, 0x00, 0xC0, 0x4F, 0x8E, 0xDB, 0x8A
+                                     };
 
 static const uint8_t guid_fmt [16] = { 'f', 'm', 't', ' ',
-    0xF3, 0xAC, 0xD3, 0x11, 0x8C, 0xD1, 0x00, 0xC0, 0x4F, 0x8E, 0xDB, 0x8A };
+                                       0xF3, 0xAC, 0xD3, 0x11, 0x8C, 0xD1, 0x00, 0xC0, 0x4F, 0x8E, 0xDB, 0x8A
+                                     };
 
 static int w64_probe(AVProbeData *p)
 {
-    if (p->buf_size <= 40)
+    if (p->buf_size <= 40) {
         return 0;
+    }
     if (!memcmp(p->buf,      guid_riff, 16) &&
-        !memcmp(p->buf + 24, guid_wave, 16))
+        !memcmp(p->buf + 24, guid_wave, 16)) {
         return AVPROBE_SCORE_MAX;
-    else
+    } else {
         return 0;
+    }
 }
 
 static int w64_read_header(AVFormatContext *s, AVFormatParameters *ap)
@@ -599,11 +652,13 @@ static int w64_read_header(AVFormatContext *s, AVFormatParameters *ap)
     int ret;
 
     avio_read(pb, guid, 16);
-    if (memcmp(guid, guid_riff, 16))
+    if (memcmp(guid, guid_riff, 16)) {
         return -1;
+    }
 
-    if (avio_rl64(pb) < 16 + 8 + 16 + 8 + 16 + 8) /* riff + wave + fmt + sizes */
+    if (avio_rl64(pb) < 16 + 8 + 16 + 8 + 16 + 8) { /* riff + wave + fmt + sizes */
         return -1;
+    }
 
     avio_read(pb, guid, 16);
     if (memcmp(guid, guid_wave, 16)) {
@@ -618,13 +673,15 @@ static int w64_read_header(AVFormatContext *s, AVFormatParameters *ap)
     }
 
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
 
     /* subtract chunk header size - normal wav file doesn't count it */
     ret = ff_get_wav_header(pb, st->codec, size - 24);
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
+    }
     avio_skip(pb, FFALIGN(size, INT64_C(8)) - size);
 
     st->need_parsing = AVSTREAM_PARSE_FULL;

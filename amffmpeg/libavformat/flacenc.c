@@ -48,16 +48,17 @@ static int flac_write_block_comment(AVIOContext *pb, AVDictionary **m,
     ff_metadata_conv(m, ff_vorbiscomment_metadata_conv, NULL);
 
     len = ff_vorbiscomment_length(*m, vendor, &count);
-    p0 = av_malloc(len+4);
-    if (!p0)
+    p0 = av_malloc(len + 4);
+    if (!p0) {
         return AVERROR(ENOMEM);
+    }
     p = p0;
 
     bytestream_put_byte(&p, last_block ? 0x84 : 0x04);
     bytestream_put_be24(&p, len);
     ff_vorbiscomment_write(&p, m, vendor, count);
 
-    avio_write(pb, p0, len+4);
+    avio_write(pb, p0, len + 4);
     av_freep(&p0);
     p = NULL;
 
@@ -70,13 +71,15 @@ static int flac_write_header(struct AVFormatContext *s)
     AVCodecContext *codec = s->streams[0]->codec;
 
     ret = ff_flac_write_header(s->pb, codec, 0);
-    if (ret)
+    if (ret) {
         return ret;
+    }
 
     ret = flac_write_block_comment(s->pb, &s->metadata, 0,
                                    codec->flags & CODEC_FLAG_BITEXACT);
-    if (ret)
+    if (ret) {
         return ret;
+    }
 
     /* The command line flac encoder defaults to placing a seekpoint
      * every 10s.  So one might add padding to allow that later
@@ -94,8 +97,9 @@ static int flac_write_trailer(struct AVFormatContext *s)
     enum FLACExtradataFormat format;
     int64_t file_size;
 
-    if (!ff_flac_is_extradata_valid(s->streams[0]->codec, &format, &streaminfo))
+    if (!ff_flac_is_extradata_valid(s->streams[0]->codec, &format, &streaminfo)) {
         return -1;
+    }
 
     if (pb->seekable) {
         /* rewrite the STREAMINFO header block data */
@@ -128,5 +132,5 @@ AVOutputFormat ff_flac_muxer = {
     flac_write_header,
     flac_write_packet,
     flac_write_trailer,
-    .flags= AVFMT_NOTIMESTAMPS,
+    .flags = AVFMT_NOTIMESTAMPS,
 };

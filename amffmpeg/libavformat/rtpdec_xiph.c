@@ -176,8 +176,9 @@ static int xiph_handle_packet(AVFormatContext * ctx,
         // end packet has been lost somewhere, so drop buffered data
         free_fragment_if_needed(data);
 
-        if((res = avio_open_dyn_buf(&data->fragment)) < 0)
+        if ((res = avio_open_dyn_buf(&data->fragment)) < 0) {
             return res;
+        }
 
         avio_write(data->fragment, buf, pkt_len);
         data->timestamp = *timestamp;
@@ -220,7 +221,7 @@ static int xiph_handle_packet(AVFormatContext * ctx,
         }
     }
 
-   return AVERROR(EAGAIN);
+    return AVERROR(EAGAIN);
 }
 
 /**
@@ -285,7 +286,7 @@ parse_packed_headers(const uint8_t * packed_headers,
      * -- length/255 +2 for xiphlacing
      * -- one for the '2' marker
      * -- FF_INPUT_BUFFER_PADDING_SIZE required */
-    extradata_alloc = length + length/255 + 3 + FF_INPUT_BUFFER_PADDING_SIZE;
+    extradata_alloc = length + length / 255 + 3 + FF_INPUT_BUFFER_PADDING_SIZE;
 
     ptr = codec->extradata = av_malloc(extradata_alloc);
     if (!ptr) {
@@ -355,8 +356,8 @@ static int xiph_parse_fmtp_pair(AVStream* stream,
                     av_base64_decode(decoded_packet, value, decoded_alloc);
 
                 result = parse_packed_headers
-                    (decoded_packet, decoded_packet + packet_size, codec,
-                    xiph_data);
+                         (decoded_packet, decoded_packet + packet_size, codec,
+                          xiph_data);
             } else {
                 av_log(codec, AV_LOG_ERROR,
                        "Out of memory while decoding SDP configuration.\n");
@@ -372,7 +373,7 @@ static int xiph_parse_fmtp_pair(AVStream* stream,
 }
 
 static int xiph_parse_sdp_line(AVFormatContext *s, int st_index,
-                                 PayloadContext *data, const char *line)
+                               PayloadContext *data, const char *line)
 {
     const char *p;
 

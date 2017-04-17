@@ -115,30 +115,32 @@ extern const struct ogg_codec ff_vorbis_codec;
 int ff_vorbis_comment(AVFormatContext *ms, AVDictionary **m, const uint8_t *buf, int size);
 
 static inline int
-ogg_find_stream (struct ogg * ogg, int serial)
+ogg_find_stream(struct ogg * ogg, int serial)
 {
     int i;
 
     for (i = 0; i < ogg->nstreams; i++)
-        if (ogg->streams[i].serial == serial)
+        if (ogg->streams[i].serial == serial) {
             return i;
+        }
 
     return -1;
 }
 
 static inline uint64_t
-ogg_gptopts (AVFormatContext * s, int i, uint64_t gp, int64_t *dts)
+ogg_gptopts(AVFormatContext * s, int i, uint64_t gp, int64_t *dts)
 {
     struct ogg *ogg = s->priv_data;
     struct ogg_stream *os = ogg->streams + i;
     uint64_t pts = AV_NOPTS_VALUE;
 
-    if(os->codec && os->codec->gptopts){
+    if (os->codec && os->codec->gptopts) {
         pts = os->codec->gptopts(s, i, gp, dts);
     } else {
         pts = gp;
-        if (dts)
+        if (dts) {
             *dts = pts;
+        }
     }
 
     return pts;

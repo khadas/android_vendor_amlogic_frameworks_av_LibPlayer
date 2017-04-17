@@ -21,19 +21,27 @@
 
 static int flags, checked;
 
-void av_force_cpu_flags(int arg){
+void av_force_cpu_flags(int arg)
+{
     flags   = arg;
     checked = 1;
 }
 
 int av_get_cpu_flags(void)
 {
-    if (checked)
+    if (checked) {
         return flags;
+    }
 
-    if (ARCH_ARM) flags = ff_get_cpu_flags_arm();
-    if (ARCH_PPC) flags = ff_get_cpu_flags_ppc();
-    if (ARCH_X86) flags = ff_get_cpu_flags_x86();
+    if (ARCH_ARM) {
+        flags = ff_get_cpu_flags_arm();
+    }
+    if (ARCH_PPC) {
+        flags = ff_get_cpu_flags_ppc();
+    }
+    if (ARCH_X86) {
+        flags = ff_get_cpu_flags_x86();
+    }
 
     checked = 1;
     return flags;
@@ -70,7 +78,7 @@ int main(void)
            cpu_flags & AV_CPU_FLAG_3DNOW    ? "3DNow "      : "",
            cpu_flags & AV_CPU_FLAG_3DNOWEXT ? "3DNowExt "   : "");
 #endif
-    return 0;
+           return 0;
 }
 
 #endif

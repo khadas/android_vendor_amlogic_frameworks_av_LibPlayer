@@ -55,8 +55,9 @@ int ff_flac_decode_frame_header(AVCodecContext *avctx, GetBitContext *gb,
     fi->ch_mode = get_bits(gb, 4);
     if (fi->ch_mode < FLAC_MAX_CHANNELS) {
         fi->channels = fi->ch_mode + 1;
-        if (fi->ch_mode <= 5)
+        if (fi->ch_mode <= 5) {
             avctx->channel_layout = ff_vorbis_channel_layouts[fi->ch_mode];
+        }
         fi->ch_mode = FLAC_CHMODE_INDEPENDENT;
     } else if (fi->ch_mode <= FLAC_CHMODE_MID_SIDE) {
         fi->channels = 2;
@@ -124,7 +125,7 @@ int ff_flac_decode_frame_header(AVCodecContext *avctx, GetBitContext *gb,
     /* header CRC-8 check */
     skip_bits(gb, 8);
     if (av_crc(av_crc_get_table(AV_CRC_8_ATM), 0, gb->buffer,
-               get_bits_count(gb)/8)) {
+               get_bits_count(gb) / 8)) {
         av_log(avctx, AV_LOG_ERROR + log_level_offset,
                "header crc mismatch\n");
         return -1;
@@ -142,12 +143,12 @@ int ff_flac_get_max_frame_size(int blocksize, int ch, int bps)
     int count;
 
     count = 16;                  /* frame header */
-    count += ch * ((7+bps+7)/8); /* subframe headers */
+    count += ch * ((7 + bps + 7) / 8); /* subframe headers */
     if (ch == 2) {
         /* for stereo, need to account for using decorrelation */
-        count += (( 2*bps+1) * blocksize + 7) / 8;
+        count += ((2 * bps + 1) * blocksize + 7) / 8;
     } else {
-        count += ( ch*bps    * blocksize + 7) / 8;
+        count += (ch * bps    * blocksize + 7) / 8;
     }
     count += 2; /* frame footer */
 

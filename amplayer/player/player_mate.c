@@ -11,10 +11,9 @@
 #include <time.h>
 #include <pthread.h>
 #include <player.h>
-
-#include "player_priv.h"
 #include "player_update.h"
 #include "player_ffmpeg_ctrl.h"
+#include "player_priv.h"
 #include "thread_mgt.h"
 #include <semaphore.h>
 
@@ -145,6 +144,54 @@ static int player_mate_thread_wait(struct player_mate *mate, int microseconds)
     return ret;
 }
 
+static int need_interrupt(play_para_t *player, player_cmd_t *cmd)
+{
+    p_ctrl_info_t *pctrl = &player->playctrl_info;
+
+    // Check HLS
+    if (memcmp(player->pFormatCtx->iformat->name, "mhls", 4) != 0) {
+        return 0;
+    }
+
+    // PLAYING->SEARCH
+    if (cmd->ctrl_cmd == CMD_SEARCH) {
+        return 1;
+    }
+
+    // PLAYERING->FF&FB
+    if (pctrl->hls_forward == 0 && pctrl->hls_backward == 0) {
+        // not handle fb inside 10s
+        if (player->state.current_time <= 10 && cmd->ctrl_cmd == CMD_FB) {
+            return 0;
+        }
+        if (cmd->ctrl_cmd == CMD_FF || cmd->ctrl_cmd == CMD_FB) {
+            return 1;
+        }
+    }
+    // FF->FB || FB->FF
+    if (pctrl->hls_forward == 1 && cmd->ctrl_cmd == CMD_FB) {
+        return 1;
+    }
+    if (pctrl->hls_backward == 1 && cmd->ctrl_cmd == CMD_FF) {
+        return 1;
+    }
+    // FF&FB->PLAYING
+    if (pctrl->hls_forward == 1 || pctrl->hls_backward == 1) {
+        if (cmd->ctrl_cmd == CMD_FF || cmd->ctrl_cmd == CMD_FB) {
+            if (cmd->param == 0) {
+                return 1;
+            }
+        }
+    }
+
+    // receive seek cm in ff&fb mode
+    if (pctrl->hls_forward == 1 || pctrl->hls_backward == 1) {
+        if (cmd->ctrl_cmd == CMD_SEARCH) {
+            return 1;
+        }
+    }
+    return 0;
+}
 
 static int player_mate_thread_cmd_proxy(play_para_t *player, struct player_mate *mate)
 {
@@ -176,22 +223,42 @@ static int player_mate_thread_cmd_proxy(play_para_t *player, struct player_mate 
             return NONO_FLAG;
         }
     }
+    if ((nextcmd_is_cmd(p_para, CMD_SEARCH)) && (player->playctrl_info.search_flag == 1)) {
+        return 0;
+    }
+
+    cmd = peek_message_locked(player);
+    if (!cmd) {
+        return 0;
+    }
+    log_print("Mate Peek Message. cmd:%x !\n", cmd->ctrl_cmd);
+    // Handle FF&FB
+    if (need_interrupt(player, cmd)) {
+        pthread_mutex_lock(&mate->pthread_mutex);
+        player->playctrl_info.ignore_ffmpeg_errors = 1;
+        player->playctrl_info.temp_interrupt_ffmpeg = 1;
+        set_black_policy(0);
+        ffmpeg_interrupt_light(player->thread_mgt.pthread_id);
+        pthread_mutex_unlock(&mate->pthread_mutex);
+        usleep(10000);
+        log_print("FF&FB Interrupt!\n");
+        return 0;
+    }
+
     cmd = get_message(player);
     if (!cmd) {
         return 0;    /*no cmds*/
     }
 
-    p_para->oldcmd = *cmd;
-    p_para->oldcmdtime = player_get_systemtime_ms();
-    log_print("pid[%d]:: [check_flag:%d]cmd=%x set_mode=%x info=%x param=%d fparam=%f\n", p_para->player_id, __LINE__, cmd->ctrl_cmd, cmd->set_mode, cmd->info_cmd, cmd->param, cmd->f_param);
+    log_print("pid[%d]:: [check_flag_mate:%d]cmd=%x set_mode=%x info=%x param=%d fparam=%f\n", p_para->player_id, __LINE__, cmd->ctrl_cmd, cmd->set_mode, cmd->info_cmd, cmd->param, cmd->f_param);
     if (cmd->ctrl_cmd != CMD_SEARCH && p_para->avsynctmpchanged > 0) {
         /*not search now,resore the sync states...*/
         set_tsync_enable(p_para->oldavsyncstate);
         p_para->avsynctmpchanged = 0;
     }
     check_msg(player, cmd);
-    message_free(cmd);
-    if (player->playctrl_info.search_flag && !(p_para->pFormatCtx->iformat->flags & AVFMT_NOFILE) && p_para->pFormatCtx->pb != NULL && p_para->pFormatCtx->pb->local_playback == 0) {
+    //message_free(cmd);
+    if ((cmd->ctrl_cmd == CMD_SEARCH) && player->playctrl_info.search_flag && !(p_para->pFormatCtx->iformat->flags & AVFMT_NOFILE) && p_para->pFormatCtx->pb != NULL && p_para->pFormatCtx->pb->local_playback == 0) {
         /*in mate thread seek,and interrupt the read thread.
               so we need to ignore the first ffmpeg erros. */
         pthread_mutex_lock(&mate->pthread_mutex);
@@ -201,8 +268,16 @@ static int player_mate_thread_cmd_proxy(play_para_t *player, struct player_mate 
         set_black_policy(0);
         ffmpeg_interrupt_light(player->thread_mgt.pthread_id);
         pthread_mutex_unlock(&mate->pthread_mutex);
-        codec_resume(player->codec);  /*auto resume on*/
     }
+
+    p_para->oldcmd = *cmd;
+    p_para->oldcmdtime = player_get_systemtime_ms();
+    message_free(cmd);
+    log_print("old_cmd:0x%x,hls_forward:%d,hls_backward:%d\n",
+              p_para->oldcmd.ctrl_cmd,
+              p_para->playctrl_info.hls_forward,
+              p_para->playctrl_info.hls_backward);
+
     if (p_para->playctrl_info.search_flag) {
         set_black_policy(0);
     }

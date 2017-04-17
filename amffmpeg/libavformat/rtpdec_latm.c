@@ -39,8 +39,9 @@ static PayloadContext *latm_new_context(void)
 
 static void latm_free_context(PayloadContext *data)
 {
-    if (!data)
+    if (!data) {
         return;
+    }
     if (data->dyn_buf) {
         uint8_t *p;
         avio_close_dyn_buf(data->dyn_buf, &p);
@@ -59,19 +60,22 @@ static int latm_parse_packet(AVFormatContext *ctx, PayloadContext *data,
     if (buf) {
         if (!data->dyn_buf || data->timestamp != *timestamp) {
             av_freep(&data->buf);
-            if (data->dyn_buf)
+            if (data->dyn_buf) {
                 avio_close_dyn_buf(data->dyn_buf, &data->buf);
+            }
             data->dyn_buf = NULL;
             av_freep(&data->buf);
 
             data->timestamp = *timestamp;
-            if ((ret = avio_open_dyn_buf(&data->dyn_buf)) < 0)
+            if ((ret = avio_open_dyn_buf(&data->dyn_buf)) < 0) {
                 return ret;
+            }
         }
         avio_write(data->dyn_buf, buf, len);
 
-        if (!(flags & RTP_FLAG_MARKER))
+        if (!(flags & RTP_FLAG_MARKER)) {
             return AVERROR(EAGAIN);
+        }
         av_free(data->buf);
         data->len = avio_close_dyn_buf(data->dyn_buf, &data->buf);
         data->dyn_buf = NULL;
@@ -87,16 +91,18 @@ static int latm_parse_packet(AVFormatContext *ctx, PayloadContext *data,
     while (data->pos < data->len) {
         uint8_t val = data->buf[data->pos++];
         cur_len += val;
-        if (val != 0xff)
+        if (val != 0xff) {
             break;
+        }
     }
     if (data->pos + cur_len > data->len) {
         av_log(ctx, AV_LOG_ERROR, "Malformed LATM packet\n");
         return AVERROR(EIO);
     }
 
-    if ((ret = av_new_packet(pkt, cur_len)) < 0)
+    if ((ret = av_new_packet(pkt, cur_len)) < 0) {
         return ret;
+    }
     memcpy(pkt->data, data->buf + data->pos, cur_len);
     data->pos += cur_len;
     pkt->stream_index = st->index;
@@ -112,10 +118,11 @@ static int parse_fmtp_config(AVStream *st, char *value)
 
     /* Pad this buffer, too, to avoid out of bounds reads with get_bits below */
     config = av_mallocz(len + FF_INPUT_BUFFER_PADDING_SIZE);
-    if (!config)
+    if (!config) {
         return AVERROR(ENOMEM);
+    }
     ff_hex_to_data(config, value);
-    init_get_bits(&gb, config, len*8);
+    init_get_bits(&gb, config, len * 8);
     audio_mux_version = get_bits(&gb, 1);
     same_time_framing = get_bits(&gb, 1);
     skip_bits(&gb, 6); /* num_sub_frames */
@@ -124,21 +131,22 @@ static int parse_fmtp_config(AVStream *st, char *value)
     if (audio_mux_version != 0 || same_time_framing != 1 || num_programs != 0 ||
         num_layers != 0) {
         av_log(NULL, AV_LOG_WARNING, "Unsupported LATM config (%d,%d,%d,%d)\n",
-                                     audio_mux_version, same_time_framing,
-                                     num_programs, num_layers);
+               audio_mux_version, same_time_framing,
+               num_programs, num_layers);
         ret = AVERROR_PATCHWELCOME;
         goto end;
     }
     av_freep(&st->codec->extradata);
-    st->codec->extradata_size = (get_bits_left(&gb) + 7)/8;
+    st->codec->extradata_size = (get_bits_left(&gb) + 7) / 8;
     st->codec->extradata = av_mallocz(st->codec->extradata_size +
                                       FF_INPUT_BUFFER_PADDING_SIZE);
     if (!st->codec->extradata) {
         ret = AVERROR(ENOMEM);
         goto end;
     }
-    for (i = 0; i < st->codec->extradata_size; i++)
+    for (i = 0; i < st->codec->extradata_size; i++) {
         st->codec->extradata[i] = get_bits(&gb, 8);
+    }
 
 end:
     av_free(config);
@@ -152,13 +160,14 @@ static int parse_fmtp(AVStream *stream, PayloadContext *data,
 
     if (!strcmp(attr, "config")) {
         res = parse_fmtp_config(stream, value);
-        if (res < 0)
+        if (res < 0) {
             return res;
+        }
     } else if (!strcmp(attr, "cpresent")) {
         int cpresent = atoi(value);
         if (cpresent != 0)
             av_log_missing_feature(NULL, "RTP MP4A-LATM with in-band "
-                                         "configuration", 1);
+                                   "configuration", 1);
     }
 
     return 0;
@@ -169,8 +178,9 @@ static int latm_parse_sdp_line(AVFormatContext *s, int st_index,
 {
     const char *p;
 
-    if (av_strstart(line, "fmtp:", &p))
+    if (av_strstart(line, "fmtp:", &p)) {
         return ff_parse_fmtp(s->streams[st_index], data, p, parse_fmtp);
+    }
 
     return 0;
 }

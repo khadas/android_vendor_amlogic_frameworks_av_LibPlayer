@@ -147,11 +147,13 @@ typedef struct {
 } CHDContext;
 
 static const AVOption options[] = {
-    { "crystalhd_downscale_width",
-      "Turn on downscaling to the specified width",
-      offsetof(CHDContext, sWidth),
-      FF_OPT_TYPE_INT, 0, 0, UINT32_MAX,
-      AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_DECODING_PARAM, },
+    {
+        "crystalhd_downscale_width",
+        "Turn on downscaling to the specified width",
+        offsetof(CHDContext, sWidth),
+        FF_OPT_TYPE_INT, 0, 0, UINT32_MAX,
+        AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_DECODING_PARAM,
+    },
     { NULL, },
 };
 
@@ -229,7 +231,7 @@ static inline void print_frame_info(CHDContext *priv, BC_DTS_PROC_OUT *output)
 static uint64_t opaque_list_push(CHDContext *priv, uint64_t reordered_opaque,
                                  uint8_t pic_type)
 {
-    OpaqueList *newNode = av_mallocz(sizeof (OpaqueList));
+    OpaqueList *newNode = av_mallocz(sizeof(OpaqueList));
     if (!newNode) {
         av_log(priv->avctx, AV_LOG_ERROR,
                "Unable to allocate new node in OpaqueList.\n");
@@ -273,8 +275,9 @@ static OpaqueList *opaque_list_pop(CHDContext *priv, uint64_t fake_timestamp)
     if (priv->head->fake_timestamp == fake_timestamp) {
         priv->head = node->next;
 
-        if (!priv->head->next)
+        if (!priv->head->next) {
             priv->tail = priv->head;
+        }
 
         node->next = NULL;
         return node;
@@ -289,8 +292,9 @@ static OpaqueList *opaque_list_pop(CHDContext *priv, uint64_t fake_timestamp)
         if (current->fake_timestamp == fake_timestamp) {
             node->next = current->next;
 
-            if (!node->next)
-               priv->tail = node;
+            if (!node->next) {
+                priv->tail = node;
+            }
 
             current->next = NULL;
             return current;
@@ -320,8 +324,9 @@ static void flush(AVCodecContext *avctx)
     priv->skip_next_output  = 0;
     priv->decode_wait       = BASE_WAIT;
 
-    if (priv->pic.data[0])
+    if (priv->pic.data[0]) {
         avctx->release_buffer(avctx, &priv->pic);
+    }
 
     /* Flush mode 4 flushes all software and hardware buffers. */
     DtsFlushInput(priv->dev, 4);
@@ -345,16 +350,17 @@ static av_cold int uninit(AVCodecContext *avctx)
 
     av_free(priv->sps_pps_buf);
 
-    if (priv->pic.data[0])
+    if (priv->pic.data[0]) {
         avctx->release_buffer(avctx, &priv->pic);
+    }
 
     if (priv->head) {
-       OpaqueList *node = priv->head;
-       while (node) {
-          OpaqueList *next = node->next;
-          av_free(node);
-          node = next;
-       }
+        OpaqueList *node = priv->head;
+        while (node) {
+            OpaqueList *next = node->next;
+            av_free(node);
+            node = next;
+        }
     }
 
     return 0;
@@ -397,44 +403,43 @@ static av_cold int init(AVCodecContext *avctx)
 
     subtype = id2subtype(priv, avctx->codec->id);
     switch (subtype) {
-    case BC_MSUBTYPE_AVC1:
-        {
-            uint8_t *dummy_p;
-            int dummy_int;
+    case BC_MSUBTYPE_AVC1: {
+        uint8_t *dummy_p;
+        int dummy_int;
 
-            uint32_t orig_data_size = avctx->extradata_size;
-            uint8_t *orig_data = av_malloc(orig_data_size);
-            if (!orig_data) {
-                av_log(avctx, AV_LOG_ERROR,
-                       "Failed to allocate copy of extradata\n");
-                return AVERROR(ENOMEM);
-            }
-            memcpy(orig_data, avctx->extradata, orig_data_size);
-
-
-            priv->bsfc = av_bitstream_filter_init("h264_mp4toannexb");
-            if (!priv->bsfc) {
-                av_log(avctx, AV_LOG_ERROR,
-                       "Cannot open the h264_mp4toannexb BSF!\n");
-                av_free(orig_data);
-                return AVERROR_BSF_NOT_FOUND;
-            }
-            av_bitstream_filter_filter(priv->bsfc, avctx, NULL, &dummy_p,
-                                       &dummy_int, NULL, 0, 0);
-
-            priv->sps_pps_buf     = avctx->extradata;
-            priv->sps_pps_size    = avctx->extradata_size;
-            avctx->extradata      = orig_data;
-            avctx->extradata_size = orig_data_size;
-
-            format.pMetaData   = priv->sps_pps_buf;
-            format.metaDataSz  = priv->sps_pps_size;
-            format.startCodeSz = (avctx->extradata[4] & 0x03) + 1;
+        uint32_t orig_data_size = avctx->extradata_size;
+        uint8_t *orig_data = av_malloc(orig_data_size);
+        if (!orig_data) {
+            av_log(avctx, AV_LOG_ERROR,
+                   "Failed to allocate copy of extradata\n");
+            return AVERROR(ENOMEM);
         }
-        break;
+        memcpy(orig_data, avctx->extradata, orig_data_size);
+
+
+        priv->bsfc = av_bitstream_filter_init("h264_mp4toannexb");
+        if (!priv->bsfc) {
+            av_log(avctx, AV_LOG_ERROR,
+                   "Cannot open the h264_mp4toannexb BSF!\n");
+            av_free(orig_data);
+            return AVERROR_BSF_NOT_FOUND;
+        }
+        av_bitstream_filter_filter(priv->bsfc, avctx, NULL, &dummy_p,
+                                   &dummy_int, NULL, 0, 0);
+
+        priv->sps_pps_buf     = avctx->extradata;
+        priv->sps_pps_size    = avctx->extradata_size;
+        avctx->extradata      = orig_data;
+        avctx->extradata_size = orig_data_size;
+
+        format.pMetaData   = priv->sps_pps_buf;
+        format.metaDataSz  = priv->sps_pps_size;
+        format.startCodeSz = (avctx->extradata[4] & 0x03) + 1;
+    }
+    break;
     case BC_MSUBTYPE_H264:
         format.startCodeSz = 4;
-        // Fall-through
+    // Fall-through
     case BC_MSUBTYPE_VC1:
     case BC_MSUBTYPE_WVC1:
     case BC_MSUBTYPE_WMV3:
@@ -520,7 +525,7 @@ static av_cold int init(AVCodecContext *avctx)
 
     return 0;
 
- fail:
+fail:
     uninit(avctx);
     return -1;
 }
@@ -578,7 +583,7 @@ static inline CopyRet copy_frame(AVCodecContext *avctx,
     if (ret != BC_STS_SUCCESS) {
         av_log(avctx, AV_LOG_ERROR,
                "CrystalHD: GetDriverStatus failed: %u\n", ret);
-       return RET_ERROR;
+        return RET_ERROR;
     }
 
     /*
@@ -627,8 +632,9 @@ static inline CopyRet copy_frame(AVCodecContext *avctx,
     av_log(avctx, AV_LOG_VERBOSE, "Interlaced state: %d | trust_interlaced %d\n",
            interlaced, trust_interlaced);
 
-    if (priv->pic.data[0] && !priv->need_second_field)
+    if (priv->pic.data[0] && !priv->need_second_field) {
         avctx->release_buffer(avctx, &priv->pic);
+    }
 
     priv->need_second_field = interlaced && !priv->need_second_field;
 
@@ -645,12 +651,13 @@ static inline CopyRet copy_frame(AVCodecContext *avctx,
     if (priv->is_70012) {
         int pStride;
 
-        if (width <= 720)
+        if (width <= 720) {
             pStride = 720;
-        else if (width <= 1280)
+        } else if (width <= 1280) {
             pStride = 1280;
-        else if (width <= 1080)
+        } else if (width <= 1080) {
             pStride = 1080;
+        }
         sStride = av_image_get_linesize(avctx->pix_fmt, pStride, 0);
     } else {
         sStride = bwidth;
@@ -683,8 +690,9 @@ static inline CopyRet copy_frame(AVCodecContext *avctx,
     }
 
     priv->pic.interlaced_frame = interlaced;
-    if (interlaced)
+    if (interlaced) {
         priv->pic.top_field_first = !bottom_first;
+    }
 
     priv->pic.pkt_pts = pkt_pts;
 
@@ -771,7 +779,7 @@ static inline CopyRet receive_frame(AVCodecContext *avctx,
                  *
                  * In any case, only warn the first time.
                  */
-               priv->last_picture = output.PicInfo.picture_number - 1;
+                priv->last_picture = output.PicInfo.picture_number - 1;
             }
 
             copy_ret = copy_frame(avctx, &output, data, data_size);
@@ -786,7 +794,7 @@ static inline CopyRet receive_frame(AVCodecContext *avctx,
              * An invalid frame has been consumed.
              */
             av_log(avctx, AV_LOG_ERROR, "CrystalHD: ProcOutput succeeded with "
-                                        "invalid PIB\n");
+                   "invalid PIB\n");
             avctx->has_b_frames--;
             copy_ret = RET_OK;
         }
@@ -937,8 +945,9 @@ static int decode(AVCodecContext *avctx, void *data, int *data_size, AVPacket *a
      * succeed.
      */
     if (priv->output_ready < 2) {
-        if (decoder_status.ReadyListCount != 0)
+        if (decoder_status.ReadyListCount != 0) {
             priv->output_ready++;
+        }
         usleep(BASE_WAIT);
         av_log(avctx, AV_LOG_INFO, "CrystalHD: Filling pipeline.\n");
         return len;
@@ -984,8 +993,9 @@ static int decode(AVCodecContext *avctx, void *data, int *data_size, AVPacket *a
                     decoder_status.ReadyListCount > 0) {
                     rec_ret = receive_frame(avctx, data, data_size);
                     if ((rec_ret == RET_OK && *data_size > 0) ||
-                        rec_ret == RET_ERROR)
+                        rec_ret == RET_ERROR) {
                         break;
+                    }
                 }
             }
             av_log(avctx, AV_LOG_VERBOSE, "CrystalHD: Got second field.\n");

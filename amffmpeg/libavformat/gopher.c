@@ -42,25 +42,30 @@ static int gopher_connect(URLContext *h, const char *path)
 {
     char buffer[1024];
 
-    if (!*path) return AVERROR(EINVAL);
+    if (!*path) {
+        return AVERROR(EINVAL);
+    }
     switch (*++path) {
-        case '5':
-        case '9':
-            path = strchr(path, '/');
-            if (!path) return AVERROR(EINVAL);
-            break;
-        default:
-            av_log(h, AV_LOG_WARNING,
-                   "Gopher protocol type '%c' not supported yet!\n",
-                   *path);
+    case '5':
+    case '9':
+        path = strchr(path, '/');
+        if (!path) {
             return AVERROR(EINVAL);
+        }
+        break;
+    default:
+        av_log(h, AV_LOG_WARNING,
+               "Gopher protocol type '%c' not supported yet!\n",
+               *path);
+        return AVERROR(EINVAL);
     }
 
     /* send gopher sector */
     snprintf(buffer, sizeof(buffer), "%s\r\n", path);
 
-    if (gopher_write(h, buffer, strlen(buffer)) < 0)
+    if (gopher_write(h, buffer, strlen(buffer)) < 0) {
         return AVERROR(EIO);
+    }
 
     return 0;
 }
@@ -94,20 +99,23 @@ static int gopher_open(URLContext *h, const char *uri, int flags)
     av_url_split(NULL, 0, auth, sizeof(auth), hostname, sizeof(hostname), &port,
                  path, sizeof(path), uri);
 
-    if (port < 0)
+    if (port < 0) {
         port = 70;
+    }
 
     ff_url_join(buf, sizeof(buf), "tcp", NULL, hostname, port, NULL);
 
     s->hd = NULL;
     err = ffurl_open(&s->hd, buf, AVIO_FLAG_READ_WRITE);
-    if (err < 0)
+    if (err < 0) {
         goto fail;
+    }
 
-    if ((err = gopher_connect(h, path)) < 0)
+    if ((err = gopher_connect(h, path)) < 0) {
         goto fail;
+    }
     return 0;
- fail:
+fail:
     gopher_close(h);
     return err;
 }

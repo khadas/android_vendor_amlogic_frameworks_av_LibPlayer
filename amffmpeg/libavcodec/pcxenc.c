@@ -55,15 +55,16 @@ static av_cold int pcx_encode_init(AVCodecContext *avctx)
  * @return number of bytes written to dst or -1 on error
  * @bug will not work for nplanes != 1 && bpp != 8
  */
-static int pcx_rle_encode(      uint8_t *dst, int dst_size,
+static int pcx_rle_encode(uint8_t *dst, int dst_size,
                           const uint8_t *src, int src_plane_size, int nplanes)
 {
     int p;
     const uint8_t *dst_start = dst;
 
     // check worst-case upper bound on dst_size
-    if (dst_size < 2LL * src_plane_size * nplanes || src_plane_size <= 0)
+    if (dst_size < 2LL * src_plane_size * nplanes || src_plane_size <= 0) {
         return -1;
+    }
 
     for (p = 0; p < nplanes; p++) {
         int count = 1;
@@ -78,12 +79,14 @@ static int pcx_rle_encode(      uint8_t *dst, int dst_size,
                 ++count;
             } else {
                 // output prev * count
-                if (count != 1 || prev >= 0xC0)
+                if (count != 1 || prev >= 0xC0) {
                     *dst++ = 0xC0 | count;
+                }
                 *dst++ = prev;
 
-                if (src_plane == src_plane_end)
+                if (src_plane == src_plane_end) {
                     break;
+                }
 
                 // start new run
                 count = 1;
@@ -154,14 +157,16 @@ static int pcx_encode_frame(AVCodecContext *avctx,
     bytestream_put_le16(&buf, avctx->height - 1);   // y max
     bytestream_put_le16(&buf, 0);                   // horizontal DPI
     bytestream_put_le16(&buf, 0);                   // vertical DPI
-    for (i = 0; i < 16; i++)
-        bytestream_put_be24(&buf, pal ? pal[i] : 0);// palette (<= 16 color only)
+    for (i = 0; i < 16; i++) {
+        bytestream_put_be24(&buf, pal ? pal[i] : 0);    // palette (<= 16 color only)
+    }
     bytestream_put_byte(&buf, 0);                   // reserved
     bytestream_put_byte(&buf, nplanes);             // number of planes
     bytestream_put_le16(&buf, line_bytes);          // scanline plane size in bytes
 
-    while (buf - buf_start < 128)
-        *buf++= 0;
+    while (buf - buf_start < 128) {
+        *buf++ = 0;
+    }
 
     src = pict->data[0];
 
@@ -197,10 +202,12 @@ AVCodec ff_pcx_encoder = {
     pcx_encode_init,
     pcx_encode_frame,
     NULL,
-    .pix_fmts = (const enum PixelFormat[]){
+    .pix_fmts = (const enum PixelFormat[])
+    {
         PIX_FMT_RGB24,
         PIX_FMT_RGB8, PIX_FMT_BGR8, PIX_FMT_RGB4_BYTE, PIX_FMT_BGR4_BYTE, PIX_FMT_GRAY8, PIX_FMT_PAL8,
         PIX_FMT_MONOBLACK,
-        PIX_FMT_NONE},
+        PIX_FMT_NONE
+    },
     .long_name = NULL_IF_CONFIG_SMALL("PC Paintbrush PCX image"),
 };

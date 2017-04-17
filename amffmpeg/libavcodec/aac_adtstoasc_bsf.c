@@ -46,14 +46,15 @@ static int aac_adtstoasc_filter(AVBitStreamFilterContext *bsfc,
 
     AACBSFContext *ctx = bsfc->priv_data;
 
-    init_get_bits(&gb, buf, AAC_ADTS_HEADER_SIZE*8);
+    init_get_bits(&gb, buf, AAC_ADTS_HEADER_SIZE * 8);
 
     *poutbuf = (uint8_t*) buf;
     *poutbuf_size = buf_size;
 
     if (avctx->extradata)
-        if (show_bits(&gb, 12) != 0xfff)
+        if (show_bits(&gb, 12) != 0xfff) {
             return 0;
+        }
 
     if (ff_aac_parse_header(&gb, &hdr) < 0) {
         av_log(avctx, AV_LOG_ERROR, "Error parsing ADTS frame header!\n");
@@ -65,8 +66,8 @@ static int aac_adtstoasc_filter(AVBitStreamFilterContext *bsfc,
         return -1;
     }
 
-    buf      += AAC_ADTS_HEADER_SIZE + 2*!hdr.crc_absent;
-    buf_size -= AAC_ADTS_HEADER_SIZE + 2*!hdr.crc_absent;
+    buf      += AAC_ADTS_HEADER_SIZE + 2 * !hdr.crc_absent;
+    buf_size -= AAC_ADTS_HEADER_SIZE + 2 * !hdr.crc_absent;
 
     if (!ctx->first_frame_done) {
         int            pce_size = 0;
@@ -78,10 +79,10 @@ static int aac_adtstoasc_filter(AVBitStreamFilterContext *bsfc,
                 return -1;
             }
             init_put_bits(&pb, pce_data, MAX_PCE_SIZE);
-            pce_size = ff_copy_pce_data(&pb, &gb)/8;
+            pce_size = ff_copy_pce_data(&pb, &gb) / 8;
             flush_put_bits(&pb);
-            buf_size -= get_bits_count(&gb)/8;
-            buf      += get_bits_count(&gb)/8;
+            buf_size -= get_bits_count(&gb) / 8;
+            buf      += get_bits_count(&gb) / 8;
         }
         avctx->extradata_size = 2 + pce_size;
         avctx->extradata = av_mallocz(avctx->extradata_size + FF_INPUT_BUFFER_PADDING_SIZE);

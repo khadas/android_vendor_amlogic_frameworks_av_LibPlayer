@@ -54,6 +54,7 @@ typedef struct _M3uKeyInfo {
 typedef struct _M3uBaseNode {
     int index;
     char fileUrl[MAX_URL_SIZE];
+    char iframeUrl[MAX_URL_SIZE];
     char audio_groupID[128];
     char video_groupID[128];
     char sub_groupID[128];
@@ -62,14 +63,25 @@ typedef struct _M3uBaseNode {
     int program_id;
     int64_t startUs;
     int64_t durationUs;
-    int64_t range_offset;
-    int64_t range_length;
+    int64_t readOffset;
+    int64_t fileSize;
     int64_t dataTime;
     int media_sequence;
     int flags;
     M3uKeyInfo* key;
     struct list_head list;
 } M3uBaseNode;
+
+// iframe node
+typedef struct _M3uIframeNode {
+    int64_t startUs;
+    int64_t durationUs;
+    int64_t readOffset;
+    int64_t fileSize;
+    int index;
+    int url_index; // point to the node with segment url, to save memory.
+    char * uri;
+} M3uIframeNode;
 
 typedef struct _M3uMediaItem {
     char name[128];
@@ -105,6 +117,25 @@ typedef struct _M3uSubtitleData {
     uint8_t * sub_buffer;
 } M3uSubtitleData;
 
+typedef struct _M3UParser {
+    int is_variant_playlist;
+    int is_extm3u;
+    int is_complete;
+    int is_initcheck;
+    int is_invalid;
+    int target_duration;
+    int base_node_num;
+    int max_base_node_num;
+    int media_group_num;
+    int iframe_node_num;
+    int log_level;
+    char *baseUrl;
+    int64_t durationUs;
+    M3uIframeNode ** iframe_node_list;
+    struct list_head  head;
+    struct list_head  mediaGroup_head;
+} M3UParser;
+
 int parseInt32(const char *s, int32_t *x);
 int parseInt64(const char *s, int64_t *x);
 
@@ -112,6 +143,8 @@ int m3u_parse(const char *baseURI, const void *data, size_t size, void** hParse)
 int m3u_is_extm3u(void* hParse);
 int m3u_is_variant_playlist(void* hParse);
 int m3u_is_complete(void* hParse);
+int m3u_set_invalid(void* hParse, int value);
+int m3u_is_invalid(void* hParse);
 int m3u_get_node_num(void* hParse);
 int64_t m3u_get_durationUs(void* hParse);
 int m3u_get_target_duration(void* hParse);

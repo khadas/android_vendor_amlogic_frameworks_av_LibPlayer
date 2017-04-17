@@ -24,106 +24,106 @@
 #include "libavutil/dict.h"
 
 const char * const ff_id3v1_genre_str[ID3v1_GENRE_MAX + 1] = {
-      [0] = "Blues",
-      [1] = "Classic Rock",
-      [2] = "Country",
-      [3] = "Dance",
-      [4] = "Disco",
-      [5] = "Funk",
-      [6] = "Grunge",
-      [7] = "Hip-Hop",
-      [8] = "Jazz",
-      [9] = "Metal",
-     [10] = "New Age",
-     [11] = "Oldies",
-     [12] = "Other",
-     [13] = "Pop",
-     [14] = "R&B",
-     [15] = "Rap",
-     [16] = "Reggae",
-     [17] = "Rock",
-     [18] = "Techno",
-     [19] = "Industrial",
-     [20] = "Alternative",
-     [21] = "Ska",
-     [22] = "Death Metal",
-     [23] = "Pranks",
-     [24] = "Soundtrack",
-     [25] = "Euro-Techno",
-     [26] = "Ambient",
-     [27] = "Trip-Hop",
-     [28] = "Vocal",
-     [29] = "Jazz+Funk",
-     [30] = "Fusion",
-     [31] = "Trance",
-     [32] = "Classical",
-     [33] = "Instrumental",
-     [34] = "Acid",
-     [35] = "House",
-     [36] = "Game",
-     [37] = "Sound Clip",
-     [38] = "Gospel",
-     [39] = "Noise",
-     [40] = "AlternRock",
-     [41] = "Bass",
-     [42] = "Soul",
-     [43] = "Punk",
-     [44] = "Space",
-     [45] = "Meditative",
-     [46] = "Instrumental Pop",
-     [47] = "Instrumental Rock",
-     [48] = "Ethnic",
-     [49] = "Gothic",
-     [50] = "Darkwave",
-     [51] = "Techno-Industrial",
-     [52] = "Electronic",
-     [53] = "Pop-Folk",
-     [54] = "Eurodance",
-     [55] = "Dream",
-     [56] = "Southern Rock",
-     [57] = "Comedy",
-     [58] = "Cult",
-     [59] = "Gangsta",
-     [60] = "Top 40",
-     [61] = "Christian Rap",
-     [62] = "Pop/Funk",
-     [63] = "Jungle",
-     [64] = "Native American",
-     [65] = "Cabaret",
-     [66] = "New Wave",
-     [67] = "Psychadelic",
-     [68] = "Rave",
-     [69] = "Showtunes",
-     [70] = "Trailer",
-     [71] = "Lo-Fi",
-     [72] = "Tribal",
-     [73] = "Acid Punk",
-     [74] = "Acid Jazz",
-     [75] = "Polka",
-     [76] = "Retro",
-     [77] = "Musical",
-     [78] = "Rock & Roll",
-     [79] = "Hard Rock",
-     [80] = "Folk",
-     [81] = "Folk-Rock",
-     [82] = "National Folk",
-     [83] = "Swing",
-     [84] = "Fast Fusion",
-     [85] = "Bebob",
-     [86] = "Latin",
-     [87] = "Revival",
-     [88] = "Celtic",
-     [89] = "Bluegrass",
-     [90] = "Avantgarde",
-     [91] = "Gothic Rock",
-     [92] = "Progressive Rock",
-     [93] = "Psychedelic Rock",
-     [94] = "Symphonic Rock",
-     [95] = "Slow Rock",
-     [96] = "Big Band",
-     [97] = "Chorus",
-     [98] = "Easy Listening",
-     [99] = "Acoustic",
+    [0] = "Blues",
+    [1] = "Classic Rock",
+    [2] = "Country",
+    [3] = "Dance",
+    [4] = "Disco",
+    [5] = "Funk",
+    [6] = "Grunge",
+    [7] = "Hip-Hop",
+    [8] = "Jazz",
+    [9] = "Metal",
+    [10] = "New Age",
+    [11] = "Oldies",
+    [12] = "Other",
+    [13] = "Pop",
+    [14] = "R&B",
+    [15] = "Rap",
+    [16] = "Reggae",
+    [17] = "Rock",
+    [18] = "Techno",
+    [19] = "Industrial",
+    [20] = "Alternative",
+    [21] = "Ska",
+    [22] = "Death Metal",
+    [23] = "Pranks",
+    [24] = "Soundtrack",
+    [25] = "Euro-Techno",
+    [26] = "Ambient",
+    [27] = "Trip-Hop",
+    [28] = "Vocal",
+    [29] = "Jazz+Funk",
+    [30] = "Fusion",
+    [31] = "Trance",
+    [32] = "Classical",
+    [33] = "Instrumental",
+    [34] = "Acid",
+    [35] = "House",
+    [36] = "Game",
+    [37] = "Sound Clip",
+    [38] = "Gospel",
+    [39] = "Noise",
+    [40] = "AlternRock",
+    [41] = "Bass",
+    [42] = "Soul",
+    [43] = "Punk",
+    [44] = "Space",
+    [45] = "Meditative",
+    [46] = "Instrumental Pop",
+    [47] = "Instrumental Rock",
+    [48] = "Ethnic",
+    [49] = "Gothic",
+    [50] = "Darkwave",
+    [51] = "Techno-Industrial",
+    [52] = "Electronic",
+    [53] = "Pop-Folk",
+    [54] = "Eurodance",
+    [55] = "Dream",
+    [56] = "Southern Rock",
+    [57] = "Comedy",
+    [58] = "Cult",
+    [59] = "Gangsta",
+    [60] = "Top 40",
+    [61] = "Christian Rap",
+    [62] = "Pop/Funk",
+    [63] = "Jungle",
+    [64] = "Native American",
+    [65] = "Cabaret",
+    [66] = "New Wave",
+    [67] = "Psychadelic",
+    [68] = "Rave",
+    [69] = "Showtunes",
+    [70] = "Trailer",
+    [71] = "Lo-Fi",
+    [72] = "Tribal",
+    [73] = "Acid Punk",
+    [74] = "Acid Jazz",
+    [75] = "Polka",
+    [76] = "Retro",
+    [77] = "Musical",
+    [78] = "Rock & Roll",
+    [79] = "Hard Rock",
+    [80] = "Folk",
+    [81] = "Folk-Rock",
+    [82] = "National Folk",
+    [83] = "Swing",
+    [84] = "Fast Fusion",
+    [85] = "Bebob",
+    [86] = "Latin",
+    [87] = "Revival",
+    [88] = "Celtic",
+    [89] = "Bluegrass",
+    [90] = "Avantgarde",
+    [91] = "Gothic Rock",
+    [92] = "Progressive Rock",
+    [93] = "Psychedelic Rock",
+    [94] = "Symphonic Rock",
+    [95] = "Slow Rock",
+    [96] = "Big Band",
+    [97] = "Chorus",
+    [98] = "Easy Listening",
+    [99] = "Acoustic",
     [100] = "Humour",
     [101] = "Speech",
     [102] = "Chanson",
@@ -174,10 +174,11 @@ const char * const ff_id3v1_genre_str[ID3v1_GENRE_MAX + 1] = {
     [147] = "SynthPop",
 };
 
-static void convert_iso8859_to_string(const uint8_t *data, int size, char *s) {
+static void convert_iso8859_to_string(const uint8_t *data, int size, char *s)
+{
     int utf8len = 0;
     int i;
-	
+
     for (i = 0; i < size; ++i) {
         if (data[i] == '\0') {
             size = i;
@@ -193,7 +194,7 @@ static void convert_iso8859_to_string(const uint8_t *data, int size, char *s) {
         // Only ASCII characters present.
 
         memcpy(s, data, size);
-	 s[size] = '\0';
+        s[size] = '\0';
         return;
     }
 
@@ -224,19 +225,22 @@ static void get_string(AVFormatContext *s, const char *key,
     convert_iso8859_to_string(buf, buf_size, str);
 #if 0
     q = str;
-    for(i = 0; i < buf_size; i++) {
+    for (i = 0; i < buf_size; i++) {
         c = buf[i];
-        if (c == '\0')
+        if (c == '\0') {
             break;
-        if ((q - str) >= sizeof(str) - 1)
+        }
+        if ((q - str) >= sizeof(str) - 1) {
             break;
+        }
         *q++ = c;
     }
     *q = '\0';
 #endif
 
-    if (*str)
+    if (*str) {
         av_dict_set(&s->metadata, key, str, 0);
+    }
 }
 
 /**
@@ -251,8 +255,9 @@ static int parse_tag(AVFormatContext *s, const uint8_t *buf)
 
     if (!(buf[0] == 'T' &&
           buf[1] == 'A' &&
-          buf[2] == 'G'))
+          buf[2] == 'G')) {
         return -1;
+    }
     get_string(s, "title",   buf +  3, 30);
     get_string(s, "artist",  buf + 33, 30);
     get_string(s, "album",   buf + 63, 30);
@@ -263,8 +268,9 @@ static int parse_tag(AVFormatContext *s, const uint8_t *buf)
         av_dict_set(&s->metadata, "track", str, 0);
     }
     genre = buf[127];
-    if (genre <= ID3v1_GENRE_MAX)
+    if (genre <= ID3v1_GENRE_MAX) {
         av_dict_set(&s->metadata, "genre", ff_id3v1_genre_str[genre], 0);
+    }
     return 0;
 }
 

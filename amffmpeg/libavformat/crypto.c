@@ -32,8 +32,8 @@
 typedef struct {
     const AVClass *class;
     URLContext *hd;
-    uint8_t inbuffer [BLOCKSIZE*MAX_BUFFER_BLOCKS],
-            outbuffer[BLOCKSIZE*MAX_BUFFER_BLOCKS];
+    uint8_t inbuffer [BLOCKSIZE * MAX_BUFFER_BLOCKS],
+            outbuffer[BLOCKSIZE * MAX_BUFFER_BLOCKS];
     uint8_t *outptr;
     int indata, indata_used, outdata;
     int eof;
@@ -81,8 +81,9 @@ static int crypto_open(URLContext *h, const char *uri, int flags)
         ret = AVERROR(ENOSYS);
         goto err;
     }
-    if ((ret = ffurl_open_h(&c->hd, nested_url, flags|AVIO_FLAG_READ,h->headers,&reason_code)) < 0) {
-        av_log(h, AV_LOG_ERROR, "Unable to open input,reason:%d\n",reason_code);
+
+    if ((ret = ffurl_open_h(&c->hd, nested_url, flags | AVIO_FLAG_READ, h->headers, &reason_code)) < 0) {
+        av_log(h, AV_LOG_ERROR, "Unable to open input,reason:%d\n", reason_code);
         goto err;
     }
     c->aes = av_mallocz(av_aes_size);
@@ -119,7 +120,7 @@ retry:
     // since we'll remove PKCS7 padding at the end. So make
     // sure we've got at least 2 blocks, so we can decrypt
     // at least one.
-    while ((c->indata - c->indata_used < 2*BLOCKSIZE)&&c->eof<1) {
+    while ((c->indata - c->indata_used < 2 * BLOCKSIZE) && c->eof < 1) {
         int n = ffurl_read(c->hd, c->inbuffer + c->indata,
                            sizeof(c->inbuffer) - c->indata);
         if (n <= 0) {
@@ -129,16 +130,18 @@ retry:
         c->indata += n;
     }
     blocks = (c->indata - c->indata_used) / BLOCKSIZE;
-    if (!blocks)
+    if (!blocks) {
         return AVERROR_EOF;
-    if (!c->eof)
+    }
+    if (!c->eof) {
         blocks--;
+    }
     av_aes_crypt(c->aes, c->outbuffer, c->inbuffer + c->indata_used, blocks,
                  c->iv, 1);
     c->outdata      = BLOCKSIZE * blocks;
     c->outptr       = c->outbuffer;
     c->indata_used += BLOCKSIZE * blocks;
-    if (c->indata_used >= sizeof(c->inbuffer)/2) {
+    if (c->indata_used >= sizeof(c->inbuffer) / 2) {
         memmove(c->inbuffer, c->inbuffer + c->indata_used,
                 c->indata - c->indata_used);
         c->indata     -= c->indata_used;
@@ -155,47 +158,34 @@ retry:
 static int crypto_close(URLContext *h)
 {
     CryptoContext *c = h->priv_data;
-    if (c->hd)
+    if (c->hd) {
         ffurl_close(c->hd);
+    }
     av_freep(&c->aes);
     av_freep(&c->key);
     av_freep(&c->iv);
     return 0;
 }
 
-static int64_t crypto_seek(URLContext *h, int64_t off, int whence){
+static int64_t crypto_seek(URLContext *h, int64_t off, int whence)
+{
     CryptoContext *c = h->priv_data;
-    
-    if (c->hd){
-        if((whence ==SEEK_CUR&&off>=0)||whence == SEEK_END){
-            c->indata = c->indata_used =c->outdata = 0;
+
+    if (c->hd) {
+        if ((whence == SEEK_CUR && off >= 0) || whence == SEEK_END) {
+            c->indata = c->indata_used = c->outdata = 0;
         }
-        return ffurl_seek(c->hd,off,whence); 
-    }else{
+        return ffurl_seek(c->hd, off, whence);
+    } else {
         return -1;
     }
 }
-
-static int crypto_get_info(URLContext *h, uint32_t cmd, uint32_t flag, int64_t *info){
-    if (h == NULL) {
-        return -1;
-    }
-
-    CryptoContext *c = h->priv_data;
-    if (c && c->hd && c->hd->prot && c->hd->prot->url_getinfo) {
-        return c->hd->prot->url_getinfo(c->hd, cmd, flag, info);
-    }
-
-    return -1;
-}
-
 URLProtocol ff_crypto_protocol = {
     .name            = "crypto",
     .url_open        = crypto_open,
     .url_read        = crypto_read,
     .url_seek        = crypto_seek,
     .url_close       = crypto_close,
-    .url_getinfo     = crypto_get_info,
     .priv_data_size  = sizeof(CryptoContext),
     .priv_data_class = &crypto_class,
     .flags           = URL_PROTOCOL_FLAG_NESTED_SCHEME,

@@ -23,8 +23,12 @@ typedef struct _FFMPEG_HLS_CONTEXT {
     int codec_vdat_size;
     int codec_adat_size;
     int debug_level;
+    int ff_fb;
+    FILE * dump_handle;
     void* hls_ctx;
     CmfPrivContext_t* cmf_ctx;
+    int64_t latest_get_time_ms;
+    int report_flag;
 } FFMPEG_HLS_CONTEXT;
 
 typedef enum _SysPropType {
@@ -68,7 +72,7 @@ static float _get_system_prop(SysPropType type)
 static int interrupt_call_cb(void)
 {
     if (url_interrupt_cb()) {
-        RLOG("[%s]:url_interrupt_cb\n", __FUNCTION__);
+        //RLOG("[%s]:url_interrupt_cb\n", __FUNCTION__);
         return 1;
     }
     return 0;
@@ -79,16 +83,20 @@ static int ffmpeg_hls_open(URLContext *h, const char *filename, int flags)
     if (h == NULL || filename == NULL || (strstr(filename, "vhls:") == NULL && strstr(filename, "vrwc:") == NULL)) {
         return -1;
     }
+
     int ret = -1;
     void* session = NULL;
     int prop_prefix_size = strlen("vhls:");
-    int retrycnt = 10;
+    int retrycnt = am_getconfig_int_def("libplayer.hlsopen_retry", 10);
 openretry:
     ret = m3u_session_open(filename + prop_prefix_size, h->headers, &session, h);
     if (ret < 0) {
-        RLOG("Failed to open session and retrycnt %d \n", retrycnt);
-        retrycnt--;
-        if (retrycnt > 0 && url_interrupt_cb() <= 0) {
+        RLOG("Failed to open session and retrycnt %d , ret:%d\n", retrycnt, ret);
+        h->http_code = abs(ret);
+        if ((am_getconfig_int_def("net.ethwifi.up", 3) != 0) || (am_getconfig_int_def("media.libplayer.apk_diagnostic", 0) == 1)) {
+            retrycnt--;
+        }
+        if (retrycnt > 0 && url_interrupt_cb() <= 0 && (ret != -ERROR_URL_NOT_M3U8)) {
             goto openretry;
         } else {
             return ret;
@@ -123,6 +131,8 @@ openretry:
     h->is_streamed = 1;
     h->is_segment_media = 1;
     f->hls_ctx = session;
+    f->ff_fb = 0;
+    f->dump_handle = fopen("/data/tmp/iframe.dat", "wb+");
     h->priv_data = f;
     return 0;
 }
@@ -134,8 +144,10 @@ static int ffmpeg_hls_read(URLContext *h, unsigned char *buf, int size)
     }
     FFMPEG_HLS_CONTEXT* ctx = (FFMPEG_HLS_CONTEXT*)h->priv_data;
     void * hSession = ctx->hls_ctx;
+    M3ULiveSession* session = NULL;
     int len = AVERROR(EIO);
     int counts = 10;
+    int64_t curtime;
 
     do {
         if (url_interrupt_cb() > 0) {
@@ -144,6 +156,23 @@ static int ffmpeg_hls_read(URLContext *h, unsigned char *buf, int size)
             break;
         }
         len = m3u_session_read_data(hSession, buf, size); //wait read.
+        if (len < 0) {
+            curtime = av_gettime();
+            if (ctx->latest_get_time_ms <= 0) {
+                ctx->latest_get_time_ms = curtime;
+            }
+            if (am_getconfig_bool("media.player.gd_report.enable") && (ctx->report_flag == 0) && (curtime >  ctx->latest_get_time_ms + 30 * 1000 * 1000)) {
+#define PLAYER_EVENTS_ERROR 3
+                ctx->report_flag = 1;
+                ffmpeg_notify(h, PLAYER_EVENTS_ERROR, 54000, 0);
+            }
+        } else {
+            ctx->latest_get_time_ms = 0;
+            ctx->report_flag = 0;
+        }
+        if ((am_getconfig_int_def("net.ethwifi.up", 3) == 0) && (len < 0)) {
+            return AVERROR(EAGAIN);
+        }
 
         if (len < 0) {
             if (len == AVERROR(EAGAIN)) {
@@ -158,6 +187,22 @@ static int ffmpeg_hls_read(URLContext *h, unsigned char *buf, int size)
     } while (counts-- > 0);
     if (ctx->debug_level > 5) {
         RLOG("%s,want:%d,got:%d\n", __FUNCTION__, size, len);
+    }
+    if (ctx->ff_fb > 0) {
+        if (len != 188) {
+            RLOG("not return 0 end read iframe data! ret=%d", len);
+        }
+        session = (M3ULiveSession*)hSession;
+        if (session != NULL) {
+            if ((ctx->ff_fb == 1) && (session->fffb_endflag == 1) && (len == -11)) {
+                RLOG("ff in end return 0 fffb end\n");
+                len = 0;
+            }
+        }
+        if (ctx->dump_handle && len > 0) {
+            fwrite(buf, 1, len, ctx->dump_handle);
+            fflush(ctx->dump_handle);
+        }
     }
     return len;
 }
@@ -211,7 +256,7 @@ static int64_t ffmpeg_hls_seek(URLContext *h, int64_t pos, int whence)
     void * hSession = ctx->hls_ctx;
 
     if (whence == AVSEEK_SIZE) {
-        RLOG("%s:pos:%lld,whence:%d\n", __FUNCTION__, pos, whence);
+        RLOG("%s:pos:%lld,whence:%x\n", __FUNCTION__, pos, whence);
         return AVERROR_STREAM_SIZE_NOTVALID;
     } else if (_get_system_prop(PROP_CMF_SUPPORT) > 0 && ctx->durationUs > 0) {
         return _ffmpeg_cmf_seek(h, pos, whence);
@@ -253,16 +298,12 @@ static int64_t ffmpeg_hls_exseek(URLContext *h, int64_t pos, int whence)
         }
 
     } else if (whence == AVSEEK_BUFFERED_TIME) {
-        if (ctx->durationUs > 0) {
-            int sec;
-            m3u_session_get_cached_data_time(hSession, &sec);
-            if (ctx->debug_level > 3) {
-                RLOG("Got buffered time:%d\n", sec);
-            }
-            return sec;
-        } else {
-            return -1;
+        int sec;
+        m3u_session_get_cached_data_time(hSession, &sec);
+        if (ctx->debug_level > 3) {
+            RLOG("Got buffered time:%d\n", sec);
         }
+        return sec;
 
     } else if (whence == AVSEEK_TO_TIME) {
 #ifdef LIVEPLAY_SEEK
@@ -305,6 +346,9 @@ static int ffmpeg_hls_close(URLContext *h)
         return -1;
     }
     FFMPEG_HLS_CONTEXT* ctx = (FFMPEG_HLS_CONTEXT*)h->priv_data;
+    if (ctx->dump_handle) {
+        fclose(ctx->dump_handle);
+    }
     if (ctx != NULL && ctx->hls_ctx != NULL) {
         m3u_session_close(ctx->hls_ctx);
     }
@@ -335,7 +379,7 @@ static int _hls_estimate_buffer_time(FFMPEG_HLS_CONTEXT* ctx, int cur_bw)
     }
     return buffer_t;
 }
-static int ffmpeg_hls_setopt(URLContext *h, int cmd, int flag, unsigned long info)
+static int ffmpeg_hls_setopt(URLContext *h, int cmd, int flag, unsigned long info, int64_t info1)
 {
     if (h == NULL || h->priv_data == NULL) {
         RLOG("Failed call :%s\n", __FUNCTION__);
@@ -367,6 +411,11 @@ static int ffmpeg_hls_setopt(URLContext *h, int cmd, int flag, unsigned long inf
             RLOG("set codec buffer,type = %d,info=%d\n", flag, (int)info);
         }
         ret = 0;
+    } else if (AVCMD_HLS_SWITCH_TIMESHIFT == cmd) {
+        m3u_session_set_livemode(ctx->hls_ctx, 1); // switch to timeshift only
+    } else if (AVCMD_SET_FF_FB_INFO == cmd) {
+        ctx->ff_fb = flag;
+        ret = m3u_session_ff_fb(ctx->hls_ctx, flag, info, info1);
     }
     return ret;
 }
@@ -435,7 +484,7 @@ static int _ffmpeg_cmf_getopt(URLContext *h, uint32_t  cmd, uint32_t flag, int64
     }
     return 0;
 }
-static int ffmpeg_hls_getopt(URLContext *h, uint32_t  cmd, uint32_t flag, int64_t* info)
+static int ffmpeg_hls_getopt(URLContext *h, int cmd, int flag, int *info)
 {
     if (h == NULL || h->priv_data == NULL) {
         RLOG("Failed call :%s\n", __FUNCTION__);
@@ -475,6 +524,23 @@ static int ffmpeg_hls_getopt(URLContext *h, uint32_t  cmd, uint32_t flag, int64_
             *info = val;
             if (ctx->debug_level > 5) {
                 RLOG("Get measured bps: %0.3f kbps\n", (float)*info / 1000.000);
+            }
+        } else if (flag == 7) {
+            *info = m3u_session_have_endlist(ctx->hls_ctx);
+            if (ctx->debug_level > 5) {
+                RLOG("Get current hls livemode: %d\n", *info);
+            }
+        } else if (flag == 8) {
+            m3u_session_get_fffb_end(ctx->hls_ctx, &val);
+            *info = val;
+            if (ctx->debug_level > 5) {
+                RLOG("end flag = %d\n", *info);
+            }
+        } else if (flag == 9) {
+            m3u_session_get_cached_data_bytes(ctx->hls_ctx, &val);
+            *info = val;
+            if (ctx->debug_level > 5) {
+                RLOG("cached bytes= %d\n", *info);
             }
         }
 

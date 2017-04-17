@@ -32,16 +32,16 @@ static int pnm_parse(AVCodecParserContext *s, AVCodecContext *avctx,
     int next;
 
     for (; pc->overread > 0; pc->overread--) {
-        pc->buffer[pc->index++]= pc->buffer[pc->overread_index++];
+        pc->buffer[pc->index++] = pc->buffer[pc->overread_index++];
     }
 retry:
     if (pc->index) {
         pnmctx.bytestream_start =
-        pnmctx.bytestream       = pc->buffer;
+            pnmctx.bytestream       = pc->buffer;
         pnmctx.bytestream_end   = pc->buffer + pc->index;
     } else {
         pnmctx.bytestream_start =
-        pnmctx.bytestream       = (uint8_t *) buf; /* casts avoid warnings */
+            pnmctx.bytestream       = (uint8_t *) buf; /* casts avoid warnings */
         pnmctx.bytestream_end   = (uint8_t *) buf + buf_size;
     }
     if (ff_pnm_decode_header(avctx, &pnmctx) < 0) {
@@ -67,10 +67,12 @@ retry:
     } else {
         next = pnmctx.bytestream - pnmctx.bytestream_start
                + avpicture_get_size(avctx->pix_fmt, avctx->width, avctx->height);
-        if (pnmctx.bytestream_start != buf)
+        if (pnmctx.bytestream_start != buf) {
             next -= pc->index;
-        if (next > buf_size)
+        }
+        if (next > buf_size) {
             next = END_NOT_FOUND;
+        }
     }
 
     if (ff_combine_frame(pc, next, &buf, &buf_size) < 0) {

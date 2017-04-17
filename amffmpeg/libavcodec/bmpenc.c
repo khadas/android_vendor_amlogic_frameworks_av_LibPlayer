@@ -28,7 +28,8 @@
 static const uint32_t monoblack_pal[] = { 0x000000, 0xFFFFFF };
 static const uint32_t rgb565_masks[]  = { 0xF800, 0x07E0, 0x001F };
 
-static av_cold int bmp_encode_init(AVCodecContext *avctx){
+static av_cold int bmp_encode_init(AVCodecContext *avctx)
+{
     BMPContext *s = avctx->priv_data;
 
     avcodec_get_frame_defaults((AVFrame*)&s->picture);
@@ -63,10 +64,11 @@ static av_cold int bmp_encode_init(AVCodecContext *avctx){
     return 0;
 }
 
-static int bmp_encode_frame(AVCodecContext *avctx, unsigned char *buf, int buf_size, void *data){
+static int bmp_encode_frame(AVCodecContext *avctx, unsigned char *buf, int buf_size, void *data)
+{
     BMPContext *s = avctx->priv_data;
     AVFrame *pict = data;
-    AVFrame * const p= (AVFrame*)&s->picture;
+    AVFrame * const p = (AVFrame*)&s->picture;
     int n_bytes_image, n_bytes_per_row, n_bytes, i, n, hsize;
     const uint32_t *pal = NULL;
     int pad_bytes_per_row, pal_entries = 0, compression = BMP_RGB;
@@ -74,8 +76,8 @@ static int bmp_encode_frame(AVCodecContext *avctx, unsigned char *buf, int buf_s
     uint8_t *ptr;
     unsigned char* buf0 = buf;
     *p = *pict;
-    p->pict_type= AV_PICTURE_TYPE_I;
-    p->key_frame= 1;
+    p->pict_type = AV_PICTURE_TYPE_I;
+    p->key_frame = 1;
     switch (avctx->pix_fmt) {
     case PIX_FMT_RGB565:
         compression = BMP_BITFIELDS;
@@ -95,7 +97,9 @@ static int bmp_encode_frame(AVCodecContext *avctx, unsigned char *buf, int buf_s
         pal = monoblack_pal;
         break;
     }
-    if (pal && !pal_entries) pal_entries = 1 << bit_count;
+    if (pal && !pal_entries) {
+        pal_entries = 1 << bit_count;
+    }
     n_bytes_per_row = ((int64_t)avctx->width * (int64_t)bit_count + 7LL) >> 3LL;
     pad_bytes_per_row = (4 - n_bytes_per_row) & 3;
     n_bytes_image = avctx->height * (n_bytes_per_row + pad_bytes_per_row);
@@ -106,7 +110,7 @@ static int bmp_encode_frame(AVCodecContext *avctx, unsigned char *buf, int buf_s
 #define SIZE_BITMAPINFOHEADER 40
     hsize = SIZE_BITMAPFILEHEADER + SIZE_BITMAPINFOHEADER + (pal_entries << 2);
     n_bytes = n_bytes_image + hsize;
-    if(n_bytes>buf_size) {
+    if (n_bytes > buf_size) {
         av_log(avctx, AV_LOG_ERROR, "buf size too small (need %d, got %d)\n", n_bytes, buf_size);
         return -1;
     }
@@ -127,17 +131,19 @@ static int bmp_encode_frame(AVCodecContext *avctx, unsigned char *buf, int buf_s
     bytestream_put_le32(&buf, 0);                     // BITMAPINFOHEADER.biYPelsPerMeter
     bytestream_put_le32(&buf, 0);                     // BITMAPINFOHEADER.biClrUsed
     bytestream_put_le32(&buf, 0);                     // BITMAPINFOHEADER.biClrImportant
-    for (i = 0; i < pal_entries; i++)
+    for (i = 0; i < pal_entries; i++) {
         bytestream_put_le32(&buf, pal[i] & 0xFFFFFF);
+    }
     // BMP files are bottom-to-top so we start from the end...
     ptr = p->data[0] + (avctx->height - 1) * p->linesize[0];
     buf = buf0 + hsize;
-    for(i = 0; i < avctx->height; i++) {
+    for (i = 0; i < avctx->height; i++) {
         if (bit_count == 16) {
             const uint16_t *src = (const uint16_t *) ptr;
             uint16_t *dst = (uint16_t *) buf;
-            for(n = 0; n < avctx->width; n++)
+            for (n = 0; n < avctx->width; n++) {
                 AV_WL16(dst + n, src[n]);
+            }
         } else {
             memcpy(buf, ptr, n_bytes_per_row);
         }
@@ -157,11 +163,13 @@ AVCodec ff_bmp_encoder = {
     bmp_encode_init,
     bmp_encode_frame,
     NULL, //encode_end,
-    .pix_fmts = (const enum PixelFormat[]){
+    .pix_fmts = (const enum PixelFormat[])
+    {
         PIX_FMT_BGR24,
         PIX_FMT_RGB555, PIX_FMT_RGB565,
         PIX_FMT_RGB8, PIX_FMT_BGR8, PIX_FMT_RGB4_BYTE, PIX_FMT_BGR4_BYTE, PIX_FMT_GRAY8, PIX_FMT_PAL8,
         PIX_FMT_MONOBLACK,
-        PIX_FMT_NONE},
+        PIX_FMT_NONE
+    },
     .long_name = NULL_IF_CONFIG_SMALL("BMP image"),
 };

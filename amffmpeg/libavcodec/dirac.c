@@ -108,7 +108,9 @@ static const enum PixelFormat dirac_pix_fmt[2][3] = {
 static int parse_source_parameters(AVCodecContext *avctx, GetBitContext *gb,
                                    dirac_source_params *source)
 {
-    AVRational frame_rate = (AVRational){0,0};
+    AVRational frame_rate = (AVRational) {
+        0, 0
+    };
     unsigned luma_depth = 8, luma_offset = 16;
     int idx;
 
@@ -118,25 +120,29 @@ static int parse_source_parameters(AVCodecContext *avctx, GetBitContext *gb,
     }
 
     // chroma subsampling
-    if (get_bits1(gb))
+    if (get_bits1(gb)) {
         source->chroma_format = svq3_get_ue_golomb(gb);
+    }
     if (source->chroma_format > 2) {
         av_log(avctx, AV_LOG_ERROR, "Unknown chroma format %d\n",
                source->chroma_format);
         return -1;
     }
 
-    if (get_bits1(gb))
+    if (get_bits1(gb)) {
         source->interlaced = svq3_get_ue_golomb(gb);
-    if (source->interlaced > 1)
+    }
+    if (source->interlaced > 1) {
         return -1;
+    }
 
     // frame rate
     if (get_bits1(gb)) {
         source->frame_rate_index = svq3_get_ue_golomb(gb);
 
-        if (source->frame_rate_index > 10)
+        if (source->frame_rate_index > 10) {
             return -1;
+        }
 
         if (!source->frame_rate_index) {
             frame_rate.num = svq3_get_ue_golomb(gb);
@@ -144,20 +150,22 @@ static int parse_source_parameters(AVCodecContext *avctx, GetBitContext *gb,
         }
     }
     if (source->frame_rate_index > 0) {
-        if (source->frame_rate_index <= 8)
+        if (source->frame_rate_index <= 8) {
             frame_rate = ff_frame_rate_tab[source->frame_rate_index];
-        else
-            frame_rate = dirac_frame_rate[source->frame_rate_index-9];
+        } else {
+            frame_rate = dirac_frame_rate[source->frame_rate_index - 9];
+        }
     }
     av_reduce(&avctx->time_base.num, &avctx->time_base.den,
-              frame_rate.den, frame_rate.num, 1<<30);
+              frame_rate.den, frame_rate.num, 1 << 30);
 
     // aspect ratio
     if (get_bits1(gb)) {
         source->aspect_ratio_index = svq3_get_ue_golomb(gb);
 
-        if (source->aspect_ratio_index > 6)
+        if (source->aspect_ratio_index > 6) {
             return -1;
+        }
 
         if (!source->aspect_ratio_index) {
             avctx->sample_aspect_ratio.num = svq3_get_ue_golomb(gb);
@@ -166,7 +174,7 @@ static int parse_source_parameters(AVCodecContext *avctx, GetBitContext *gb,
     }
     if (source->aspect_ratio_index > 0)
         avctx->sample_aspect_ratio =
-                dirac_preset_aspect_ratios[source->aspect_ratio_index-1];
+            dirac_preset_aspect_ratios[source->aspect_ratio_index - 1];
 
     if (get_bits1(gb)) {
         source->clean_width        = svq3_get_ue_golomb(gb);
@@ -179,13 +187,14 @@ static int parse_source_parameters(AVCodecContext *avctx, GetBitContext *gb,
     if (get_bits1(gb)) {
         source->pixel_range_index = svq3_get_ue_golomb(gb);
 
-        if (source->pixel_range_index > 4)
+        if (source->pixel_range_index > 4) {
             return -1;
+        }
 
         // This assumes either fullrange or MPEG levels only
         if (!source->pixel_range_index) {
             luma_offset = svq3_get_ue_golomb(gb);
-            luma_depth  = av_log2(svq3_get_ue_golomb(gb))+1;
+            luma_depth  = av_log2(svq3_get_ue_golomb(gb)) + 1;
             svq3_get_ue_golomb(gb); // chroma offset
             svq3_get_ue_golomb(gb); // chroma excursion
 
@@ -193,13 +202,14 @@ static int parse_source_parameters(AVCodecContext *avctx, GetBitContext *gb,
         }
     }
     if (source->pixel_range_index > 0) {
-        idx                = source->pixel_range_index-1;
+        idx                = source->pixel_range_index - 1;
         luma_depth         = pixel_range_presets[idx].bitdepth;
         avctx->color_range = pixel_range_presets[idx].color_range;
     }
 
-    if (luma_depth > 8)
+    if (luma_depth > 8) {
         av_log(avctx, AV_LOG_WARNING, "Bitdepth greater than 8");
+    }
 
     avctx->pix_fmt = dirac_pix_fmt[!luma_offset][source->chroma_format];
 
@@ -207,8 +217,9 @@ static int parse_source_parameters(AVCodecContext *avctx, GetBitContext *gb,
     if (get_bits1(gb)) {
         idx = source->color_spec_index = svq3_get_ue_golomb(gb);
 
-        if (source->color_spec_index > 4)
+        if (source->color_spec_index > 4) {
             return -1;
+        }
 
         avctx->color_primaries = dirac_color_presets[idx].color_primaries;
         avctx->colorspace      = dirac_color_presets[idx].colorspace;
@@ -217,20 +228,23 @@ static int parse_source_parameters(AVCodecContext *avctx, GetBitContext *gb,
         if (!source->color_spec_index) {
             if (get_bits1(gb)) {
                 idx = svq3_get_ue_golomb(gb);
-                if (idx < 3)
+                if (idx < 3) {
                     avctx->color_primaries = dirac_primaries[idx];
+                }
             }
 
             if (get_bits1(gb)) {
                 idx = svq3_get_ue_golomb(gb);
-                if (!idx)
+                if (!idx) {
                     avctx->colorspace = AVCOL_SPC_BT709;
-                else if (idx == 1)
+                } else if (idx == 1) {
                     avctx->colorspace = AVCOL_SPC_BT470BG;
+                }
             }
 
-            if (get_bits1(gb) && !svq3_get_ue_golomb(gb))
+            if (get_bits1(gb) && !svq3_get_ue_golomb(gb)) {
                 avctx->color_trc = AVCOL_TRC_BT709;
+            }
         }
     } else {
         idx = source->color_spec_index;
@@ -254,23 +268,27 @@ int ff_dirac_parse_sequence_header(AVCodecContext *avctx, GetBitContext *gb,
     avctx->level   = svq3_get_ue_golomb(gb);
     video_format   = svq3_get_ue_golomb(gb);
 
-    if (version_major < 2)
+    if (version_major < 2) {
         av_log(avctx, AV_LOG_WARNING, "Stream is old and may not work\n");
-    else if (version_major > 2)
+    } else if (version_major > 2) {
         av_log(avctx, AV_LOG_WARNING, "Stream may have unhandled features\n");
+    }
 
-    if (video_format > 20)
+    if (video_format > 20) {
         return -1;
+    }
 
     // Fill in defaults for the source parameters.
     *source = dirac_source_parameters_defaults[video_format];
 
     // Override the defaults.
-    if (parse_source_parameters(avctx, gb, source))
+    if (parse_source_parameters(avctx, gb, source)) {
         return -1;
+    }
 
-    if (av_image_check_size(source->width, source->height, 0, avctx))
+    if (av_image_check_size(source->width, source->height, 0, avctx)) {
         return -1;
+    }
 
     avcodec_set_dimensions(avctx, source->width, source->height);
 

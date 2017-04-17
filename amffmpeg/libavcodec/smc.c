@@ -117,7 +117,7 @@ static void smc_decode_stream(SmcContext *s)
     stream_ptr += 4;
     if (chunk_size != s->size)
         av_log(s->avctx, AV_LOG_INFO, "warning: MOV chunk size != encoded chunk size (%d != %d); using MOV chunk size\n",
-            chunk_size, s->size);
+               chunk_size, s->size);
 
     chunk_size = s->size;
     total_blocks = ((s->avctx->width + 3) / 4) * ((s->avctx->height + 3) / 4);
@@ -128,13 +128,13 @@ static void smc_decode_stream(SmcContext *s)
         /* make sure stream ptr hasn't gone out of bounds */
         if (stream_ptr > chunk_size) {
             av_log(s->avctx, AV_LOG_INFO, "SMC decoder just went out of bounds (stream ptr = %d, chunk size = %d)\n",
-                stream_ptr, chunk_size);
+                   stream_ptr, chunk_size);
             return;
         }
         /* make sure the row pointer hasn't gone wild */
         if (row_ptr >= image_size) {
             av_log(s->avctx, AV_LOG_INFO, "SMC decoder just went out of bounds (row ptr = %d, height = %d)\n",
-                row_ptr, image_size);
+                   row_ptr, image_size);
             return;
         }
 
@@ -157,7 +157,7 @@ static void smc_decode_stream(SmcContext *s)
             /* sanity check */
             if ((row_ptr == 0) && (pixel_ptr == 0)) {
                 av_log(s->avctx, AV_LOG_INFO, "encountered repeat block opcode (%02X) but no blocks rendered yet\n",
-                    opcode & 0xF0);
+                       opcode & 0xF0);
                 break;
             }
 
@@ -165,8 +165,9 @@ static void smc_decode_stream(SmcContext *s)
             if (pixel_ptr == 0)
                 prev_block_ptr1 =
                     (row_ptr - s->avctx->width * 4) + s->avctx->width - 4;
-            else
+            else {
                 prev_block_ptr1 = row_ptr + pixel_ptr - 4;
+            }
 
             while (n_blocks--) {
                 block_ptr = row_ptr + pixel_ptr;
@@ -191,31 +192,34 @@ static void smc_decode_stream(SmcContext *s)
             /* sanity check */
             if ((row_ptr == 0) && (pixel_ptr < 2 * 4)) {
                 av_log(s->avctx, AV_LOG_INFO, "encountered repeat block opcode (%02X) but not enough blocks rendered yet\n",
-                    opcode & 0xF0);
+                       opcode & 0xF0);
                 break;
             }
 
             /* figure out where the previous 2 blocks started */
             if (pixel_ptr == 0)
                 prev_block_ptr1 = (row_ptr - s->avctx->width * 4) +
-                    s->avctx->width - 4 * 2;
-            else if (pixel_ptr == 4)
+                                  s->avctx->width - 4 * 2;
+            else if (pixel_ptr == 4) {
                 prev_block_ptr1 = (row_ptr - s->avctx->width * 4) + row_inc;
-            else
+            } else {
                 prev_block_ptr1 = row_ptr + pixel_ptr - 4 * 2;
+            }
 
-            if (pixel_ptr == 0)
+            if (pixel_ptr == 0) {
                 prev_block_ptr2 = (row_ptr - s->avctx->width * 4) + row_inc;
-            else
+            } else {
                 prev_block_ptr2 = row_ptr + pixel_ptr - 4;
+            }
 
             prev_block_flag = 0;
             while (n_blocks--) {
                 block_ptr = row_ptr + pixel_ptr;
-                if (prev_block_flag)
+                if (prev_block_flag) {
                     prev_block_ptr = prev_block_ptr2;
-                else
+                } else {
                     prev_block_ptr = prev_block_ptr1;
+                }
                 prev_block_flag = !prev_block_flag;
 
                 for (pixel_y = 0; pixel_y < 4; pixel_y++) {
@@ -265,10 +269,12 @@ static void smc_decode_stream(SmcContext *s)
                 color_table_index = CPAIR * color_pair_index;
                 color_pair_index++;
                 /* wraparound */
-                if (color_pair_index == COLORS_PER_TABLE)
+                if (color_pair_index == COLORS_PER_TABLE) {
                     color_pair_index = 0;
-            } else
+                }
+            } else {
                 color_table_index = CPAIR * s->buf[stream_ptr++];
+            }
 
             while (n_blocks--) {
                 color_flags = AV_RB16(&s->buf[stream_ptr]);
@@ -277,10 +283,11 @@ static void smc_decode_stream(SmcContext *s)
                 block_ptr = row_ptr + pixel_ptr;
                 for (pixel_y = 0; pixel_y < 4; pixel_y++) {
                     for (pixel_x = 0; pixel_x < 4; pixel_x++) {
-                        if (color_flags & flag_mask)
+                        if (color_flags & flag_mask) {
                             pixel = color_table_index + 1;
-                        else
+                        } else {
                             pixel = color_table_index;
+                        }
                         flag_mask >>= 1;
                         pixels[block_ptr++] = s->color_pairs[pixel];
                     }
@@ -308,10 +315,12 @@ static void smc_decode_stream(SmcContext *s)
                 color_table_index = CQUAD * color_quad_index;
                 color_quad_index++;
                 /* wraparound */
-                if (color_quad_index == COLORS_PER_TABLE)
+                if (color_quad_index == COLORS_PER_TABLE) {
                     color_quad_index = 0;
-            } else
+                }
+            } else {
                 color_table_index = CQUAD * s->buf[stream_ptr++];
+            }
 
             while (n_blocks--) {
                 color_flags = AV_RB32(&s->buf[stream_ptr]);
@@ -322,7 +331,7 @@ static void smc_decode_stream(SmcContext *s)
                 for (pixel_y = 0; pixel_y < 4; pixel_y++) {
                     for (pixel_x = 0; pixel_x < 4; pixel_x++) {
                         pixel = color_table_index +
-                            ((color_flags >> flag_mask) & 0x03);
+                                ((color_flags >> flag_mask) & 0x03);
                         flag_mask -= 2;
                         pixels[block_ptr++] = s->color_quads[pixel];
                     }
@@ -350,10 +359,12 @@ static void smc_decode_stream(SmcContext *s)
                 color_table_index = COCTET * color_octet_index;
                 color_octet_index++;
                 /* wraparound */
-                if (color_octet_index == COLORS_PER_TABLE)
+                if (color_octet_index == COLORS_PER_TABLE) {
                     color_octet_index = 0;
-            } else
+                }
+            } else {
                 color_table_index = COCTET * s->buf[stream_ptr++];
+            }
 
             while (n_blocks--) {
                 /*
@@ -364,8 +375,8 @@ static void smc_decode_stream(SmcContext *s)
                 */
                 /* build the color flags */
                 color_flags_a =
-                    ((AV_RB16(s->buf + stream_ptr    ) & 0xFFF0) << 8) |
-                     (AV_RB16(s->buf + stream_ptr + 2) >> 4);
+                    ((AV_RB16(s->buf + stream_ptr) & 0xFFF0) << 8) |
+                    (AV_RB16(s->buf + stream_ptr + 2) >> 4);
                 color_flags_b =
                     ((AV_RB16(s->buf + stream_ptr + 4) & 0xFFF0) << 8) |
                     ((s->buf[stream_ptr + 1] & 0x0F) << 8) |
@@ -385,7 +396,7 @@ static void smc_decode_stream(SmcContext *s)
                     }
                     for (pixel_x = 0; pixel_x < 4; pixel_x++) {
                         pixel = color_table_index +
-                            ((color_flags >> flag_mask) & 0x07);
+                                ((color_flags >> flag_mask) & 0x07);
                         flag_mask -= 3;
                         pixels[block_ptr++] = s->color_octets[pixel];
                     }
@@ -432,8 +443,8 @@ static av_cold int smc_decode_init(AVCodecContext *avctx)
 }
 
 static int smc_decode_frame(AVCodecContext *avctx,
-                             void *data, int *data_size,
-                             AVPacket *avpkt)
+                            void *data, int *data_size,
+                            AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;
@@ -469,8 +480,9 @@ static av_cold int smc_decode_end(AVCodecContext *avctx)
 {
     SmcContext *s = avctx->priv_data;
 
-    if (s->frame.data[0])
+    if (s->frame.data[0]) {
         avctx->release_buffer(avctx, &s->frame);
+    }
 
     return 0;
 }

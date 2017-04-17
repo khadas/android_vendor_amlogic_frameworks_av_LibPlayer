@@ -53,7 +53,7 @@ typedef struct RLTable {
  * @param static_store static uint8_t array[2][2*MAX_RUN + MAX_LEVEL + 3] which will hold
  *                     the level and run tables, if this is NULL av_malloc() will be used
  */
-void init_rl(RLTable *rl, uint8_t static_store[2][2*MAX_RUN + MAX_LEVEL + 3]);
+void init_rl(RLTable *rl, uint8_t static_store[2][2 * MAX_RUN + MAX_LEVEL + 3]);
 void init_vlc_rl(RLTable *rl);
 
 #define INIT_VLC_RL(rl, static_size)\
@@ -76,10 +76,12 @@ static inline int get_rl_index(const RLTable *rl, int last, int run, int level)
 {
     int index;
     index = rl->index_run[last][run];
-    if (index >= rl->n)
+    if (index >= rl->n) {
         return rl->n;
-    if (level > rl->max_level[last][run])
+    }
+    if (level > rl->max_level[last][run]) {
         return rl->n;
+    }
     return index + level - 1;
 }
 

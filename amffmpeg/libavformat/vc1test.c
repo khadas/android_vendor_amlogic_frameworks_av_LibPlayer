@@ -33,16 +33,18 @@
 
 static int vc1t_probe(AVProbeData *p)
 {
-    if (p->buf_size < 24)
+    if (p->buf_size < 24) {
         return 0;
-    if (p->buf[3] != 0xC5 || AV_RL32(&p->buf[4]) != 4 || AV_RL32(&p->buf[20]) != 0xC)
+    }
+    if (p->buf[3] != 0xC5 || AV_RL32(&p->buf[4]) != 4 || AV_RL32(&p->buf[20]) != 0xC) {
         return 0;
+    }
 
-    return AVPROBE_SCORE_MAX/2;
+    return AVPROBE_SCORE_MAX / 2;
 }
 
 static int vc1t_read_header(AVFormatContext *s,
-                           AVFormatParameters *ap)
+                            AVFormatParameters *ap)
 {
     AVIOContext *pb = s->pb;
     AVStream *st;
@@ -50,13 +52,15 @@ static int vc1t_read_header(AVFormatContext *s,
     uint32_t fps;
 
     frames = avio_rl24(pb);
-    if(avio_r8(pb) != 0xC5 || avio_rl32(pb) != 4)
+    if (avio_r8(pb) != 0xC5 || avio_rl32(pb) != 4) {
         return -1;
+    }
 
     /* init video codec */
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return -1;
+    }
 
     st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
     st->codec->codec_id = CODEC_ID_WMV3;
@@ -66,13 +70,14 @@ static int vc1t_read_header(AVFormatContext *s,
     avio_read(pb, st->codec->extradata, VC1_EXTRADATA_SIZE);
     st->codec->height = avio_rl32(pb);
     st->codec->width = avio_rl32(pb);
-    if(avio_rl32(pb) != 0xC)
+    if (avio_rl32(pb) != 0xC) {
         return -1;
+    }
     avio_skip(pb, 8);
     fps = avio_rl32(pb);
-    if(fps == 0xFFFFFFFF)
+    if (fps == 0xFFFFFFFF) {
         av_set_pts_info(st, 32, 1, 1000);
-    else{
+    } else {
         if (!fps) {
             av_log(s, AV_LOG_ERROR, "Zero FPS specified, defaulting to 1 FPS\n");
             fps = 1;
@@ -85,24 +90,28 @@ static int vc1t_read_header(AVFormatContext *s,
 }
 
 static int vc1t_read_packet(AVFormatContext *s,
-                           AVPacket *pkt)
+                            AVPacket *pkt)
 {
     AVIOContext *pb = s->pb;
     int frame_size;
     int keyframe = 0;
     uint32_t pts;
 
-    if(url_feof(pb))
+    if (url_feof(pb)) {
         return AVERROR(EIO);
+    }
 
     frame_size = avio_rl24(pb);
-    if(avio_r8(pb) & 0x80)
+    if (avio_r8(pb) & 0x80) {
         keyframe = 1;
+    }
     pts = avio_rl32(pb);
-    if(av_get_packet(pb, pkt, frame_size) < 0)
+    if (av_get_packet(pb, pkt, frame_size) < 0) {
         return AVERROR(EIO);
-    if(s->streams[0]->time_base.den == 1000)
+    }
+    if (s->streams[0]->time_base.den == 1000) {
         pkt->pts = pts;
+    }
     pkt->flags |= keyframe ? AV_PKT_FLAG_KEY : 0;
     pkt->pos -= 8;
 

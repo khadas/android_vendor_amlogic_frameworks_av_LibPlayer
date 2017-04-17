@@ -97,7 +97,9 @@ int bandwidth_measure_get_bandwidth(void  *band, int *fast_band, int *mid_band, 
 {
     struct ratesdata *rates = (struct ratesdata *)band;
     int64_t time_us;
-
+    if (band == NULL) {
+        return 0;
+    }
     time_us = rates->latest_f_duration_us;
     if (time_us > 0 && rates->latest_f_bytes > 0) {
         *fast_band = (int64_t)rates->latest_f_bytes * 8 * 1000 * 1000 / time_us;    /*bits per seconds*/

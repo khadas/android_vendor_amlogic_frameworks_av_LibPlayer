@@ -57,8 +57,8 @@ static av_cold int aasc_decode_init(AVCodecContext *avctx)
 }
 
 static int aasc_decode_frame(AVCodecContext *avctx,
-                              void *data, int *data_size,
-                              AVPacket *avpkt)
+                             void *data, int *data_size,
+                             AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;
@@ -75,11 +75,11 @@ static int aasc_decode_frame(AVCodecContext *avctx,
     compr = AV_RL32(buf);
     buf += 4;
     buf_size -= 4;
-    switch(compr){
+    switch (compr) {
     case 0:
         stride = (avctx->width * 3 + 3) & ~3;
-        for(i = avctx->height - 1; i >= 0; i--){
-            memcpy(s->frame.data[0] + i*s->frame.linesize[0], buf, avctx->width*3);
+        for (i = avctx->height - 1; i >= 0; i--) {
+            memcpy(s->frame.data[0] + i * s->frame.linesize[0], buf, avctx->width * 3);
             buf += stride;
         }
         break;
@@ -103,8 +103,9 @@ static av_cold int aasc_decode_end(AVCodecContext *avctx)
     AascContext *s = avctx->priv_data;
 
     /* release the last frame */
-    if (s->frame.data[0])
+    if (s->frame.data[0]) {
         avctx->release_buffer(avctx, &s->frame);
+    }
 
     return 0;
 }

@@ -28,8 +28,9 @@ static int chomp_filter(AVBitStreamFilterContext *bsfc,
                         const uint8_t *buf, int      buf_size,
                         int keyframe)
 {
-    while (buf_size > 0 && !buf[buf_size-1])
+    while (buf_size > 0 && !buf[buf_size - 1]) {
         buf_size--;
+    }
 
     *poutbuf = (uint8_t*) buf;
     *poutbuf_size = buf_size;

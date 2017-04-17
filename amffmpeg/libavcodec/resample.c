@@ -92,16 +92,26 @@ static void mono_to_stereo(short *output, short *input, int n1)
     p = input;
     q = output;
     while (n >= 4) {
-        v = p[0]; q[0] = v; q[1] = v;
-        v = p[1]; q[2] = v; q[3] = v;
-        v = p[2]; q[4] = v; q[5] = v;
-        v = p[3]; q[6] = v; q[7] = v;
+        v = p[0];
+        q[0] = v;
+        q[1] = v;
+        v = p[1];
+        q[2] = v;
+        q[3] = v;
+        v = p[2];
+        q[4] = v;
+        q[5] = v;
+        v = p[3];
+        q[6] = v;
+        q[7] = v;
         q += 8;
         p += 4;
         n -= 4;
     }
     while (n > 0) {
-        v = p[0]; q[0] = v; q[1] = v;
+        v = p[0];
+        q[0] = v;
+        q[1] = v;
         q += 2;
         p += 1;
         n--;
@@ -121,7 +131,7 @@ static void surround_to_stereo(short **output, short *input, int channels, int s
     short l, r;
 
     for (i = 0; i < samples; i++) {
-        int fl,fr,c,rl,rr,lfe;
+        int fl, fr, c, rl, rr, lfe;
         fl = input[0];
         fr = input[1];
         c = input[2];
@@ -210,14 +220,15 @@ ReSampleContext *av_audio_resample_init(int output_channels, int input_channels,
                MAX_CHANNELS);
         return NULL;
     }
-    if (!(supported_resampling[input_channels-1] & (1<<(output_channels-1)))) {
+    if (!(supported_resampling[input_channels - 1] & (1 << (output_channels - 1)))) {
         int i;
         av_log(NULL, AV_LOG_ERROR, "Unsupported audio resampling. Allowed "
                "output channels for %d input channel%s", input_channels,
                input_channels > 1 ? "s:" : ":");
         for (i = 0; i < MAX_CHANNELS; i++)
-            if (supported_resampling[input_channels-1] & (1<<i))
+            if (supported_resampling[input_channels - 1] & (1 << i)) {
                 av_log(NULL, AV_LOG_ERROR, " %d", i + 1);
+            }
         av_log(NULL, AV_LOG_ERROR, "\n");
         return NULL;
     }
@@ -234,8 +245,9 @@ ReSampleContext *av_audio_resample_init(int output_channels, int input_channels,
     s->output_channels = output_channels;
 
     s->filter_channels = s->input_channels;
-    if (s->output_channels < s->filter_channels)
+    if (s->output_channels < s->filter_channels) {
         s->filter_channels = s->output_channels;
+    }
 
     s->sample_fmt[0]  = sample_fmt_in;
     s->sample_fmt[1]  = sample_fmt_out;
@@ -244,7 +256,7 @@ ReSampleContext *av_audio_resample_init(int output_channels, int input_channels,
 
     if (s->sample_fmt[0] != AV_SAMPLE_FMT_S16) {
         if (!(s->convert_ctx[0] = av_audio_convert_alloc(AV_SAMPLE_FMT_S16, 1,
-                                                         s->sample_fmt[0], 1, NULL, 0))) {
+                                  s->sample_fmt[0], 1, NULL, 0))) {
             av_log(s, AV_LOG_ERROR,
                    "Cannot convert %s sample format to s16 sample format\n",
                    av_get_sample_fmt_name(s->sample_fmt[0]));
@@ -255,7 +267,7 @@ ReSampleContext *av_audio_resample_init(int output_channels, int input_channels,
 
     if (s->sample_fmt[1] != AV_SAMPLE_FMT_S16) {
         if (!(s->convert_ctx[1] = av_audio_convert_alloc(s->sample_fmt[1], 1,
-                                                         AV_SAMPLE_FMT_S16, 1, NULL, 0))) {
+                                  AV_SAMPLE_FMT_S16, 1, NULL, 0))) {
             av_log(s, AV_LOG_ERROR,
                    "Cannot convert s16 sample format to %s sample format\n",
                    av_get_sample_fmt_name(s->sample_fmt[1]));
@@ -321,7 +333,7 @@ int audio_resample(ReSampleContext *s, short *output, short *input, int nb_sampl
         input = s->buffer[0];
     }
 
-    lenout= 2*s->output_channels*nb_samples * s->ratio + 16;
+    lenout = 2 * s->output_channels * nb_samples * s->ratio + 16;
 
     if (s->sample_fmt[1] != AV_SAMPLE_FMT_S16) {
         output_bak = output;
@@ -353,7 +365,7 @@ int audio_resample(ReSampleContext *s, short *output, short *input, int nb_sampl
     } else if (s->output_channels >= 2 && s->input_channels == 1) {
         buftmp3[0] = bufout[0];
         memcpy(buftmp2[0], input, nb_samples * sizeof(short));
-    } else if (s->input_channels == 6 && s->output_channels ==2) {
+    } else if (s->input_channels == 6 && s->output_channels == 2) {
         buftmp3[0] = bufout[0];
         buftmp3[1] = bufout[1];
         surround_to_stereo(buftmp2, input, s->input_channels, nb_samples);
@@ -417,8 +429,9 @@ void audio_resample_close(ReSampleContext *s)
 {
     int i;
     av_resample_close(s->resample_context);
-    for (i = 0; i < s->filter_channels; i++)
+    for (i = 0; i < s->filter_channels; i++) {
         av_freep(&s->temp[i]);
+    }
     av_freep(&s->buffer[0]);
     av_freep(&s->buffer[1]);
     av_audio_convert_free(s->convert_ctx[0]);

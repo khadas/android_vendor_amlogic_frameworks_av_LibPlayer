@@ -25,7 +25,8 @@ static struct profile_manger profile_mgt = {0};
 #define FLAGS_PROFILE_CHANGED       (FLAGS_APROFILE_CHANGED | FLAGS_VPROFILE_CHANGED)
 
 
-static inline struct profile_manger *get_profile_mgt(void) {
+static inline struct profile_manger *get_profile_mgt(void)
+{
     return &profile_mgt;
 }
 
@@ -81,7 +82,7 @@ static int parse_h264_param(char *str, sys_h264_profile_t *para, int size)
 
     log_info("h264 decoder exist.");
     if (strstr(str, "4k")) {
-        para->support_4k= 1;
+        para->support_4k = 1;
     }
     return 0;
 }
@@ -133,7 +134,6 @@ static int parse_vp9_param(char *str, sys_hevc_profile_t *para, int size)
     }
     return 0;
 }
-
 
 static int parse_real_param(char *str, sys_real_profile_t *para, int size)
 {
@@ -222,10 +222,11 @@ static int parse_sysparam_str(vdec_profile_t *m_vdec_profiles, char *str)
     int pos_start, pos_end;
     char *p;
     char *substr[] = {"vc1:", "h264:", "real:", "mpeg12:", "mpeg4:", "mjpeg:",
-         "h264_4k2k:", "hmvc:", "hevc:", "avs:","vp9:"};
+                      "h264_4k2k:", "hmvc:", "hevc:", "avs:", "vp9:"
+                     };
     for (j = 0; j < sizeof(substr) / sizeof(char *); j ++) {
         char line[256];
-        int line_len=0;
+        int line_len = 0;
         p = strstr(str, substr[j]);
         if (p != NULL) {
             pos_start = p - str;
@@ -235,7 +236,7 @@ static int parse_sysparam_str(vdec_profile_t *m_vdec_profiles, char *str)
             }
             pos_end = i;
             line_len = pos_end - pos_start;
-            line_len = MIN(line_len,255);
+            line_len = MIN(line_len, 255);
             strncpy(line, str + pos_start, line_len);
             line[line_len] = '\0';
             log_print("[%s]parser tag:%s line:%s\n", __FUNCTION__, substr[j], line);

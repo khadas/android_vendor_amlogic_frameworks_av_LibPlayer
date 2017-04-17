@@ -1,11 +1,16 @@
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
+
+include $(TOP)/hardware/amlogic/media/media_base_config.mk
+
 LOCAL_SRC_FILES := $(notdir $(wildcard $(LOCAL_PATH)/*.c)) 		
 
 LOCAL_C_INCLUDES := $(TOP)/external/curl/include \
+		$(AMAVUTILS_PATH)/include \
+        $(LOCAL_PATH)/../../../amffmpeg \
         $(LOCAL_PATH)/../include
 
-LOCAL_SHARED_LIBRARIES += libcurl
+LOCAL_SHARED_LIBRARIES += libcurl libutils libamavutils libamplayer
 
 LOCAL_MODULE := libcurl_base
 LOCAL_MODULE_TAGS := optional

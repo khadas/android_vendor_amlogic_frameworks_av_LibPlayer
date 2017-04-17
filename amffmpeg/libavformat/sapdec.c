@@ -43,18 +43,21 @@ struct SAPState {
 
 static int sap_probe(AVProbeData *p)
 {
-    if (av_strstart(p->filename, "sap:", NULL))
+    if (av_strstart(p->filename, "sap:", NULL)) {
         return AVPROBE_SCORE_MAX;
+    }
     return 0;
 }
 
 static int sap_read_close(AVFormatContext *s)
 {
     struct SAPState *sap = s->priv_data;
-    if (sap->sdp_ctx)
+    if (sap->sdp_ctx) {
         av_close_input_file(sap->sdp_ctx);
-    if (sap->ann_fd)
+    }
+    if (sap->ann_fd) {
         ffurl_close(sap->ann_fd);
+    }
     av_freep(&sap->sdp);
     ff_network_close();
     return 0;
@@ -70,13 +73,15 @@ static int sap_read_header(AVFormatContext *s,
     int ret, i;
     AVInputFormat* infmt;
 
-    if (!ff_network_init())
+    if (!ff_network_init()) {
         return AVERROR(EIO);
+    }
 
     av_url_split(NULL, 0, NULL, 0, host, sizeof(host), &port,
                  path, sizeof(path), s->filename);
-    if (port < 0)
+    if (port < 0) {
         port = 9875;
+    }
 
     if (!host[0]) {
         /* Listen for announcements on sap.mcast.net if no host was specified */
@@ -86,18 +91,21 @@ static int sap_read_header(AVFormatContext *s,
     ff_url_join(url, sizeof(url), "udp", NULL, host, port, "?localport=%d",
                 port);
     ret = ffurl_open(&sap->ann_fd, url, AVIO_FLAG_READ);
-    if (ret)
+    if (ret) {
         goto fail;
+    }
 
     while (1) {
         int addr_type, auth_len;
         int pos;
 
         ret = ffurl_read(sap->ann_fd, recvbuf, sizeof(recvbuf) - 1);
-        if (ret == AVERROR(EAGAIN))
+        if (ret == AVERROR(EAGAIN)) {
             continue;
-        if (ret < 0)
+        }
+        if (ret < 0) {
             goto fail;
+        }
         recvbuf[ret] = '\0'; /* Null terminate for easier parsing */
         if (ret < 8) {
             av_log(s, AV_LOG_WARNING, "Received too short packet\n");
@@ -106,23 +114,24 @@ static int sap_read_header(AVFormatContext *s,
 
         if ((recvbuf[0] & 0xe0) != 0x20) {
             av_log(s, AV_LOG_WARNING, "Unsupported SAP version packet "
-                                      "received\n");
+                   "received\n");
             continue;
         }
 
         if (recvbuf[0] & 0x04) {
             av_log(s, AV_LOG_WARNING, "Received stream deletion "
-                                      "announcement\n");
+                   "announcement\n");
             continue;
         }
         addr_type = recvbuf[0] & 0x10;
         auth_len  = recvbuf[1];
         sap->hash = AV_RB16(&recvbuf[2]);
         pos = 4;
-        if (addr_type)
-            pos += 16; /* IPv6 */
-        else
-            pos += 4; /* IPv4 */
+        if (addr_type) {
+            pos += 16;    /* IPv6 */
+        } else {
+            pos += 4;    /* IPv4 */
+        }
         pos += auth_len * 4;
         if (pos + 4 >= ret) {
             av_log(s, AV_LOG_WARNING, "Received too short packet\n");
@@ -135,7 +144,7 @@ static int sap_read_header(AVFormatContext *s,
             // Direct SDP without a mime type
         } else {
             av_log(s, AV_LOG_WARNING, "Unsupported mime type %s\n",
-                                      &recvbuf[pos]);
+                   &recvbuf[pos]);
             continue;
         }
 
@@ -145,11 +154,12 @@ static int sap_read_header(AVFormatContext *s,
 
     av_log(s, AV_LOG_VERBOSE, "SDP:\n%s\n", sap->sdp);
     ffio_init_context(&sap->sdp_pb, sap->sdp, strlen(sap->sdp), 0, NULL, NULL,
-                  NULL, NULL);
+                      NULL, NULL);
 
     infmt = av_find_input_format("sdp");
-    if (!infmt)
+    if (!infmt) {
         goto fail;
+    }
     sap->sdp_ctx = avformat_alloc_context();
     if (!sap->sdp_ctx) {
         ret = AVERROR(ENOMEM);
@@ -158,10 +168,12 @@ static int sap_read_header(AVFormatContext *s,
     sap->sdp_ctx->max_delay = s->max_delay;
     sap->sdp_ctx->pb        = &sap->sdp_pb;
     ret = avformat_open_input(&sap->sdp_ctx, "temp.sdp", infmt, NULL);
-    if (ret < 0)
+    if (ret < 0) {
         goto fail;
-    if (sap->sdp_ctx->ctx_flags & AVFMTCTX_NOHEADER)
+    }
+    if (sap->sdp_ctx->ctx_flags & AVFMTCTX_NOHEADER) {
         s->ctx_flags |= AVFMTCTX_NOHEADER;
+    }
     for (i = 0; i < sap->sdp_ctx->nb_streams; i++) {
         AVStream *st = av_new_stream(s, i);
         if (!st) {
@@ -187,13 +199,15 @@ static int sap_fetch_packet(AVFormatContext *s, AVPacket *pkt)
     struct pollfd p = {fd, POLLIN, 0};
     uint8_t recvbuf[1500];
 
-    if (sap->eof)
+    if (sap->eof) {
         return AVERROR_EOF;
+    }
 
     while (1) {
         n = poll(&p, 1, 0);
-        if (n <= 0 || !(p.revents & POLLIN))
+        if (n <= 0 || !(p.revents & POLLIN)) {
             break;
+        }
         ret = ffurl_read(sap->ann_fd, recvbuf, sizeof(recvbuf));
         if (ret >= 8) {
             uint16_t hash = AV_RB16(&recvbuf[2]);
@@ -206,8 +220,9 @@ static int sap_fetch_packet(AVFormatContext *s, AVPacket *pkt)
         }
     }
     ret = av_read_frame(sap->sdp_ctx, pkt);
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
+    }
     if (s->ctx_flags & AVFMTCTX_NOHEADER) {
         while (sap->sdp_ctx->nb_streams > s->nb_streams) {
             int i = s->nb_streams;

@@ -94,6 +94,6 @@ enum DCTTransformType {
  */
 DCTContext *av_dct_init(int nbits, enum DCTTransformType type);
 void av_dct_calc(DCTContext *s, FFTSample *data);
-void av_dct_end (DCTContext *s);
+void av_dct_end(DCTContext *s);
 
 #endif /* AVCODEC_AVFFT_H */

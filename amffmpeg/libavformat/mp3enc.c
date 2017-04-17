@@ -37,8 +37,9 @@ static int id3v1_set_string(AVFormatContext *s, const char *key,
                             uint8_t *buf, int buf_size)
 {
     AVDictionaryEntry *tag;
-    if ((tag = av_dict_get(s->metadata, key, NULL, 0)))
+    if ((tag = av_dict_get(s->metadata, key, NULL, 0))) {
         av_strlcpy(buf, tag->value, buf_size);
+    }
     return !!tag;
 }
 
@@ -63,7 +64,7 @@ static int id3v1_create_tag(AVFormatContext *s, uint8_t *buf)
     }
     buf[127] = 0xFF; /* default to unknown genre */
     if ((tag = av_dict_get(s->metadata, "TCON", NULL, 0))) { //genre
-        for(i = 0; i <= ID3v1_GENRE_MAX; i++) {
+        for (i = 0; i <= ID3v1_GENRE_MAX; i++) {
             if (!strcasecmp(tag->value, ff_id3v1_genre_str[i])) {
                 buf[127] = i;
                 count++;
@@ -86,7 +87,9 @@ static void id3v2_put_size(AVFormatContext *s, int size)
 
 static int string_is_ascii(const uint8_t *str)
 {
-    while (*str && *str < 128) str++;
+    while (*str && *str < 128) {
+        str++;
+    }
     return !*str;
 }
 
@@ -102,25 +105,29 @@ static int id3v2_put_ttag(AVFormatContext *s, const char *str1, const char *str2
     uint8_t *pb;
     int (*put)(AVIOContext*, const char*);
     AVIOContext *dyn_buf;
-    if (avio_open_dyn_buf(&dyn_buf) < 0)
+    if (avio_open_dyn_buf(&dyn_buf) < 0) {
         return AVERROR(ENOMEM);
+    }
 
     /* check if the strings are ASCII-only and use UTF16 only if
      * they're not */
     if (enc == ID3v2_ENCODING_UTF16BOM && string_is_ascii(str1) &&
-        (!str2 || string_is_ascii(str2)))
+        (!str2 || string_is_ascii(str2))) {
         enc = ID3v2_ENCODING_ISO8859;
+    }
 
     avio_w8(dyn_buf, enc);
     if (enc == ID3v2_ENCODING_UTF16BOM) {
         avio_wl16(dyn_buf, 0xFEFF);      /* BOM */
         put = avio_put_str16le;
-    } else
+    } else {
         put = avio_put_str;
+    }
 
     put(dyn_buf, str1);
-    if (str2)
+    if (str2) {
         put(dyn_buf, str2);
+    }
     len = avio_close_dyn_buf(dyn_buf, &pb);
 
     avio_wb32(s->pb, tag);
@@ -175,8 +182,10 @@ typedef struct MP3Context {
 } MP3Context;
 
 static const AVOption options[] = {
-    { "id3v2_version", "Select ID3v2 version to write. Currently 3 and 4 are supported.",
-      offsetof(MP3Context, id3v2_version), FF_OPT_TYPE_INT, {.dbl = 4}, 3, 4, AV_OPT_FLAG_ENCODING_PARAM},
+    {
+        "id3v2_version", "Select ID3v2 version to write. Currently 3 and 4 are supported.",
+        offsetof(MP3Context, id3v2_version), FF_OPT_TYPE_INT, {.dbl = 4}, 3, 4, AV_OPT_FLAG_ENCODING_PARAM
+    },
     { NULL },
 };
 
@@ -193,16 +202,18 @@ static int id3v2_check_write_tag(AVFormatContext *s, AVDictionaryEntry *t, const
     uint32_t tag;
     int i;
 
-    if (t->key[0] != 'T' || strlen(t->key) != 4)
+    if (t->key[0] != 'T' || strlen(t->key) != 4) {
         return -1;
+    }
     tag = AV_RB32(t->key);
     for (i = 0; *table[i]; i++)
-        if (tag == AV_RB32(table[i]))
+        if (tag == AV_RB32(table[i])) {
             return id3v2_put_ttag(s, t->value, NULL, tag, enc);
+        }
     return -1;
 }
 
-static const int64_t xing_offtbl[2][2] = {{32, 17}, {17,9}};
+static const int64_t xing_offtbl[2][2] = {{32, 17}, {17, 9}};
 
 /*
  * Write an empty XING header and initialize respective data.
@@ -229,9 +240,15 @@ static int mp3_write_xing(AVFormatContext *s)
     }
 
     switch (codec->channels) {
-    case 1:  channels = MPA_MONO;                                          break;
-    case 2:  channels = MPA_STEREO;                                        break;
-    default: av_log(s, AV_LOG_ERROR, "Unsupported number of channels.\n"); return -1;
+    case 1:
+        channels = MPA_MONO;
+        break;
+    case 2:
+        channels = MPA_STEREO;
+        break;
+    default:
+        av_log(s, AV_LOG_ERROR, "Unsupported number of channels.\n");
+        return -1;
     }
 
     /* dummy MPEG audio header */
@@ -241,23 +258,25 @@ static int mp3_write_xing(AVFormatContext *s)
     header |= channels << 6;
 
     for (;;) {
-        if (15 == bitrate_idx)
+        if (15 == bitrate_idx) {
             return -1;
+        }
 
         mask = (bitrate_idx << 4) <<  8;
         header |= mask;
         ff_mpegaudio_decode_header(&c, header);
-        xing_offset=xing_offtbl[c.lsf == 1][c.nb_channels == 1];
+        xing_offset = xing_offtbl[c.lsf == 1][c.nb_channels == 1];
         needed = 4              // header
-               + xing_offset
-               + 4              // xing tag
-               + 4              // frames/size/toc flags
-               + 4              // frames
-               + 4              // size
-               + VBR_TOC_SIZE;  // toc
+                 + xing_offset
+                 + 4              // xing tag
+                 + 4              // frames/size/toc flags
+                 + 4              // frames
+                 + 4              // size
+                 + VBR_TOC_SIZE;  // toc
 
-        if (needed <= c.frame_size)
+        if (needed <= c.frame_size) {
             break;
+        }
 
         header &= ~mask;
         ++bitrate_idx;
@@ -270,16 +289,17 @@ static int mp3_write_xing(AVFormatContext *s)
 
     mp3->frames_offset = avio_tell(s->pb);
     mp3->size = c.frame_size;
-    mp3->want=1;
-    mp3->seen=0;
-    mp3->pos=0;
+    mp3->want = 1;
+    mp3->seen = 0;
+    mp3->pos = 0;
 
     avio_wb32(s->pb, 0);  // frames
     avio_wb32(s->pb, 0);  // size
 
     // toc
-    for (i = 0; i < VBR_TOC_SIZE; ++i)
+    for (i = 0; i < VBR_TOC_SIZE; ++i) {
         avio_w8(s->pb, (uint8_t)(255 * i / VBR_TOC_SIZE));
+    }
 
     ffio_fill(s->pb, 0, c.frame_size - needed);
     avio_flush(s->pb);
@@ -304,8 +324,9 @@ static void mp3_xing_add_frame(AVFormatContext *s, AVPacket *pkt)
 
         if (VBR_NUM_BAGS == ++mp3->pos) {
             /* shrink table to half size by throwing away each second bag. */
-            for (i = 1; i < VBR_NUM_BAGS; i += 2)
+            for (i = 1; i < VBR_NUM_BAGS; i += 2) {
                 mp3->bag[i >> 1] = mp3->bag[i];
+            }
 
             /* double wanted amount per bag. */
             mp3->want <<= 1;
@@ -348,7 +369,7 @@ static int mp3_write_header(struct AVFormatContext *s)
     MP3Context  *mp3 = s->priv_data;
     AVDictionaryEntry *t = NULL;
     int totlen = 0, enc = mp3->id3v2_version == 3 ? ID3v2_ENCODING_UTF16BOM :
-                                                    ID3v2_ENCODING_UTF8;
+                          ID3v2_ENCODING_UTF8;
     int64_t size_pos, cur_pos;
 
     avio_wb32(s->pb, MKBETAG('I', 'D', '3', mp3->id3v2_version));
@@ -360,8 +381,9 @@ static int mp3_write_header(struct AVFormatContext *s)
     avio_wb32(s->pb, 0);
 
     ff_metadata_conv(&s->metadata, ff_id3v2_34_metadata_conv, NULL);
-    if (mp3->id3v2_version == 4)
+    if (mp3->id3v2_version == 4) {
         ff_metadata_conv(&s->metadata, ff_id3v2_4_metadata_conv, NULL);
+    }
 
     while ((t = av_dict_get(s->metadata, "", t, AV_DICT_IGNORE_SUFFIX))) {
         int ret;
@@ -371,14 +393,15 @@ static int mp3_write_header(struct AVFormatContext *s)
             continue;
         }
         if ((ret = id3v2_check_write_tag(s, t, mp3->id3v2_version == 3 ?
-                                               ff_id3v2_3_tags : ff_id3v2_4_tags, enc)) > 0) {
+                                         ff_id3v2_3_tags : ff_id3v2_4_tags, enc)) > 0) {
             totlen += ret;
             continue;
         }
 
         /* unknown tag, write as TXXX frame */
-        if ((ret = id3v2_put_ttag(s, t->key, t->value, MKBETAG('T', 'X', 'X', 'X'), enc)) < 0)
+        if ((ret = id3v2_put_ttag(s, t->key, t->value, MKBETAG('T', 'X', 'X', 'X'), enc)) < 0) {
             return ret;
+        }
         totlen += ret;
     }
 
@@ -387,17 +410,18 @@ static int mp3_write_header(struct AVFormatContext *s)
     id3v2_put_size(s, totlen);
     avio_seek(s->pb, cur_pos, SEEK_SET);
 
-    if (s->pb->seekable)
+    if (s->pb->seekable) {
         mp3_write_xing(s);
+    }
 
     return 0;
 }
 
 static int mp3_write_packet(AVFormatContext *s, AVPacket *pkt)
 {
-    if (! pkt || ! pkt->data || pkt->size < 4)
+    if (! pkt || ! pkt->data || pkt->size < 4) {
         return ff_raw_write_packet(s, pkt);
-    else {
+    } else {
         MP3Context  *mp3 = s->priv_data;
 #ifdef FILTER_VBR_HEADERS
         MPADecodeHeader c;
@@ -411,19 +435,22 @@ static int mp3_write_packet(AVFormatContext *s, AVPacket *pkt)
         if (base + 4 <= pkt->size) {
             uint32_t v = AV_RB32(pkt->data + base);
 
-            if (MKBETAG('X','i','n','g') == v || MKBETAG('I','n','f','o') == v)
+            if (MKBETAG('X', 'i', 'n', 'g') == v || MKBETAG('I', 'n', 'f', 'o') == v) {
                 return 0;
+            }
         }
 
         /* filter out VBRI headers. */
         base = 4 + 32;
 
-        if (base + 4 <= pkt->size && MKBETAG('V','B','R','I') == AV_RB32(pkt->data + base))
+        if (base + 4 <= pkt->size && MKBETAG('V', 'B', 'R', 'I') == AV_RB32(pkt->data + base)) {
             return 0;
+        }
 #endif
 
-        if (mp3->frames_offset)
+        if (mp3->frames_offset) {
             mp3_xing_add_frame(s, pkt);
+        }
 
         return ff_raw_write_packet(s, pkt);
     }
@@ -432,13 +459,15 @@ static int mp3_write_packet(AVFormatContext *s, AVPacket *pkt)
 static int mp3_write_trailer(AVFormatContext *s)
 {
     MP3Context  *mp3 = s->priv_data;
-    int ret=mp2_write_trailer(s);
+    int ret = mp2_write_trailer(s);
 
-    if (ret < 0)
+    if (ret < 0) {
         return ret;
+    }
 
-    if (mp3->frames_offset)
+    if (mp3->frames_offset) {
         mp3_fix_xing(s);
+    }
 
     return 0;
 }

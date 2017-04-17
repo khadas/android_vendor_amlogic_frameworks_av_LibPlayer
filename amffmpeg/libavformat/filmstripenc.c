@@ -64,9 +64,10 @@ static int write_trailer(AVFormatContext *s)
     avio_wb16(pb, st->codec->width);
     avio_wb16(pb, st->codec->height);
     avio_wb16(pb, 0);  // leading
-    avio_wb16(pb, 1/av_q2d(st->codec->time_base));
-    for (i = 0; i < 16; i++)
-        avio_w8(pb, 0x00);  // reserved
+    avio_wb16(pb, 1 / av_q2d(st->codec->time_base));
+    for (i = 0; i < 16; i++) {
+        avio_w8(pb, 0x00);    // reserved
+    }
     avio_flush(pb);
     return 0;
 }

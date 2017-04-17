@@ -83,8 +83,9 @@ static void kmvc_decode_intra_8x8(KmvcContext * ctx, const uint8_t * src, int w,
             kmvc_getbit(bb, src, res);
             if (!res) {         // fill whole 8x8 block
                 val = *src++;
-                for (i = 0; i < 64; i++)
+                for (i = 0; i < 64; i++) {
                     BLK(ctx->cur, bx + (i & 0x7), by + (i >> 3)) = val;
+                }
             } else {            // handle four 4x4 subblocks
                 for (i = 0; i < 4; i++) {
                     l0x = bx + (i & 1) * 4;
@@ -94,8 +95,9 @@ static void kmvc_decode_intra_8x8(KmvcContext * ctx, const uint8_t * src, int w,
                         kmvc_getbit(bb, src, res);
                         if (!res) {     // fill whole 4x4 block
                             val = *src++;
-                            for (j = 0; j < 16; j++)
+                            for (j = 0; j < 16; j++) {
                                 BLK(ctx->cur, l0x + (j & 3), l0y + (j >> 2)) = val;
+                            }
                         } else {        // copy block from already decoded place
                             val = *src++;
                             mx = val & 0xF;
@@ -160,8 +162,9 @@ static void kmvc_decode_inter_8x8(KmvcContext * ctx, const uint8_t * src, int w,
                 kmvc_getbit(bb, src, res);
                 if (!res) {     // fill whole 8x8 block
                     val = *src++;
-                    for (i = 0; i < 64; i++)
+                    for (i = 0; i < 64; i++) {
                         BLK(ctx->cur, bx + (i & 0x7), by + (i >> 3)) = val;
+                    }
                 } else {        // copy block from previous frame
                     for (i = 0; i < 64; i++)
                         BLK(ctx->cur, bx + (i & 0x7), by + (i >> 3)) =
@@ -176,8 +179,9 @@ static void kmvc_decode_inter_8x8(KmvcContext * ctx, const uint8_t * src, int w,
                         kmvc_getbit(bb, src, res);
                         if (!res) {     // fill whole 4x4 block
                             val = *src++;
-                            for (j = 0; j < 16; j++)
+                            for (j = 0; j < 16; j++) {
                                 BLK(ctx->cur, l0x + (j & 3), l0y + (j >> 2)) = val;
+                            }
                         } else {        // copy block
                             val = *src++;
                             mx = (val & 0xF) - 8;
@@ -235,8 +239,9 @@ static int decode_frame(AVCodecContext * avctx, void *data, int *data_size, AVPa
     int blocksize;
     const uint8_t *pal = av_packet_get_side_data(avpkt, AV_PKT_DATA_PALETTE, NULL);
 
-    if (ctx->pic.data[0])
+    if (ctx->pic.data[0]) {
         avctx->release_buffer(avctx, &ctx->pic);
+    }
 
     ctx->pic.reference = 1;
     ctx->pic.buffer_hints = FF_BUFFER_HINTS_VALID;
@@ -392,8 +397,9 @@ static av_cold int decode_end(AVCodecContext * avctx)
 
     av_freep(&c->frm0);
     av_freep(&c->frm1);
-    if (c->pic.data[0])
+    if (c->pic.data[0]) {
         avctx->release_buffer(avctx, &c->pic);
+    }
 
     return 0;
 }

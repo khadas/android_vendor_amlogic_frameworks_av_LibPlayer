@@ -38,18 +38,18 @@ typedef struct Msvideo1EncContext {
     AVLFG rnd;
     uint8_t *prev;
 
-    int block[16*3];
-    int block2[16*3];
-    int codebook[8*3];
-    int codebook2[8*3];
-    int output[16*3];
-    int output2[16*3];
+    int block[16 * 3];
+    int block2[16 * 3];
+    int codebook[8 * 3];
+    int codebook2[8 * 3];
+    int output[16 * 3];
+    int output2[16 * 3];
     int avg[3];
     int bestpos;
     int keyint;
 } Msvideo1EncContext;
 
-enum MSV1Mode{
+enum MSV1Mode {
     MODE_SKIP = 0,
     MODE_FILL,
     MODE_2COL,
@@ -76,37 +76,39 @@ static int encode_frame(AVCodecContext *avctx, uint8_t *buf, int buf_size, void 
     int skips = 0;
 
     *p = *pict;
-    if(!c->prev)
+    if (!c->prev) {
         c->prev = av_malloc(avctx->width * 3 * (avctx->height + 3));
+    }
     prevptr = c->prev + avctx->width * 3 * (FFALIGN(avctx->height, 4) - 1);
-    src = (uint16_t*)(p->data[0] + p->linesize[0]*(FFALIGN(avctx->height, 4) - 1));
-    if(c->keyint >= avctx->keyint_min)
+    src = (uint16_t*)(p->data[0] + p->linesize[0] * (FFALIGN(avctx->height, 4) - 1));
+    if (c->keyint >= avctx->keyint_min) {
         keyframe = 1;
+    }
 
     p->quality = 24;
 
-    for(y = 0; y < avctx->height; y += 4){
-        for(x = 0; x < avctx->width; x += 4){
+    for (y = 0; y < avctx->height; y += 4) {
+        for (x = 0; x < avctx->width; x += 4) {
             int bestmode = MODE_SKIP;
             int bestscore = INT_MAX;
             int flags = 0;
             int score;
 
-            for(j = 0; j < 4; j++){
-                for(i = 0; i < 4; i++){
-                    uint16_t val = src[x + i - j*p->linesize[0]/2];
-                    for(k = 0; k < 3; k++){
-                        c->block[(i + j*4)*3 + k] =
-                        c->block2[remap[i + j*4]*3 + k] = (val >> (10-k*5)) & 0x1F;
+            for (j = 0; j < 4; j++) {
+                for (i = 0; i < 4; i++) {
+                    uint16_t val = src[x + i - j * p->linesize[0] / 2];
+                    for (k = 0; k < 3; k++) {
+                        c->block[(i + j * 4) * 3 + k] =
+                            c->block2[remap[i + j * 4] * 3 + k] = (val >> (10 - k * 5)) & 0x1F;
                     }
                 }
             }
-            if(!keyframe){
+            if (!keyframe) {
                 bestscore = 0;
-                for(j = 0; j < 4; j++){
-                    for(i = 0; i < 4*3; i++){
-                        int t = prevptr[x*3 + i + j*p->linesize[0]] - c->block[i + j*4*3];
-                        bestscore += t*t;
+                for (j = 0; j < 4; j++) {
+                    for (i = 0; i < 4 * 3; i++) {
+                        int t = prevptr[x * 3 + i + j * p->linesize[0]] - c->block[i + j * 4 * 3];
+                        bestscore += t * t;
                     }
                 }
                 bestscore /= p->quality;
@@ -114,99 +116,106 @@ static int encode_frame(AVCodecContext *avctx, uint8_t *buf, int buf_size, void 
             // try to find optimal value to fill whole 4x4 block
             score = 0;
             ff_init_elbg(c->block, 3, 16, c->avg, 1, 1, c->output, &c->rnd);
-            ff_do_elbg  (c->block, 3, 16, c->avg, 1, 1, c->output, &c->rnd);
-            if(c->avg[0] == 1) // red component = 1 will be written as skip code
+            ff_do_elbg(c->block, 3, 16, c->avg, 1, 1, c->output, &c->rnd);
+            if (c->avg[0] == 1) { // red component = 1 will be written as skip code
                 c->avg[0] = 0;
-            for(j = 0; j < 4; j++){
-                for(i = 0; i < 4; i++){
-                    for(k = 0; k < 3; k++){
-                        int t = c->avg[k] - c->block[(i+j*4)*3+k];
-                        score += t*t;
+            }
+            for (j = 0; j < 4; j++) {
+                for (i = 0; i < 4; i++) {
+                    for (k = 0; k < 3; k++) {
+                        int t = c->avg[k] - c->block[(i + j * 4) * 3 + k];
+                        score += t * t;
                     }
                 }
             }
             score /= p->quality;
             score += 2;
-            if(score < bestscore){
+            if (score < bestscore) {
                 bestscore = score;
                 bestmode = MODE_FILL;
             }
             // search for optimal filling of 2-color block
             score = 0;
             ff_init_elbg(c->block, 3, 16, c->codebook, 2, 1, c->output, &c->rnd);
-            ff_do_elbg  (c->block, 3, 16, c->codebook, 2, 1, c->output, &c->rnd);
+            ff_do_elbg(c->block, 3, 16, c->codebook, 2, 1, c->output, &c->rnd);
             // last output value should be always 1, swap codebooks if needed
-            if(!c->output[15]){
-                for(i = 0; i < 3; i++)
-                    FFSWAP(uint8_t, c->codebook[i], c->codebook[i+3]);
-                for(i = 0; i < 16; i++)
+            if (!c->output[15]) {
+                for (i = 0; i < 3; i++) {
+                    FFSWAP(uint8_t, c->codebook[i], c->codebook[i + 3]);
+                }
+                for (i = 0; i < 16; i++) {
                     c->output[i] ^= 1;
+                }
             }
-            for(j = 0; j < 4; j++){
-                for(i = 0; i < 4; i++){
-                    for(k = 0; k < 3; k++){
-                        int t = c->codebook[c->output[i+j*4]*3 + k] - c->block[i*3+k+j*4*3];
-                        score += t*t;
+            for (j = 0; j < 4; j++) {
+                for (i = 0; i < 4; i++) {
+                    for (k = 0; k < 3; k++) {
+                        int t = c->codebook[c->output[i + j * 4] * 3 + k] - c->block[i * 3 + k + j * 4 * 3];
+                        score += t * t;
                     }
                 }
             }
             score /= p->quality;
             score += 6;
-            if(score < bestscore){
+            if (score < bestscore) {
                 bestscore = score;
                 bestmode = MODE_2COL;
             }
             // search for optimal filling of 2-color 2x2 subblocks
             score = 0;
-            for(i = 0; i < 4; i++){
-                ff_init_elbg(c->block2 + i*4*3, 3, 4, c->codebook2 + i*2*3, 2, 1, c->output2 + i*4, &c->rnd);
-                ff_do_elbg  (c->block2 + i*4*3, 3, 4, c->codebook2 + i*2*3, 2, 1, c->output2 + i*4, &c->rnd);
+            for (i = 0; i < 4; i++) {
+                ff_init_elbg(c->block2 + i * 4 * 3, 3, 4, c->codebook2 + i * 2 * 3, 2, 1, c->output2 + i * 4, &c->rnd);
+                ff_do_elbg(c->block2 + i * 4 * 3, 3, 4, c->codebook2 + i * 2 * 3, 2, 1, c->output2 + i * 4, &c->rnd);
             }
             // last value should be always 1, swap codebooks if needed
-            if(!c->output2[15]){
-                for(i = 0; i < 3; i++)
-                    FFSWAP(uint8_t, c->codebook2[i+18], c->codebook2[i+21]);
-                for(i = 12; i < 16; i++)
+            if (!c->output2[15]) {
+                for (i = 0; i < 3; i++) {
+                    FFSWAP(uint8_t, c->codebook2[i + 18], c->codebook2[i + 21]);
+                }
+                for (i = 12; i < 16; i++) {
                     c->output2[i] ^= 1;
+                }
             }
-            for(j = 0; j < 4; j++){
-                for(i = 0; i < 4; i++){
-                    for(k = 0; k < 3; k++){
-                        int t = c->codebook2[(c->output2[remap[i+j*4]] + (i&2) + (j&2)*2)*3+k] - c->block[i*3+k + j*4*3];
-                        score += t*t;
+            for (j = 0; j < 4; j++) {
+                for (i = 0; i < 4; i++) {
+                    for (k = 0; k < 3; k++) {
+                        int t = c->codebook2[(c->output2[remap[i + j * 4]] + (i & 2) + (j & 2) * 2) * 3 + k] - c->block[i * 3 + k + j * 4 * 3];
+                        score += t * t;
                     }
                 }
             }
             score /= p->quality;
             score += 18;
-            if(score < bestscore){
+            if (score < bestscore) {
                 bestscore = score;
                 bestmode = MODE_8COL;
             }
 
-            if(bestmode == MODE_SKIP){
+            if (bestmode == MODE_SKIP) {
                 skips++;
                 no_skips = 0;
             }
-            if((bestmode != MODE_SKIP && skips) || skips == SKIPS_MAX){
+            if ((bestmode != MODE_SKIP && skips) || skips == SKIPS_MAX) {
                 bytestream_put_le16(&dst, skips | SKIP_PREFIX);
                 skips = 0;
             }
 
-            switch(bestmode){
+            switch (bestmode) {
             case MODE_FILL:
-                bytestream_put_le16(&dst, MKRGB555(c->avg,0) | 0x8000);
-                for(j = 0; j < 4; j++)
-                    for(i = 0; i < 4; i++)
-                        for(k = 0; k < 3; k++)
-                            prevptr[i*3 + k - j*3*avctx->width] = c->avg[k];
+                bytestream_put_le16(&dst, MKRGB555(c->avg, 0) | 0x8000);
+                for (j = 0; j < 4; j++)
+                    for (i = 0; i < 4; i++)
+                        for (k = 0; k < 3; k++) {
+                            prevptr[i * 3 + k - j * 3 * avctx->width] = c->avg[k];
+                        }
                 break;
             case MODE_2COL:
-                for(j = 0; j < 4; j++){
-                    for(i = 0; i < 4; i++){
-                        flags |= (c->output[i + j*4]^1) << (i + j*4);
-                        for(k = 0; k < 3; k++)
-                            prevptr[i*3 + k - j*3*avctx->width] = c->codebook[c->output[i + j*4]*3 + k];
+                for (j = 0; j < 4; j++) {
+                    for (i = 0; i < 4; i++) {
+                        flags |= (c->output[i + j * 4] ^ 1) << (i + j * 4);
+                        for (k = 0; k < 3; k++) {
+                            prevptr[i * 3 + k - j * 3 * avctx->width] = c->codebook[c->output[i + j * 4] * 3 + k];
+                        }
                     }
                 }
                 bytestream_put_le16(&dst, flags);
@@ -214,37 +223,42 @@ static int encode_frame(AVCodecContext *avctx, uint8_t *buf, int buf_size, void 
                 bytestream_put_le16(&dst, MKRGB555(c->codebook, 3));
                 break;
             case MODE_8COL:
-                for(j = 0; j < 4; j++){
-                    for(i = 0; i < 4; i++){
-                        flags |= (c->output2[remap[i + j*4]]^1) << (i + j*4);
-                        for(k = 0; k < 3; k++)
-                            prevptr[i*3 + k - j*3*avctx->width] = c->codebook2[(c->output2[remap[i+j*4]] + (i&2) + (j&2)*2)*3 + k];
+                for (j = 0; j < 4; j++) {
+                    for (i = 0; i < 4; i++) {
+                        flags |= (c->output2[remap[i + j * 4]] ^ 1) << (i + j * 4);
+                        for (k = 0; k < 3; k++) {
+                            prevptr[i * 3 + k - j * 3 * avctx->width] = c->codebook2[(c->output2[remap[i + j * 4]] + (i & 2) + (j & 2) * 2) * 3 + k];
+                        }
                     }
                 }
                 bytestream_put_le16(&dst, flags);
                 bytestream_put_le16(&dst, MKRGB555(c->codebook2, 0) | 0x8000);
-                for(i = 3; i < 24; i += 3)
+                for (i = 3; i < 24; i += 3) {
                     bytestream_put_le16(&dst, MKRGB555(c->codebook2, i));
+                }
                 break;
             }
         }
         src     -= p->linesize[0] << 1;
         prevptr -= avctx->width * 3 * 4;
     }
-    if(skips)
+    if (skips) {
         bytestream_put_le16(&dst, skips | SKIP_PREFIX);
+    }
     //EOF
     bytestream_put_byte(&dst, 0);
     bytestream_put_byte(&dst, 0);
 
-    if(no_skips)
+    if (no_skips) {
         keyframe = 1;
-    if(keyframe)
+    }
+    if (keyframe) {
         c->keyint = 0;
-    else
+    } else {
         c->keyint++;
-    p->pict_type= keyframe ? FF_I_TYPE : FF_P_TYPE;
-    p->key_frame= keyframe;
+    }
+    p->pict_type = keyframe ? FF_I_TYPE : FF_P_TYPE;
+    p->key_frame = keyframe;
 
     return dst - buf;
 }

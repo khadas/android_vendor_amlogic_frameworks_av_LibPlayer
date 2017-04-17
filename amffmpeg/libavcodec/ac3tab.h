@@ -40,7 +40,7 @@ extern const uint16_t ff_ac3_sample_rate_tab[3];
 extern const uint16_t ff_ac3_bitrate_tab[19];
 extern const uint8_t  ff_ac3_rematrix_band_tab[5];
 extern const uint8_t  ff_eac3_default_cpl_band_struct[18];
-extern const int16_t  ff_ac3_window[AC3_WINDOW_SIZE/2];
+extern const int16_t  ff_ac3_window[AC3_WINDOW_SIZE / 2];
 extern const uint8_t  ff_ac3_log_add_tab[260];
 extern const uint16_t ff_ac3_hearing_threshold_tab[AC3_CRITICAL_BANDS][3];
 extern const uint8_t  ff_ac3_bap_tab[64];
@@ -51,7 +51,7 @@ extern const uint16_t ff_ac3_db_per_bit_tab[4];
 extern const int16_t  ff_ac3_floor_tab[8];
 extern const uint16_t ff_ac3_fast_gain_tab[8];
 extern const uint16_t ff_eac3_default_chmap[8];
-extern const uint8_t  ff_ac3_band_start_tab[AC3_CRITICAL_BANDS+1];
+extern const uint8_t  ff_ac3_band_start_tab[AC3_CRITICAL_BANDS + 1];
 extern HCONST uint8_t ff_ac3_bin_to_band_tab[253];
 
 /** Custom channel map locations bitmask
@@ -59,14 +59,14 @@ extern HCONST uint8_t ff_ac3_bin_to_band_tab[253];
  *      Lc/Rc pair, Lrs/Rrs pair, Ts, Lsd/Rsd pair,
  *      Lw/Rw pair, Lvh/Rvh pair, Cvh, Reserved, LFE2
  */
-enum CustomChannelMapLocation{
-    AC3_CHMAP_L=        1<<(15-0),
-    AC3_CHMAP_C=        1<<(15-1),
-    AC3_CHMAP_R=        1<<(15-2),
-    AC3_CHMAP_L_SUR=    1<<(15-3),
-    AC3_CHMAP_R_SUR =   1<<(15-4),
-    AC3_CHMAP_C_SUR=    1<<(15-7),
-    AC3_CHMAP_LFE =     1<<(15-15)
+enum CustomChannelMapLocation {
+    AC3_CHMAP_L =        1 << (15 - 0),
+    AC3_CHMAP_C =        1 << (15 - 1),
+    AC3_CHMAP_R =        1 << (15 - 2),
+    AC3_CHMAP_L_SUR =    1 << (15 - 3),
+    AC3_CHMAP_R_SUR =   1 << (15 - 4),
+    AC3_CHMAP_C_SUR =    1 << (15 - 7),
+    AC3_CHMAP_LFE =     1 << (15 - 15)
 };
 
 #endif /* AVCODEC_AC3TAB_H */

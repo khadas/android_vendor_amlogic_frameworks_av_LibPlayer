@@ -44,7 +44,7 @@
     int lsf;
 
 typedef struct MPADecodeHeader {
-  MPA_DECODE_HEADER
+    MPA_DECODE_HEADER
 } MPADecodeHeader;
 
 /* header decoding. MUST check the header before because no
@@ -57,19 +57,24 @@ int ff_mpegaudio_decode_header(MPADecodeHeader *s, uint32_t header);
 int ff_mpa_decode_header(AVCodecContext *avctx, uint32_t head, int *sample_rate, int *channels, int *frame_size, int *bitrate);
 
 /* fast header check for resync */
-static inline int ff_mpa_check_header(uint32_t header){
+static inline int ff_mpa_check_header(uint32_t header)
+{
     /* header */
-    if ((header & 0xffe00000) != 0xffe00000)
+    if ((header & 0xffe00000) != 0xffe00000) {
         return -1;
+    }
     /* layer check */
-    if ((header & (3<<17)) == 0)
+    if ((header & (3 << 17)) == 0) {
         return -1;
+    }
     /* bit rate */
-    if ((header & (0xf<<12)) == 0xf<<12)
+    if ((header & (0xf << 12)) == 0xf << 12) {
         return -1;
+    }
     /* frequency */
-    if ((header & (3<<10)) == 3<<10)
+    if ((header & (3 << 10)) == 3 << 10) {
         return -1;
+    }
     return 0;
 }
 

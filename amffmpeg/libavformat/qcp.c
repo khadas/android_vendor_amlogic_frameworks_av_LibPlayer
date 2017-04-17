@@ -34,8 +34,8 @@ typedef struct {
     uint32_t data_size;                     ///< size of data chunk
 
 #define QCP_MAX_MODE 4
-    int16_t rates_per_mode[QCP_MAX_MODE+1]; ///< contains the packet size corresponding
-                                            ///< to each mode, -1 if no size.
+    int16_t rates_per_mode[QCP_MAX_MODE + 1]; ///< contains the packet size corresponding
+    ///< to each mode, -1 if no size.
 } QCPContext;
 
 /**
@@ -67,16 +67,18 @@ static const uint8_t guid_smv[16] = {
  * @param guid contains at least 16 bytes
  * @return 1 if the guid is a qcelp_13k guid, 0 otherwise
  */
-static int is_qcelp_13k_guid(const uint8_t *guid) {
+static int is_qcelp_13k_guid(const uint8_t *guid)
+{
     return (guid[0] == 0x41 || guid[0] == 0x42)
-        && !memcmp(guid+1, guid_qcelp_13k_part, sizeof(guid_qcelp_13k_part));
+           && !memcmp(guid + 1, guid_qcelp_13k_part, sizeof(guid_qcelp_13k_part));
 }
 
 static int qcp_probe(AVProbeData *pd)
 {
-    if (AV_RL32(pd->buf  ) == AV_RL32("RIFF") &&
-        AV_RL64(pd->buf+8) == AV_RL64("QLCMfmt "))
+    if (AV_RL32(pd->buf) == AV_RL32("RIFF") &&
+        AV_RL64(pd->buf + 8) == AV_RL64("QLCMfmt ")) {
         return AVPROBE_SCORE_MAX;
+    }
     return 0;
 }
 
@@ -88,8 +90,9 @@ static int qcp_read_header(AVFormatContext *s, AVFormatParameters *ap)
     uint8_t       buf[16];
     int           i, nb_rates;
 
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
 
     avio_rb32(pb);                    // "RIFF"
     s->file_size = avio_rl32(pb) + 8;
@@ -121,15 +124,16 @@ static int qcp_read_header(AVFormatContext *s, AVFormatParameters *ap)
     memset(c->rates_per_mode, -1, sizeof(c->rates_per_mode));
     nb_rates = avio_rl32(pb);
     nb_rates = FFMIN(nb_rates, 8);
-    for (i=0; i<nb_rates; i++) {
+    for (i = 0; i < nb_rates; i++) {
         int size = avio_r8(pb);
         int mode = avio_r8(pb);
         if (mode > QCP_MAX_MODE) {
             av_log(s, AV_LOG_WARNING, "Unknown entry %d=>%d in rate-map-table.\n ", mode, size);
-        } else
+        } else {
             c->rates_per_mode[mode] = size;
+        }
     }
-    avio_skip(pb, 16 - 2*nb_rates + 20); // empty entries of rate-map-table + reserved
+    avio_skip(pb, 16 - 2 * nb_rates + 20); // empty entries of rate-map-table + reserved
 
     return 0;
 }
@@ -140,7 +144,7 @@ static int qcp_read_packet(AVFormatContext *s, AVPacket *pkt)
     QCPContext    *c  = s->priv_data;
     unsigned int  chunk_size, tag;
 
-    while(!url_feof(pb)) {
+    while (!url_feof(pb)) {
         if (c->data_size) {
             int pkt_size, ret, mode = avio_r8(pb);
 
@@ -157,23 +161,26 @@ static int qcp_read_packet(AVFormatContext *s, AVPacket *pkt)
             }
 
             if ((ret = av_get_packet(pb, pkt, pkt_size)) >= 0) {
-                if (pkt_size != ret)
+                if (pkt_size != ret) {
                     av_log(s, AV_LOG_ERROR, "Packet size is too small.\n");
+                }
 
                 c->data_size -= pkt_size + 1;
             }
             return ret;
         }
 
-        if (avio_tell(pb) & 1 && avio_r8(pb))
+        if (avio_tell(pb) & 1 && avio_r8(pb)) {
             av_log(s, AV_LOG_WARNING, "Padding should be 0.\n");
+        }
 
         tag        = avio_rl32(pb);
         chunk_size = avio_rl32(pb);
         switch (tag) {
         case MKTAG('v', 'r', 'a', 't'):
-            if (avio_rl32(pb)) // var-rate-flag
+            if (avio_rl32(pb)) { // var-rate-flag
                 s->packet_size = 0;
+            }
             avio_skip(pb, 4); // size-in-packets
             break;
         case MKTAG('d', 'a', 't', 'a'):

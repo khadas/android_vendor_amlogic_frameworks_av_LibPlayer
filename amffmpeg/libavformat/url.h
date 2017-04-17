@@ -47,11 +47,11 @@ typedef struct URLContext {
 
 typedef struct URLProtocol {
     const char *name;
-    int     (*url_open)( URLContext *h, const char *url, int flags);
-    int     (*url_read)( URLContext *h, unsigned char *buf, int size);
-    int     (*url_write)(URLContext *h, unsigned char *buf, int size);
-    int64_t (*url_seek)( URLContext *h, int64_t pos, int whence);
-    int     (*url_close)(URLContext *h);
+    int (*url_open)(URLContext *h, const char *url, int flags);
+    int (*url_read)(URLContext *h, unsigned char *buf, int size);
+    int (*url_write)(URLContext *h, unsigned char *buf, int size);
+    int64_t (*url_seek)(URLContext *h, int64_t pos, int whence);
+    int (*url_close)(URLContext *h);
     struct URLProtocol *next;
     int (*url_read_pause)(URLContext *h, int pause);
     int64_t (*url_read_seek)(URLContext *h, int stream_index,
@@ -104,8 +104,10 @@ int ffurl_open(URLContext **h, const char *url, int flags);
  * indicates that it is not possible to read more from the accessed
  * resource (except if the value of the size argument is also zero).
  */
-int ffurl_open_h(URLContext **puc, const char *filename, int flags,const char *headers, int * http_error_flag);
-int ffurl_open_h2(URLContext **puc, const char *filename, int flags,const char *headers, int * http_error_flag, const unsigned long options);
+int ffurl_open_h(URLContext **puc, const char *filename, int flags, const char *headers, int * http_error_flag);
+int ffurl_open_h2(URLContext **puc, const char *filename, int flags, const char *headers, int * http_error_flag, const unsigned long options);
+int ffurl_open_h3(URLContext **puc, const char *filename, int flags, const char *headers, int * http_error_flag, const unsigned long options);
+
 /**
  * Read up to size bytes from the resource accessed by h, and store
  * the read bytes in buf.
@@ -115,7 +117,7 @@ int ffurl_open_h2(URLContext **puc, const char *filename, int flags,const char *
  * indicates that it is not possible to read more from the accessed
  * resource (except if the value of the size argument is also zero).
  */
- 
+
 
 int ffurl_read(URLContext *h, unsigned char *buf, int size);
 

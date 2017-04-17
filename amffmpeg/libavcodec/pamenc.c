@@ -44,8 +44,8 @@ static int pam_encode_frame(AVCodecContext *avctx, unsigned char *outbuf,
     p->key_frame = 1;
 
     s->bytestream_start =
-    s->bytestream       = outbuf;
-    s->bytestream_end   = outbuf+buf_size;
+        s->bytestream       = outbuf;
+    s->bytestream_end   = outbuf + buf_size;
 
     h = avctx->height;
     w = avctx->width;

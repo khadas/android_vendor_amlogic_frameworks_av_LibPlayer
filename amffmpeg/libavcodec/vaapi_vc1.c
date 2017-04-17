@@ -28,11 +28,16 @@
 static int get_VAMvModeVC1(enum MVModes mv_mode)
 {
     switch (mv_mode) {
-    case MV_PMODE_1MV_HPEL_BILIN: return VAMvMode1MvHalfPelBilinear;
-    case MV_PMODE_1MV:            return VAMvMode1Mv;
-    case MV_PMODE_1MV_HPEL:       return VAMvMode1MvHalfPel;
-    case MV_PMODE_MIXED_MV:       return VAMvModeMixedMv;
-    case MV_PMODE_INTENSITY_COMP: return VAMvModeIntensityCompensation;
+    case MV_PMODE_1MV_HPEL_BILIN:
+        return VAMvMode1MvHalfPelBilinear;
+    case MV_PMODE_1MV:
+        return VAMvMode1Mv;
+    case MV_PMODE_1MV_HPEL:
+        return VAMvMode1MvHalfPel;
+    case MV_PMODE_MIXED_MV:
+        return VAMvModeMixedMv;
+    case MV_PMODE_INTENSITY_COMP:
+        return VAMvModeIntensityCompensation;
     }
     return 0;
 }
@@ -40,8 +45,9 @@ static int get_VAMvModeVC1(enum MVModes mv_mode)
 /** Check whether the MVTYPEMB bitplane is present */
 static inline int vc1_has_MVTYPEMB_bitplane(VC1Context *v)
 {
-    if (v->mv_type_is_raw)
+    if (v->mv_type_is_raw) {
         return 0;
+    }
     return (v->s.pict_type == AV_PICTURE_TYPE_P &&
             (v->mv_mode == MV_PMODE_MIXED_MV ||
              (v->mv_mode == MV_PMODE_INTENSITY_COMP &&
@@ -51,8 +57,9 @@ static inline int vc1_has_MVTYPEMB_bitplane(VC1Context *v)
 /** Check whether the SKIPMB bitplane is present */
 static inline int vc1_has_SKIPMB_bitplane(VC1Context *v)
 {
-    if (v->skip_is_raw)
+    if (v->skip_is_raw) {
         return 0;
+    }
     return (v->s.pict_type == AV_PICTURE_TYPE_P ||
             (v->s.pict_type == AV_PICTURE_TYPE_B && !v->bi_type));
 }
@@ -60,16 +67,18 @@ static inline int vc1_has_SKIPMB_bitplane(VC1Context *v)
 /** Check whether the DIRECTMB bitplane is present */
 static inline int vc1_has_DIRECTMB_bitplane(VC1Context *v)
 {
-    if (v->dmb_is_raw)
+    if (v->dmb_is_raw) {
         return 0;
+    }
     return v->s.pict_type == AV_PICTURE_TYPE_B && !v->bi_type;
 }
 
 /** Check whether the ACPRED bitplane is present */
 static inline int vc1_has_ACPRED_bitplane(VC1Context *v)
 {
-    if (v->acpred_is_raw)
+    if (v->acpred_is_raw) {
         return 0;
+    }
     return (v->profile == PROFILE_ADVANCED &&
             (v->s.pict_type == AV_PICTURE_TYPE_I ||
              (v->s.pict_type == AV_PICTURE_TYPE_B && v->bi_type)));
@@ -78,8 +87,9 @@ static inline int vc1_has_ACPRED_bitplane(VC1Context *v)
 /** Check whether the OVERFLAGS bitplane is present */
 static inline int vc1_has_OVERFLAGS_bitplane(VC1Context *v)
 {
-    if (v->overflg_is_raw)
+    if (v->overflg_is_raw) {
         return 0;
+    }
     return (v->profile == PROFILE_ADVANCED &&
             (v->s.pict_type == AV_PICTURE_TYPE_I ||
              (v->s.pict_type == AV_PICTURE_TYPE_B && v->bi_type)) &&
@@ -92,9 +102,12 @@ static int vc1_get_PTYPE(VC1Context *v)
 {
     MpegEncContext * const s = &v->s;
     switch (s->pict_type) {
-    case AV_PICTURE_TYPE_I: return 0;
-    case AV_PICTURE_TYPE_P: return v->p_frame_skipped ? 4 : 1;
-    case AV_PICTURE_TYPE_B: return v->bi_type         ? 3 : 2;
+    case AV_PICTURE_TYPE_I:
+        return 0;
+    case AV_PICTURE_TYPE_P:
+        return v->p_frame_skipped ? 4 : 1;
+    case AV_PICTURE_TYPE_B:
+        return v->bi_type         ? 3 : 2;
     }
     return 0;
 }
@@ -103,16 +116,18 @@ static int vc1_get_PTYPE(VC1Context *v)
 static inline VAMvModeVC1 vc1_get_MVMODE(VC1Context *v)
 {
     if (v->s.pict_type == AV_PICTURE_TYPE_P ||
-        (v->s.pict_type == AV_PICTURE_TYPE_B && !v->bi_type))
+        (v->s.pict_type == AV_PICTURE_TYPE_B && !v->bi_type)) {
         return get_VAMvModeVC1(v->mv_mode);
+    }
     return 0;
 }
 
 /** Reconstruct bitstream MVMODE2 (7.1.1.33) */
 static inline VAMvModeVC1 vc1_get_MVMODE2(VC1Context *v)
 {
-    if (v->s.pict_type == AV_PICTURE_TYPE_P && v->mv_mode == MV_PMODE_INTENSITY_COMP)
+    if (v->s.pict_type == AV_PICTURE_TYPE_P && v->mv_mode == MV_PMODE_INTENSITY_COMP) {
         return get_VAMvModeVC1(v->mv_mode2);
+    }
     return 0;
 }
 
@@ -122,12 +137,15 @@ static inline void vc1_pack_bitplanes(uint8_t *bitplane, int n, const uint8_t *f
     const int bitplane_index = n / 2;
     const int ff_bp_index = y * stride + x;
     uint8_t v = 0;
-    if (ff_bp[0])
+    if (ff_bp[0]) {
         v = ff_bp[0][ff_bp_index];
-    if (ff_bp[1])
+    }
+    if (ff_bp[1]) {
         v |= ff_bp[1][ff_bp_index] << 1;
-    if (ff_bp[2])
+    }
+    if (ff_bp[2]) {
         v |= ff_bp[2][ff_bp_index] << 2;
+    }
     bitplane[bitplane_index] = (bitplane[bitplane_index] << 4) | v;
 }
 
@@ -144,8 +162,9 @@ static int vaapi_vc1_start_frame(AVCodecContext *avctx, av_unused const uint8_t 
 
     /* Fill in VAPictureParameterBufferVC1 */
     pic_param = ff_vaapi_alloc_pic_param(vactx, sizeof(VAPictureParameterBufferVC1));
-    if (!pic_param)
+    if (!pic_param) {
         return -1;
+    }
     pic_param->forward_reference_picture                            = VA_INVALID_ID;
     pic_param->backward_reference_picture                           = VA_INVALID_ID;
     pic_param->inloop_decoded_picture                               = VA_INVALID_ID;
@@ -247,7 +266,7 @@ static int vaapi_vc1_start_frame(AVCodecContext *avctx, av_unused const uint8_t 
     switch (s->pict_type) {
     case AV_PICTURE_TYPE_B:
         pic_param->backward_reference_picture = ff_vaapi_get_surface_id(&s->next_picture);
-        // fall-through
+    // fall-through
     case AV_PICTURE_TYPE_P:
         pic_param->forward_reference_picture = ff_vaapi_get_surface_id(&s->last_picture);
         break;
@@ -271,7 +290,7 @@ static int vaapi_vc1_start_frame(AVCodecContext *avctx, av_unused const uint8_t 
                 ff_bp[2] = NULL; /* XXX: interlaced frame (FORWARD plane) */
                 break;
             }
-            /* fall-through (BI-type) */
+        /* fall-through (BI-type) */
         case AV_PICTURE_TYPE_I:
             ff_bp[0] = NULL; /* XXX: interlaced frame (FIELDTX plane) */
             ff_bp[1] = pic_param->bitplane_present.flags.bp_ac_pred    ? v->acpred_plane       : NULL;
@@ -285,15 +304,18 @@ static int vaapi_vc1_start_frame(AVCodecContext *avctx, av_unused const uint8_t 
         }
 
         bitplane = ff_vaapi_alloc_bitplane(vactx, (s->mb_width * s->mb_height + 1) / 2);
-        if (!bitplane)
+        if (!bitplane) {
             return -1;
+        }
 
         n = 0;
         for (y = 0; y < s->mb_height; y++)
-            for (x = 0; x < s->mb_width; x++, n++)
+            for (x = 0; x < s->mb_width; x++, n++) {
                 vc1_pack_bitplanes(bitplane, n, ff_bp, x, y, s->mb_stride);
-        if (n & 1) /* move last nibble to the high order */
-            bitplane[n/2] <<= 4;
+            }
+        if (n & 1) { /* move last nibble to the high order */
+            bitplane[n / 2] <<= 4;
+        }
     }
     return 0;
 }
@@ -321,8 +343,9 @@ static int vaapi_vc1_decode_slice(AVCodecContext *avctx, const uint8_t *buffer, 
 
     /* Fill in VASliceParameterBufferVC1 */
     slice_param = (VASliceParameterBufferVC1 *)ff_vaapi_alloc_slice(avctx->hwaccel_context, buffer, size);
-    if (!slice_param)
+    if (!slice_param) {
         return -1;
+    }
     slice_param->macroblock_offset       = get_bits_count(&s->gb);
     slice_param->slice_vertical_position = s->mb_y;
     return 0;

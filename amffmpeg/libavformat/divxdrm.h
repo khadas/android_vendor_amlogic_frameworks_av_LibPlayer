@@ -132,26 +132,22 @@
 
 #define DRM_ERROR_MODEL_MISMATCH            31  // from: drmInitCommitPlayback
 
-typedef struct drmUseLimitIdInfo
-{
+typedef struct drmUseLimitIdInfo {
     uint16_t id;
     uint8_t uses;
 } drmUseLimitIdInfo_t;
 
-typedef struct drmVideoDDChunk
-{
+typedef struct drmVideoDDChunk {
     uint16_t keyIndex;
     uint32_t offset;
     uint32_t size;
 } drmVideoDDChunk_t;
 
-typedef struct drmFrameKeys
-{
+typedef struct drmFrameKeys {
     uint8_t frameKeys[128][16];
 } drmFrameKeys_t;
 
-typedef struct drmActivateRecord
-{
+typedef struct drmActivateRecord {
     uint8_t memoryGuard[OWNER_GUARD_FILE_BYTES];
     uint8_t modelId[MODEL_ID_BYTES];
     uint8_t userKey[KEY_SIZE_BYTES];
@@ -162,22 +158,20 @@ typedef struct drmGuardExtention
 
 {
 
-     uint8_t memoryGuardExt;
+    uint8_t memoryGuardExt;
 
-     uint8_t explicitGuardExt;
+    uint8_t explicitGuardExt;
 
-}drmGuardExt_t;
+} drmGuardExt_t;
 
-typedef struct drmRentalRecord
-{
+typedef struct drmRentalRecord {
     uint16_t useLimitId;
     uint8_t serialNumber[SLOT_SERIAL_NUMBER_BYTES];
     uint8_t slotNumber;
     uint8_t reserved[DRM_RENTAL_RESERVED_BYTES];
 } drmRentalRecord_t;
 
-typedef struct drmTargetHeader_t
-{
+typedef struct drmTargetHeader_t {
     uint16_t drmMode;
     uint8_t userId[OWNER_USER_ID_BYTES];
     uint8_t optionFlags;
@@ -189,11 +183,10 @@ typedef struct drmTargetHeader_t
     uint8_t protectedAudioCryptoSize;
     uint8_t frameKeyCount;
     uint16_t drmSubMode;
-    drmGuardExt_t guardExt;    
+    drmGuardExt_t guardExt;
 } drmTargetHeader_t;
 
-typedef struct drmTransactionInfoHeaderStruct_t
-{
+typedef struct drmTransactionInfoHeaderStruct_t {
     uint8_t transactionId[TRANSACTION_ID_BYTES];
     uint16_t transactionAuthorityId;
     uint32_t contentId;
@@ -213,8 +206,7 @@ typedef struct DrmHeaderSignatureStruct
 } drmHeaderSignature_t;
 
 
-typedef struct drmHeader
-{
+typedef struct drmHeader {
     uint32_t reservedFlags;
     uint8_t baseKeyId[DRM_BASE_KEY_ID_LENGTH];
     drmTargetHeader_t targetHeader;
@@ -234,102 +226,96 @@ typedef struct DrmDigestStruct
 
 } drmDigest_t;
 
-typedef struct drmOwnerSlot
-{
-      uint8_t guard[OWNER_GUARD_DMEM_BYTES];
+typedef struct drmOwnerSlot {
+    uint8_t guard[OWNER_GUARD_DMEM_BYTES];
 #if DRM_OTHER_SECURE_PLATFORM == 0
-      uint8_t randomPad1;
+    uint8_t randomPad1;
 #endif
-      uint8_t key[KEY_SIZE_BYTES];
+    uint8_t key[KEY_SIZE_BYTES];
 #if DRM_OTHER_SECURE_PLATFORM == 0
-      uint8_t randomPad2;
+    uint8_t randomPad2;
 #endif
-      uint8_t userId[OWNER_USER_ID_BYTES];
-#if DRM_OTHER_SECURE_PLATFORM == 0    
-      uint8_t randomPad3;
+    uint8_t userId[OWNER_USER_ID_BYTES];
+#if DRM_OTHER_SECURE_PLATFORM == 0
+    uint8_t randomPad3;
 #endif
 } drmOwnerSlot_t;
 
-typedef struct drmPlaySlot
-{
-      uint8_t serialNumber[SLOT_SERIAL_NUMBER_BYTES];
-      uint8_t counter;
+typedef struct drmPlaySlot {
+    uint8_t serialNumber[SLOT_SERIAL_NUMBER_BYTES];
+    uint8_t counter;
 #if DRM_OTHER_SECURE_PLATFORM == 0
-      uint8_t randomPad;
+    uint8_t randomPad;
 #endif
 } drmPlaySlot_t;
 
-typedef struct drmMemory
-{
+typedef struct drmMemory {
 #if DRM_OTHER_SECURE_PLATFORM == 0
-      uint8_t prefixPad[4];
-      uint8_t randomPad1[4];
+    uint8_t prefixPad[4];
+    uint8_t randomPad1[4];
 #endif
-      drmOwnerSlot_t owner;
-      drmPlaySlot_t slots[TOTAL_PLAY_SLOTS];
+    drmOwnerSlot_t owner;
+    drmPlaySlot_t slots[TOTAL_PLAY_SLOTS];
 #if DRM_OTHER_SECURE_PLATFORM == 0
-      uint32_t activationFailureCnt;
-      uint8_t randomPad2[4];
-      uint8_t postfixPad[4];
+    uint32_t activationFailureCnt;
+    uint8_t randomPad2[4];
+    uint8_t postfixPad[4];
 #endif
 } drmMemory_t;
 
-typedef struct drmPackedMemory
-{
-      uint8_t packed[PACKED_ALLOCATION_BYTES];
+typedef struct drmPackedMemory {
+    uint8_t packed[PACKED_ALLOCATION_BYTES];
 } drmPackedMemory_t;
 
-typedef struct drmMessagePacked
-{
-      uint8_t message[MAX_MESSAGE_SIZE_BYTES];
-      uint8_t sizeInBits;
+typedef struct drmMessagePacked {
+    uint8_t message[MAX_MESSAGE_SIZE_BYTES];
+    uint8_t sizeInBits;
 } drmMessagePacked_t;
 
-typedef struct drmRegistrationRequest
-{
-      uint8_t userIdGuard[OWNER_GUARD_DMEM_BYTES];
-      uint8_t modelId[MODEL_ID_BYTES];
-      uint8_t flag;//only 2 bits are used here 
+typedef struct drmRegistrationRequest {
+    uint8_t userIdGuard[OWNER_GUARD_DMEM_BYTES];
+    uint8_t modelId[MODEL_ID_BYTES];
+    uint8_t flag;//only 2 bits are used here
 } drmRegistrationRequest_t;
 
 /*NOTE: too many magic numbers, fixme*/
-typedef struct drmActivationMessageStruct
-{
-      uint8_t         a1Padding[60];
-      uint8_t         flags[4];
-      uint8_t         reserved[32];
-      int8_t          registrationCode[8];
-      uint8_t         guardHash[32];
+typedef struct drmActivationMessageStruct {
+    uint8_t         a1Padding[60];
+    uint8_t         flags[4];
+    uint8_t         reserved[32];
+    int8_t          registrationCode[8];
+    uint8_t         guardHash[32];
 } drmActivationMessage_t;
 
-typedef struct drmActivationProtectedMessageStruct
-{
-      uint32_t       version;
-      uint32_t       reserved;
-      uint8_t        protectedPayload[256];
+typedef struct drmActivationProtectedMessageStruct {
+    uint32_t       version;
+    uint32_t       reserved;
+    uint8_t        protectedPayload[256];
 } drmActivationProtectedMessage_t;
 
 typedef struct {
-      unsigned   drm_offset;                              /* offset of encrypted video data */
-      unsigned   drm_size;                                /* size of encrypted video data */
-      unsigned   drm_check_value;                         /* check return value */
-      unsigned   drm_rental_value;                      /* still can play count */
-      drmHeader_t *drm_header;                              /* const key informations */
-      char      drm_reg_code[11];                 /* registrationCodeString*/
-      
+    unsigned   drm_offset;                              /* offset of encrypted video data */
+    unsigned   drm_size;                                /* size of encrypted video data */
+    unsigned   drm_check_value;                         /* check return value */
+    unsigned   drm_rental_value;                      /* still can play count */
+    drmHeader_t *drm_header;                              /* const key informations */
+    char      drm_reg_code[11];                 /* registrationCodeString*/
+
 } drm_t;
 
-typedef enum drmErrorCodes 
-{
-      DRM_SUCCESS = 0,
-      DRM_NOT_AUTHORIZED,
-      DRM_NOT_REGISTERED,
-      DRM_RENTAL_EXPIRED,
-      DRM_GENERAL_ERROR,
+typedef enum drmErrorCodes {
+    DRM_SUCCESS = 0,
+    DRM_NOT_AUTHORIZED,
+    DRM_NOT_REGISTERED,
+    DRM_RENTAL_EXPIRED,
+    DRM_GENERAL_ERROR,
 } drmErrorCodes_t;
 
 void drm_set_info(drm_t*);
-//static drm_t*  drm_get_info(){return NULL;};
+static drm_t*  drm_get_info()
+{
+    return NULL;
+};
 
 #endif
 

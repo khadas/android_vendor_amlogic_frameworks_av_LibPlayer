@@ -58,8 +58,9 @@ static int bfi_decode_frame(AVCodecContext * avctx, void *data,
     uint32_t *pal;
     int i, j, height = avctx->height;
 
-    if (bfi->frame.data[0])
+    if (bfi->frame.data[0]) {
         avctx->release_buffer(avctx, &bfi->frame);
+    }
 
     bfi->frame.reference = 1;
 
@@ -73,7 +74,7 @@ static int bfi_decode_frame(AVCodecContext * avctx, void *data,
         bfi->frame.pict_type = AV_PICTURE_TYPE_I;
         bfi->frame.key_frame = 1;
         /* Setting the palette */
-        if(avctx->extradata_size>768) {
+        if (avctx->extradata_size > 768) {
             av_log(NULL, AV_LOG_ERROR, "Palette is too large.\n");
             return -1;
         }
@@ -82,9 +83,9 @@ static int bfi_decode_frame(AVCodecContext * avctx, void *data,
             int shift = 16;
             *pal = 0;
             for (j = 0; j < 3; j++, shift -= 8)
-                *pal +=
+                * pal +=
                     ((avctx->extradata[i * 3 + j] << 2) |
-                    (avctx->extradata[i * 3 + j] >> 4)) << shift;
+                     (avctx->extradata[i * 3 + j] >> 4)) << shift;
             pal++;
         }
         memcpy(bfi->pal, bfi->frame.data[1], sizeof(bfi->pal));
@@ -99,7 +100,7 @@ static int bfi_decode_frame(AVCodecContext * avctx, void *data,
     buf += 4; //Unpacked size, not required.
 
     while (dst != frame_end) {
-        static const uint8_t lentab[4]={0,2,0,1};
+        static const uint8_t lentab[4] = {0, 2, 0, 1};
         unsigned int byte = *buf++, av_uninit(offset);
         unsigned int code = byte >> 6;
         unsigned int length = byte & ~0xC0;
@@ -116,17 +117,20 @@ static int bfi_decode_frame(AVCodecContext * avctx, void *data,
                 offset = bytestream_get_le16(&buf);
             } else {
                 length = bytestream_get_le16(&buf);
-                if (code == 2 && length == 0)
+                if (code == 2 && length == 0) {
                     break;
+                }
             }
         } else {
-            if (code == 1)
+            if (code == 1) {
                 offset = bytestream_get_byte(&buf);
+            }
         }
 
         /* Do boundary check */
-        if (dst + (length<<lentab[code]) > frame_end)
+        if (dst + (length << lentab[code]) > frame_end) {
             break;
+        }
 
         switch (code) {
 
@@ -142,10 +146,12 @@ static int bfi_decode_frame(AVCodecContext * avctx, void *data,
         case 1:                //Back Chain
             dst_offset = dst - offset;
             length *= 4;        //Convert dwords to bytes.
-            if (dst_offset < bfi->dst)
+            if (dst_offset < bfi->dst) {
                 break;
-            while (length--)
+            }
+            while (length--) {
                 *dst++ = *dst_offset++;
+            }
             break;
 
         case 2:                //Skip Chain
@@ -179,8 +185,9 @@ static int bfi_decode_frame(AVCodecContext * avctx, void *data,
 static av_cold int bfi_decode_close(AVCodecContext * avctx)
 {
     BFIContext *bfi = avctx->priv_data;
-    if (bfi->frame.data[0])
+    if (bfi->frame.data[0]) {
         avctx->release_buffer(avctx, &bfi->frame);
+    }
     av_free(bfi->dst);
     return 0;
 }

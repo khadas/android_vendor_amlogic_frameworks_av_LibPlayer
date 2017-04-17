@@ -45,46 +45,49 @@ static av_cold int MP3lame_encode_init(AVCodecContext *avctx)
 {
     Mp3AudioContext *s = avctx->priv_data;
 
-    if (avctx->channels > 2)
+    if (avctx->channels > 2) {
         return -1;
+    }
 
     s->stereo = avctx->channels > 1 ? 1 : 0;
 
-    if ((s->gfp = lame_init()) == NULL)
+    if ((s->gfp = lame_init()) == NULL) {
         goto err;
+    }
     lame_set_in_samplerate(s->gfp, avctx->sample_rate);
     lame_set_out_samplerate(s->gfp, avctx->sample_rate);
     lame_set_num_channels(s->gfp, avctx->channels);
-    if(avctx->compression_level == FF_COMPRESSION_DEFAULT) {
+    if (avctx->compression_level == FF_COMPRESSION_DEFAULT) {
         lame_set_quality(s->gfp, 5);
     } else {
         lame_set_quality(s->gfp, avctx->compression_level);
     }
     lame_set_mode(s->gfp, s->stereo ? JOINT_STEREO : MONO);
-    lame_set_brate(s->gfp, avctx->bit_rate/1000);
-    if(avctx->flags & CODEC_FLAG_QSCALE) {
+    lame_set_brate(s->gfp, avctx->bit_rate / 1000);
+    if (avctx->flags & CODEC_FLAG_QSCALE) {
         lame_set_brate(s->gfp, 0);
         lame_set_VBR(s->gfp, vbr_default);
-        lame_set_VBR_quality(s->gfp, avctx->global_quality/(float)FF_QP2LAMBDA);
+        lame_set_VBR_quality(s->gfp, avctx->global_quality / (float)FF_QP2LAMBDA);
     }
-    lame_set_bWriteVbrTag(s->gfp,0);
+    lame_set_bWriteVbrTag(s->gfp, 0);
     lame_set_disable_reservoir(s->gfp, avctx->flags2 & CODEC_FLAG2_BIT_RESERVOIR ? 0 : 1);
-    if (lame_init_params(s->gfp) < 0)
+    if (lame_init_params(s->gfp) < 0) {
         goto err_close;
+    }
 
     avctx->frame_size = lame_get_framesize(s->gfp);
 
-    if(!(avctx->coded_frame= avcodec_alloc_frame())) {
+    if (!(avctx->coded_frame = avcodec_alloc_frame())) {
         lame_close(s->gfp);
 
         return AVERROR(ENOMEM);
     }
-    avctx->coded_frame->key_frame= 1;
+    avctx->coded_frame->key_frame = 1;
 
-    if(AV_SAMPLE_FMT_S32 == avctx->sample_fmt && s->stereo) {
+    if (AV_SAMPLE_FMT_S32 == avctx->sample_fmt && s->stereo) {
         int nelem = 2 * avctx->frame_size;
 
-        if(! (s->s32_data.left = av_malloc(nelem * sizeof(int)))) {
+        if (!(s->s32_data.left = av_malloc(nelem * sizeof(int)))) {
             av_freep(&avctx->coded_frame);
             lame_close(s->gfp);
 
@@ -107,18 +110,17 @@ static const int sSampleRates[] = {
 };
 
 static const int sBitRates[2][3][15] = {
-    {   {  0, 32, 64, 96,128,160,192,224,256,288,320,352,384,416,448},
-        {  0, 32, 48, 56, 64, 80, 96,112,128,160,192,224,256,320,384},
-        {  0, 32, 40, 48, 56, 64, 80, 96,112,128,160,192,224,256,320}
+    {   {  0, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448},
+        {  0, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384},
+        {  0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320}
     },
-    {   {  0, 32, 48, 56, 64, 80, 96,112,128,144,160,176,192,224,256},
-        {  0,  8, 16, 24, 32, 40, 48, 56, 64, 80, 96,112,128,144,160},
-        {  0,  8, 16, 24, 32, 40, 48, 56, 64, 80, 96,112,128,144,160}
+    {   {  0, 32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256},
+        {  0,  8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160},
+        {  0,  8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160}
     },
 };
 
-static const int sSamplesPerFrame[2][3] =
-{
+static const int sSamplesPerFrame[2][3] = {
     {  384,     1152,    1152 },
     {  384,     1152,     576 }
 };
@@ -137,24 +139,28 @@ static int mp3len(void *data, int *samplesPerFrame, int *sampleRate)
     int sampleRateID = ((header >> 10) & 0x03);
     int bitsPerSlot = sBitsPerSlot[layerID];
     int isPadded = ((header >> 9) & 0x01);
-    static int const mode_tab[4]= {2,3,1,0};
-    int mode= mode_tab[(header >> 19) & 0x03];
-    int mpeg_id= mode>0;
+    static int const mode_tab[4] = {2, 3, 1, 0};
+    int mode = mode_tab[(header >> 19) & 0x03];
+    int mpeg_id = mode > 0;
     int temp0, temp1, bitRate;
 
-    if ( (( header >> 21 ) & 0x7ff) != 0x7ff || mode == 3 || layerID==3 || sampleRateID==3) {
+    if (((header >> 21) & 0x7ff) != 0x7ff || mode == 3 || layerID == 3 || sampleRateID == 3) {
         return -1;
     }
 
-    if(!samplesPerFrame) samplesPerFrame= &temp0;
-    if(!sampleRate     ) sampleRate     = &temp1;
+    if (!samplesPerFrame) {
+        samplesPerFrame = &temp0;
+    }
+    if (!sampleRate) {
+        sampleRate     = &temp1;
+    }
 
-//    *isMono = ((header >>  6) & 0x03) == 0x03;
+    //    *isMono = ((header >>  6) & 0x03) == 0x03;
 
-    *sampleRate = sSampleRates[sampleRateID]>>mode;
+    *sampleRate = sSampleRates[sampleRateID] >> mode;
     bitRate = sBitRates[mpeg_id][layerID][bitRateID] * 1000;
     *samplesPerFrame = sSamplesPerFrame[mpeg_id][layerID];
-//av_log(NULL, AV_LOG_DEBUG, "sr:%d br:%d spf:%d l:%d m:%d\n", *sampleRate, bitRate, *samplesPerFrame, layerID, mode);
+    //av_log(NULL, AV_LOG_DEBUG, "sr:%d br:%d spf:%d l:%d m:%d\n", *sampleRate, bitRate, *samplesPerFrame, layerID, mode);
 
     return *samplesPerFrame * bitRate / (bitsPerSlot * *sampleRate) + isPadded;
 }
@@ -168,17 +174,17 @@ static int MP3lame_encode_frame(AVCodecContext *avctx,
 
     /* lame 3.91 dies on '1-channel interleaved' data */
 
-    if(!data){
-        lame_result= lame_encode_flush(
-                s->gfp,
-                s->buffer + s->buffer_index,
-                BUFFER_SIZE - s->buffer_index
-                );
+    if (!data) {
+        lame_result = lame_encode_flush(
+                          s->gfp,
+                          s->buffer + s->buffer_index,
+                          BUFFER_SIZE - s->buffer_index
+                      );
 #if 2147483647 == INT_MAX
-    }else if(AV_SAMPLE_FMT_S32 == avctx->sample_fmt){
+    } else if (AV_SAMPLE_FMT_S32 == avctx->sample_fmt) {
         if (s->stereo) {
             int32_t *rp = data;
-            int32_t *mp = rp + 2*avctx->frame_size;
+            int32_t *mp = rp + 2 * avctx->frame_size;
             int *wpl = s->s32_data.left;
             int *wpr = s->s32_data.right;
 
@@ -188,47 +194,47 @@ static int MP3lame_encode_frame(AVCodecContext *avctx,
             }
 
             lame_result = lame_encode_buffer_int(
-                s->gfp,
-                s->s32_data.left,
-                s->s32_data.right,
-                avctx->frame_size,
-                s->buffer + s->buffer_index,
-                BUFFER_SIZE - s->buffer_index
-                );
+                              s->gfp,
+                              s->s32_data.left,
+                              s->s32_data.right,
+                              avctx->frame_size,
+                              s->buffer + s->buffer_index,
+                              BUFFER_SIZE - s->buffer_index
+                          );
         } else {
             lame_result = lame_encode_buffer_int(
-                s->gfp,
-                data,
-                data,
-                avctx->frame_size,
-                s->buffer + s->buffer_index,
-                BUFFER_SIZE - s->buffer_index
-                );
+                              s->gfp,
+                              data,
+                              data,
+                              avctx->frame_size,
+                              s->buffer + s->buffer_index,
+                              BUFFER_SIZE - s->buffer_index
+                          );
         }
 #endif
-    }else{
+    } else {
         if (s->stereo) {
             lame_result = lame_encode_buffer_interleaved(
-                s->gfp,
-                data,
-                avctx->frame_size,
-                s->buffer + s->buffer_index,
-                BUFFER_SIZE - s->buffer_index
-                );
+                              s->gfp,
+                              data,
+                              avctx->frame_size,
+                              s->buffer + s->buffer_index,
+                              BUFFER_SIZE - s->buffer_index
+                          );
         } else {
             lame_result = lame_encode_buffer(
-                s->gfp,
-                data,
-                data,
-                avctx->frame_size,
-                s->buffer + s->buffer_index,
-                BUFFER_SIZE - s->buffer_index
-                );
+                              s->gfp,
+                              data,
+                              data,
+                              avctx->frame_size,
+                              s->buffer + s->buffer_index,
+                              BUFFER_SIZE - s->buffer_index
+                          );
         }
     }
 
-    if(lame_result < 0){
-        if(lame_result==-1) {
+    if (lame_result < 0) {
+        if (lame_result == -1) {
             /* output buffer too small */
             av_log(avctx, AV_LOG_ERROR, "lame: output buffer too small (buffer index: %d, free bytes: %d)\n", s->buffer_index, BUFFER_SIZE - s->buffer_index);
         }
@@ -237,23 +243,25 @@ static int MP3lame_encode_frame(AVCodecContext *avctx,
 
     s->buffer_index += lame_result;
 
-    if(s->buffer_index<4)
+    if (s->buffer_index < 4) {
         return 0;
+    }
 
-    len= mp3len(s->buffer, NULL, NULL);
-//av_log(avctx, AV_LOG_DEBUG, "in:%d packet-len:%d index:%d\n", avctx->frame_size, len, s->buffer_index);
-    if(len <= s->buffer_index){
+    len = mp3len(s->buffer, NULL, NULL);
+    //av_log(avctx, AV_LOG_DEBUG, "in:%d packet-len:%d index:%d\n", avctx->frame_size, len, s->buffer_index);
+    if (len <= s->buffer_index) {
         memcpy(frame, s->buffer, len);
         s->buffer_index -= len;
 
-        memmove(s->buffer, s->buffer+len, s->buffer_index);
-            //FIXME fix the audio codec API, so we do not need the memcpy()
-/*for(i=0; i<len; i++){
-    av_log(avctx, AV_LOG_DEBUG, "%2X ", frame[i]);
-}*/
+        memmove(s->buffer, s->buffer + len, s->buffer_index);
+        //FIXME fix the audio codec API, so we do not need the memcpy()
+        /*for(i=0; i<len; i++){
+            av_log(avctx, AV_LOG_DEBUG, "%2X ", frame[i]);
+        }*/
         return len;
-    }else
+    } else {
         return 0;
+    }
 }
 
 static av_cold int MP3lame_encode_close(AVCodecContext *avctx)
@@ -276,12 +284,15 @@ AVCodec ff_libmp3lame_encoder = {
     MP3lame_encode_init,
     MP3lame_encode_frame,
     MP3lame_encode_close,
-    .capabilities= CODEC_CAP_DELAY,
-    .sample_fmts = (const enum AVSampleFormat[]){AV_SAMPLE_FMT_S16,
+    .capabilities = CODEC_CAP_DELAY,
+    .sample_fmts = (const enum AVSampleFormat[])
+    {
+        AV_SAMPLE_FMT_S16,
 #if 2147483647 == INT_MAX
-    AV_SAMPLE_FMT_S32,
+        AV_SAMPLE_FMT_S32,
 #endif
-    AV_SAMPLE_FMT_NONE},
-    .supported_samplerates= sSampleRates,
-    .long_name= NULL_IF_CONFIG_SMALL("libmp3lame MP3 (MPEG audio layer 3)"),
+        AV_SAMPLE_FMT_NONE
+    },
+    .supported_samplerates = sSampleRates,
+    .long_name = NULL_IF_CONFIG_SMALL("libmp3lame MP3 (MPEG audio layer 3)"),
 };

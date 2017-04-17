@@ -30,8 +30,9 @@ static int rso_write_header(AVFormatContext *s)
     AVIOContext  *pb  = s->pb;
     AVCodecContext *enc = s->streams[0]->codec;
 
-    if (!enc->codec_tag)
+    if (!enc->codec_tag) {
         return AVERROR_INVALIDDATA;
+    }
 
     if (enc->channels != 1) {
         av_log(s, AV_LOG_ERROR, "RSO only supports mono\n");
@@ -44,7 +45,7 @@ static int rso_write_header(AVFormatContext *s)
     }
 
     /* XXX: find legal sample rates (if any) */
-    if (enc->sample_rate >= 1u<<16) {
+    if (enc->sample_rate >= 1u << 16) {
         av_log(s, AV_LOG_ERROR, "Sample rate must be < 65536\n");
         return AVERROR_INVALIDDATA;
     }
@@ -79,8 +80,9 @@ static int rso_write_trailer(AVFormatContext *s)
 
     file_size = avio_tell(pb);
 
-    if (file_size < 0)
+    if (file_size < 0) {
         return file_size;
+    }
 
     if (file_size > 0xffff + RSO_HEADER_SIZE) {
         av_log(s, AV_LOG_WARNING,
@@ -110,5 +112,5 @@ AVOutputFormat ff_rso_muxer = {
     .write_header   =   rso_write_header,
     .write_packet   =   rso_write_packet,
     .write_trailer  =   rso_write_trailer,
-    .codec_tag      =   (const AVCodecTag* const []){ff_codec_rso_tags, 0},
+    .codec_tag      = (const AVCodecTag* const []){ff_codec_rso_tags, 0},
 };

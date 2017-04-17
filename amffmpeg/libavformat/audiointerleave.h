@@ -49,7 +49,7 @@ void ff_audio_interleave_close(AVFormatContext *s);
  * @param compare_ts function will compare AVPackets and decide interleaving order.
  */
 int ff_audio_rechunk_interleave(AVFormatContext *s, AVPacket *out, AVPacket *pkt, int flush,
-                        int (*get_packet)(AVFormatContext *, AVPacket *, AVPacket *, int),
-                        int (*compare_ts)(AVFormatContext *, AVPacket *, AVPacket *));
+                                int (*get_packet)(AVFormatContext *, AVPacket *, AVPacket *, int),
+                                int (*compare_ts)(AVFormatContext *, AVPacket *, AVPacket *));
 
 #endif /* AVFORMAT_AUDIOINTERLEAVE_H */

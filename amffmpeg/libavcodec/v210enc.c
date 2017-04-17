@@ -88,8 +88,9 @@ static int encode_frame(AVCodecContext *avctx, unsigned char *buf,
             WRITE_PIXELS(u, y, v);
 
             val = CLIP(*y++);
-            if (w == avctx->width - 2)
+            if (w == avctx->width - 2) {
                 bytestream_put_le32(&p, val);
+            }
         }
         if (w < avctx->width - 3) {
             val |= (CLIP(*u++) << 10) | (CLIP(*y++) << 20);

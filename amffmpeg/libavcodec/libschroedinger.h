@@ -44,7 +44,7 @@ static const struct {
 * Returns the video format preset matching the input video dimensions and
 * time base.
 */
-SchroVideoFormatEnum ff_get_schro_video_format_preset (AVCodecContext *avccontext);
+SchroVideoFormatEnum ff_get_schro_video_format_preset(AVCodecContext *avccontext);
 
 /**
 * Sets the Schroedinger frame format corresponding to the Schro chroma format

@@ -23,8 +23,7 @@
 #include "mpegaudiodec.c"
 
 #if CONFIG_MP1FLOAT_DECODER
-AVCodec ff_mp1float_decoder =
-{
+AVCodec ff_mp1float_decoder = {
     "mp1float",
     AVMEDIA_TYPE_AUDIO,
     CODEC_ID_MP1,
@@ -34,13 +33,12 @@ AVCodec ff_mp1float_decoder =
     .close = NULL,
     decode_frame,
     CODEC_CAP_PARSE_ONLY,
-    .flush= flush,
-    .long_name= NULL_IF_CONFIG_SMALL("MP1 (MPEG audio layer 1)"),
+    .flush = flush,
+    .long_name = NULL_IF_CONFIG_SMALL("MP1 (MPEG audio layer 1)"),
 };
 #endif
 #if CONFIG_MP2FLOAT_DECODER
-AVCodec ff_mp2float_decoder =
-{
+AVCodec ff_mp2float_decoder = {
     "mp2float",
     AVMEDIA_TYPE_AUDIO,
     CODEC_ID_MP2,
@@ -50,13 +48,12 @@ AVCodec ff_mp2float_decoder =
     .close = NULL,
     decode_frame,
     CODEC_CAP_PARSE_ONLY,
-    .flush= flush,
-    .long_name= NULL_IF_CONFIG_SMALL("MP2 (MPEG audio layer 2)"),
+    .flush = flush,
+    .long_name = NULL_IF_CONFIG_SMALL("MP2 (MPEG audio layer 2)"),
 };
 #endif
 #if CONFIG_MP3FLOAT_DECODER
-AVCodec ff_mp3float_decoder =
-{
+AVCodec ff_mp3float_decoder = {
     "mp3float",
     AVMEDIA_TYPE_AUDIO,
     CODEC_ID_MP3,
@@ -66,13 +63,12 @@ AVCodec ff_mp3float_decoder =
     .close = NULL,
     decode_frame,
     CODEC_CAP_PARSE_ONLY,
-    .flush= flush,
-    .long_name= NULL_IF_CONFIG_SMALL("MP3 (MPEG audio layer 3)"),
+    .flush = flush,
+    .long_name = NULL_IF_CONFIG_SMALL("MP3 (MPEG audio layer 3)"),
 };
 #endif
 #if CONFIG_MP3ADUFLOAT_DECODER
-AVCodec ff_mp3adufloat_decoder =
-{
+AVCodec ff_mp3adufloat_decoder = {
     "mp3adufloat",
     AVMEDIA_TYPE_AUDIO,
     CODEC_ID_MP3ADU,
@@ -82,13 +78,12 @@ AVCodec ff_mp3adufloat_decoder =
     .close = NULL,
     decode_frame_adu,
     CODEC_CAP_PARSE_ONLY,
-    .flush= flush,
-    .long_name= NULL_IF_CONFIG_SMALL("ADU (Application Data Unit) MP3 (MPEG audio layer 3)"),
+    .flush = flush,
+    .long_name = NULL_IF_CONFIG_SMALL("ADU (Application Data Unit) MP3 (MPEG audio layer 3)"),
 };
 #endif
 #if CONFIG_MP3ON4FLOAT_DECODER
-AVCodec ff_mp3on4float_decoder =
-{
+AVCodec ff_mp3on4float_decoder = {
     "mp3on4float",
     AVMEDIA_TYPE_AUDIO,
     CODEC_ID_MP3ON4,
@@ -97,7 +92,7 @@ AVCodec ff_mp3on4float_decoder =
     NULL,
     decode_close_mp3on4,
     decode_frame_mp3on4,
-    .flush= flush,
-    .long_name= NULL_IF_CONFIG_SMALL("MP3onMP4"),
+    .flush = flush,
+    .long_name = NULL_IF_CONFIG_SMALL("MP3onMP4"),
 };
 #endif

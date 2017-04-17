@@ -37,8 +37,8 @@ int hls_cmf_shift_index_by_time(void* session, CmfPrivContext_t* ctx, int64_t po
     ctx->cur_clip_index = node->index;
     ctx->cur_clip_st = node->startUs;
     ctx->cur_clip_end = node->startUs + node->durationUs;
-    ctx->cur_clip_offset = node->range_offset;
-    ctx->cur_clip_len = node->range_length;
+    ctx->cur_clip_offset = node->readOffset;
+    ctx->cur_clip_len = node->fileSize;
     strcpy(ctx->cur_clip_path, node->fileUrl);
     return node->index;
 }
@@ -55,8 +55,8 @@ int64_t hls_cmf_seek_by_index(void* session, CmfPrivContext_t* ctx, int index)
     ctx->cur_clip_index = index;
     ctx->cur_clip_st = node->startUs;
     ctx->cur_clip_end = node->startUs + node->durationUs;
-    ctx->cur_clip_offset = node->range_offset;
-    ctx->cur_clip_len = node->range_length;
+    ctx->cur_clip_offset = node->readOffset;
+    ctx->cur_clip_len = node->fileSize;
     strcpy(ctx->cur_clip_path, node->fileUrl);
     if (ctx->interrupt_func_cb != NULL && ctx->interrupt_func_cb() > 0) {
         return -1;

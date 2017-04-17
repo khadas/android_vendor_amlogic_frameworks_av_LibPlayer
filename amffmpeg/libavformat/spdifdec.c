@@ -58,8 +58,9 @@ static int spdif_get_offset_and_codec(AVFormatContext *s,
     case IEC61937_MPEG2_AAC:
         init_get_bits(&gbc, buf, AAC_ADTS_HEADER_SIZE * 8);
         if (ff_aac_parse_header(&gbc, &aac_hdr)) {
-            if (s) /* be silent during a probe */
+            if (s) { /* be silent during a probe */
                 av_log(s, AV_LOG_ERROR, "Invalid AAC packet in IEC 61937\n");
+            }
             return AVERROR_INVALIDDATA;
         }
         *offset = aac_hdr.samples << 2;
@@ -118,17 +119,20 @@ static int spdif_probe(AVProbeData *p)
         state = (state << 8) | *buf;
 
         if (state == (AV_BSWAP16C(SYNCWORD1) << 16 | AV_BSWAP16C(SYNCWORD2))
-                && buf[1] < 0x37) {
+            && buf[1] < 0x37) {
             sync_codes++;
 
             if (buf == expected_code) {
-                if (++consecutive_codes >= 2)
+                if (++consecutive_codes >= 2) {
                     return AVPROBE_SCORE_MAX;
-            } else
+                }
+            } else {
                 consecutive_codes = 0;
+            }
 
-            if (buf + 4 + AAC_ADTS_HEADER_SIZE > p->buf + p->buf_size)
+            if (buf + 4 + AAC_ADTS_HEADER_SIZE > p->buf + p->buf_size) {
                 break;
+            }
 
             /* continue probing to find more sync codes */
             probe_end = FFMIN(buf + SPDIF_MAX_OFFSET, p->buf + p->buf_size - 1);
@@ -136,20 +140,24 @@ static int spdif_probe(AVProbeData *p)
             /* skip directly to the next sync code */
             if (!spdif_get_offset_and_codec(NULL, (buf[2] << 8) | buf[1],
                                             &buf[5], &offset, &codec)) {
-                if (buf + offset >= p->buf + p->buf_size)
+                if (buf + offset >= p->buf + p->buf_size) {
                     break;
+                }
                 expected_code = buf + offset;
                 buf = expected_code - 7;
             }
         }
     }
 
-    if (!sync_codes)
+    if (!sync_codes) {
         return 0;
+    }
 
     if (sync_codes >= 6)
         /* good amount of sync codes but with unexpected offsets */
+    {
         return AVPROBE_SCORE_MAX / 2;
+    }
 
     /* some sync codes were found */
     return AVPROBE_SCORE_MAX / 8;
@@ -171,19 +179,22 @@ static int spdif_read_packet(AVFormatContext *s, AVPacket *pkt)
 
     while (state != (AV_BSWAP16C(SYNCWORD1) << 16 | AV_BSWAP16C(SYNCWORD2))) {
         state = (state << 8) | avio_r8(pb);
-        if (url_feof(pb))
+        if (url_feof(pb)) {
             return AVERROR_EOF;
+        }
     }
 
     data_type = avio_rl16(pb);
     pkt_size_bits = avio_rl16(pb);
 
-    if (pkt_size_bits % 16)
+    if (pkt_size_bits % 16) {
         av_log_ask_for_sample(s, "Packet does not end to a 16-bit boundary.");
+    }
 
     ret = av_new_packet(pkt, FFALIGN(pkt_size_bits, 16) >> 3);
-    if (ret)
+    if (ret) {
         return ret;
+    }
 
     pkt->pos = avio_tell(pb) - BURST_HEADER_SIZE;
 
@@ -220,7 +231,9 @@ static int spdif_read_packet(AVFormatContext *s, AVPacket *pkt)
     if (!s->bit_rate && s->streams[0]->codec->sample_rate)
         /* stream bitrate matches 16-bit stereo PCM bitrate for currently
            supported codecs */
+    {
         s->bit_rate = 2 * 16 * s->streams[0]->codec->sample_rate;
+    }
 
     return 0;
 }

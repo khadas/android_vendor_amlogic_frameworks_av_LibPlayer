@@ -60,23 +60,27 @@ static int flic_probe(AVProbeData *p)
 {
     int magic_number;
 
-    if(p->buf_size < FLIC_HEADER_SIZE)
+    if (p->buf_size < FLIC_HEADER_SIZE) {
         return 0;
+    }
 
     magic_number = AV_RL16(&p->buf[4]);
     if ((magic_number != FLIC_FILE_MAGIC_1) &&
         (magic_number != FLIC_FILE_MAGIC_2) &&
-        (magic_number != FLIC_FILE_MAGIC_3))
+        (magic_number != FLIC_FILE_MAGIC_3)) {
         return 0;
-
-    if(AV_RL16(&p->buf[0x10]) != FLIC_CHUNK_MAGIC_1){
-        if(AV_RL32(&p->buf[0x10]) > 2000)
-            return 0;
     }
 
-    if(   AV_RL16(&p->buf[0x08]) > 4096
-       || AV_RL16(&p->buf[0x0A]) > 4096)
+    if (AV_RL16(&p->buf[0x10]) != FLIC_CHUNK_MAGIC_1) {
+        if (AV_RL32(&p->buf[0x10]) > 2000) {
+            return 0;
+        }
+    }
+
+    if (AV_RL16(&p->buf[0x08]) > 4096
+        || AV_RL16(&p->buf[0x0A]) > 4096) {
         return 0;
+    }
 
 
     return AVPROBE_SCORE_MAX;
@@ -96,18 +100,21 @@ static int flic_read_header(AVFormatContext *s,
     flic->frame_number = 0;
 
     /* load the whole header and pull out the width and height */
-    if (avio_read(pb, header, FLIC_HEADER_SIZE) != FLIC_HEADER_SIZE)
+    if (avio_read(pb, header, FLIC_HEADER_SIZE) != FLIC_HEADER_SIZE) {
         return AVERROR(EIO);
+    }
 
     magic_number = AV_RL16(&header[4]);
     speed = AV_RL32(&header[0x10]);
-    if (speed == 0)
+    if (speed == 0) {
         speed = FLIC_DEFAULT_SPEED;
+    }
 
     /* initialize the decoder streams */
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
     flic->video_stream_index = st->index;
     st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
     st->codec->codec_id = CODEC_ID_FLIC;
@@ -146,8 +153,9 @@ static int flic_read_header(AVFormatContext *s,
     if (AV_RL16(&preamble[4]) == FLIC_TFTD_CHUNK_AUDIO) {
         /* TFTD videos have an extra 22050 Hz 8-bit mono audio stream */
         ast = av_new_stream(s, 1);
-        if (!ast)
+        if (!ast) {
             return AVERROR(ENOMEM);
+        }
 
         flic->audio_stream_index = ast->index;
 
@@ -226,7 +234,7 @@ static int flic_read_packet(AVFormatContext *s,
             pkt->pos = avio_tell(pb);
             memcpy(pkt->data, preamble, FLIC_PREAMBLE_SIZE);
             ret = avio_read(pb, pkt->data + FLIC_PREAMBLE_SIZE,
-                size - FLIC_PREAMBLE_SIZE);
+                            size - FLIC_PREAMBLE_SIZE);
             if (ret != size - FLIC_PREAMBLE_SIZE) {
                 av_free_packet(pkt);
                 ret = AVERROR(EIO);

@@ -31,7 +31,7 @@
 #include "mqc.h"
 #include "j2k_dwt.h"
 
-enum J2kMarkers{
+enum J2kMarkers {
     J2K_SOC = 0xff4f, ///< start of codestream
     J2K_SIZ = 0xff51, ///< image and tile size
     J2K_COD,          ///< coding style default
@@ -54,7 +54,7 @@ enum J2kMarkers{
     J2K_EOC = 0xffd9, ///< end of codestream
 };
 
-enum J2kQuantsty{ ///< quantization style
+enum J2kQuantsty { ///< quantization style
     J2K_QSTY_NONE, ///< no quantization
     J2K_QSTY_SI,   ///< scalar derived
     J2K_QSTY_SE    ///< scalar expoounded
@@ -102,7 +102,7 @@ enum J2kQuantsty{ ///< quantization style
 
 typedef struct {
     int data[J2K_MAX_CBLKW][J2K_MAX_CBLKH];
-    int flags[J2K_MAX_CBLKW+2][J2K_MAX_CBLKH+2];
+    int flags[J2K_MAX_CBLKW + 2][J2K_MAX_CBLKH + 2];
     MqcState mqc;
 } J2kT1Context;
 
@@ -173,10 +173,10 @@ typedef struct {
 } J2kResLevel; ///< resolution level
 
 typedef struct {
-   J2kResLevel *reslevel;
-   DWTContext dwt;
-   int *data;
-   uint16_t coord[2][2]; ///< border coordinates {{x0, x1}, {y0, y1}}
+    J2kResLevel *reslevel;
+    DWTContext dwt;
+    int *data;
+    uint16_t coord[2][2]; ///< border coordinates {{x0, x1}, {y0, y1}}
 } J2kComponent;
 
 /* debug routines */
@@ -190,7 +190,7 @@ void ff_j2k_printu(uint8_t *tab, int l);
 /* misc tools */
 static inline int ff_j2k_ceildivpow2(int a, int b)
 {
-    return (a + (1 << b) - 1)>> b;
+    return (a + (1 << b) - 1) >> b;
 }
 
 static inline int ff_j2k_ceildiv(int a, int b)
@@ -210,21 +210,21 @@ extern uint8_t ff_j2k_nbctxno_lut[256][4];
 
 static inline int ff_j2k_getnbctxno(int flag, int bandno, int vert_causal_ctx_csty_symbol)
 {
-    return ff_j2k_nbctxno_lut[flag&255][bandno];
+    return ff_j2k_nbctxno_lut[flag & 255][bandno];
 }
 
 static inline int ff_j2k_getrefctxno(int flag)
 {
     static const uint8_t refctxno_lut[2][2] = {{14, 15}, {16, 16}};
-    return refctxno_lut[(flag>>14)&1][(flag & 255) != 0];
+    return refctxno_lut[(flag >> 14) & 1][(flag & 255) != 0];
 }
 
 extern uint8_t ff_j2k_sgnctxno_lut[16][16], ff_j2k_xorbit_lut[16][16];
 
 static inline int ff_j2k_getsgnctxno(int flag, int *xorbit)
 {
-    *xorbit = ff_j2k_xorbit_lut[flag&15][(flag>>8)&15];
-    return  ff_j2k_sgnctxno_lut[flag&15][(flag>>8)&15];
+    *xorbit = ff_j2k_xorbit_lut[flag & 15][(flag >> 8) & 15];
+    return  ff_j2k_sgnctxno_lut[flag & 15][(flag >> 8) & 15];
 }
 
 int ff_j2k_init_component(J2kComponent *comp, J2kCodingStyle *codsty, J2kQuantStyle *qntsty, int cbps, int dx, int dy);

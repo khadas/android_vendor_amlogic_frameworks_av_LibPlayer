@@ -36,8 +36,11 @@
 static const char *urlcontext_to_name(void *ptr)
 {
     URLContext *h = (URLContext *)ptr;
-    if(h->prot) return h->prot->name;
-    else        return "NULL";
+    if (h->prot) {
+        return h->prot->name;
+    } else {
+        return "NULL";
+    }
 }
 static const AVOption options[] = {{NULL}};
 static const AVClass urlcontext_class = {
@@ -56,17 +59,23 @@ static int (*url_interrupt_cb_ext)(int) = NULL;
 
 URLProtocol *av_protocol_next(URLProtocol *p)
 {
-    if(p) return p->next;
-    else  return first_protocol;
+    if (p) {
+        return p->next;
+    } else {
+        return first_protocol;
+    }
 }
 
 const char *avio_enum_protocols(void **opaque, int output)
 {
     URLProtocol *p = *opaque;
     p = p ? p->next : first_protocol;
-    if (!p) return NULL;
-    if ((output && p->url_write) || (!output && p->url_read))
+    if (!p) {
+        return NULL;
+    }
+    if ((output && p->url_write) || (!output && p->url_read)) {
         return p->name;
+    }
     return avio_enum_protocols(opaque, output);
 }
 
@@ -80,29 +89,33 @@ int ffurl_register_protocol(URLProtocol *protocol, int size)
     }
     p = &first_protocol;
 #if 0
-    while (*p != NULL) p = &(*p)->next;
+    while (*p != NULL) {
+        p = &(*p)->next;
+    }
     *p = protocol;
     protocol->next = NULL;
 #else
-	protocol->next=first_protocol;
-	first_protocol=protocol;
+    protocol->next = first_protocol;
+    first_protocol = protocol;
 #endif
     return 0;
 }
 
-int av_register_protocol(URLProtocol *protocol){
-	return ffurl_register_protocol(protocol,sizeof(*protocol));
+int av_register_protocol(URLProtocol *protocol)
+{
+    return ffurl_register_protocol(protocol, sizeof(*protocol));
 }
 
-static int url_alloc_for_protocol (URLContext **puc, struct URLProtocol *up,
-                                   const char *filename, int flags)
+static int url_alloc_for_protocol(URLContext **puc, struct URLProtocol *up,
+                                  const char *filename, int flags)
 {
     URLContext *uc;
     int err;
 
 #if CONFIG_NETWORK
-    if (!ff_network_init())
+    if (!ff_network_init()) {
         return AVERROR(EIO);
+    }
 #endif
     uc = av_mallocz(sizeof(URLContext) + strlen(filename) + 1);
     if (!uc) {
@@ -117,7 +130,7 @@ static int url_alloc_for_protocol (URLContext **puc, struct URLProtocol *up,
     uc->is_streamed = 0; /* default = not streamed */
     uc->http_code = -1;
     uc->max_packet_size = 0; /* default: stream file */
-    uc->notify_id= -1;
+    uc->notify_id = -1;
     if (up->priv_data_size) {
         uc->priv_data = av_mallocz(up->priv_data_size);
         if (up->priv_data_class) {
@@ -128,7 +141,7 @@ static int url_alloc_for_protocol (URLContext **puc, struct URLProtocol *up,
 
     *puc = uc;
     return 0;
- fail:
+fail:
     *puc = NULL;
 #if CONFIG_NETWORK
     ff_network_close();
@@ -139,30 +152,34 @@ static int url_alloc_for_protocol (URLContext **puc, struct URLProtocol *up,
 int ffurl_connect(URLContext* uc)
 {
     int err = uc->prot->url_open(uc, uc->filename, uc->flags);
-    if (err)
+    if (err) {
         return err;
+    }
     uc->is_connected = 1;
     //We must be careful here as ffurl_seek() could be slow, for example for http
-    if(   (uc->flags & AVIO_FLAG_WRITE)
-       || !strcmp(uc->prot->name, "file"))
-        if(!uc->is_streamed && ffurl_seek(uc, 0, SEEK_SET) < 0)
-            uc->is_streamed= 1;
+    if ((uc->flags & AVIO_FLAG_WRITE)
+        || !strcmp(uc->prot->name, "file"))
+        if (!uc->is_streamed && ffurl_seek(uc, 0, SEEK_SET) < 0) {
+            uc->is_streamed = 1;
+        }
     return 0;
 }
 
 #if FF_API_OLD_AVIO
-int url_open_protocol (URLContext **puc, struct URLProtocol *up,
-                       const char *filename, int flags)
+int url_open_protocol(URLContext **puc, struct URLProtocol *up,
+                      const char *filename, int flags)
 {
     int ret;
 
     ret = url_alloc_for_protocol(puc, up, filename, flags);
-    if (ret)
+    if (ret) {
         goto fail;
+    }
     ret = ffurl_connect(*puc);
-    if (!ret)
+    if (!ret) {
         return 0;
- fail:
+    }
+fail:
     ffurl_close(*puc);
     *puc = NULL;
     return ret;
@@ -236,22 +253,26 @@ int ffurl_alloc(URLContext **puc, const char *filename, int flags)
     char proto_str[128], proto_nested[128], *ptr;
     size_t proto_len = strspn(filename, URL_SCHEME_CHARS);
 
-    if (filename[proto_len] != ':' || is_dos_path(filename))
+    if (filename[proto_len] != ':' || is_dos_path(filename)) {
         strcpy(proto_str, "file");
-    else
-        av_strlcpy(proto_str, filename, FFMIN(proto_len+1, sizeof(proto_str)));
+    } else {
+        av_strlcpy(proto_str, filename, FFMIN(proto_len + 1, sizeof(proto_str)));
+    }
 
     av_strlcpy(proto_nested, proto_str, sizeof(proto_nested));
-    if ((ptr = strchr(proto_nested, '+')))
+    if ((ptr = strchr(proto_nested, '+'))) {
         *ptr = '\0';
+    }
 
     up = first_protocol;
     while (up != NULL) {
-        if (!strcmp(proto_str, up->name))
-            return url_alloc_for_protocol (puc, up, filename, flags);
+        if (!strcmp(proto_str, up->name)) {
+            return url_alloc_for_protocol(puc, up, filename, flags);
+        }
         if (up->flags & URL_PROTOCOL_FLAG_NESTED_SCHEME &&
-            !strcmp(proto_nested, up->name))
-            return url_alloc_for_protocol (puc, up, filename, flags);
+            !strcmp(proto_nested, up->name)) {
+            return url_alloc_for_protocol(puc, up, filename, flags);
+        }
         up = up->next;
     }
     *puc = NULL;
@@ -262,12 +283,12 @@ static int is_use_androidhttp(const char *filename)
 {
     char prop[PATH_MAX];
     const char default_prop[] = "beinsport";
-    if(am_getconfig("media.libplayer.apklist", prop, NULL)){
-        if(strstr(filename, prop)){
+    if (am_getconfig("media.libplayer.apklist", prop, NULL)) {
+        if (strstr(filename, prop)) {
             return 1;
         }
     }
-    if(strstr(filename, default_prop)){
+    if (strstr(filename, default_prop)) {
         return 1;
     }
     return 0;
@@ -275,74 +296,8 @@ static int is_use_androidhttp(const char *filename)
 
 int ffurl_open(URLContext **puc, const char *filename, int flags)
 {
-	int ret;
-	if(am_getconfig_bool("media.libplayer.curlenable") && (!strncmp(filename, "https", strlen("https")) || !strncmp(filename, "shttps", strlen("shttps")))
-        && !is_use_androidhttp(filename)) {
-		char * file = (char *)av_malloc(strlen(filename) + 10);
-		int num = snprintf(file, strlen(filename) + 10, "curl:%s", filename);
-		ret = ffurl_alloc(puc, file, flags);
-		av_free(file);
-		file = NULL;
-	} else {
-		ret = ffurl_alloc(puc, filename, flags);
-	}
-    if (ret)
-        return ret;
-    ret = ffurl_connect(*puc);
-    if (!ret)
-        return 0;
-    ffurl_close(*puc);
-    *puc = NULL;
-    return ret;
-}
-int ffurl_open_h(URLContext **puc, const char *filename, int flags,const char *headers, int * http_error_flag)
-{
-	int ret;
-	if(am_getconfig_bool("media.libplayer.curlenable")  && (!strncmp(filename, "https", strlen("https")) || !strncmp(filename, "shttps", strlen("shttps")))
-        && !is_use_androidhttp(filename)) {
-		char * file = (char *)av_malloc(strlen(filename) + 10);
-		int num = snprintf(file, strlen(filename) + 10, "curl:%s", filename);
-		ret = ffurl_alloc(puc, file, flags);
-		av_free(file);
-		file = NULL;
-	} else {
-		ret = ffurl_alloc(puc, filename, flags);
-	}
-    if (ret)
-        return ret;
-	if(headers){
-		(*puc)->headers=av_strdup(headers);
-	}
-    if(flags&URL_SEGMENT_MEDIA){
-        (*puc)->is_segment_media = 1;
-    }else{
-        (*puc)->is_segment_media = 0;
-    }
-    ret = ffurl_connect(*puc);
-    if(http_error_flag) {
-        *http_error_flag = 0;
-        if(404 == (*puc)->http_code)
-            *http_error_flag = -404;
-        if(503 == (*puc)->http_code)
-            *http_error_flag = -503;
-        if(500 == (*puc)->http_code)
-            *http_error_flag = -500;
-        if(408 == (*puc)->http_code)
-            *http_error_flag = -408;
-    }
-    if (!ret)
-        return 0;
-    ffurl_close(*puc);
-    *puc = NULL;
-    return ret;
-}
-int ffurl_open_h2(URLContext **puc, const char *filename, int flags,const char *headers, int * http_error_flag, const unsigned long options)
-{
-    if (!options && !(*(AVDictionary **)options))
-        return ffurl_open_h(puc, filename, flags, headers, http_error_flag);
-
     int ret;
-    if(am_getconfig_bool("media.libplayer.curlenable")  && (!strncmp(filename, "http", strlen("http")) || !strncmp(filename, "shttp", strlen("shttp")))
+    if (am_getconfig_bool("media.libplayer.curlenable") && (!strncmp(filename, "https", strlen("https")) || !strncmp(filename, "shttps", strlen("shttps")))
         && !is_use_androidhttp(filename)) {
         char * file = (char *)av_malloc(strlen(filename) + 10);
         int num = snprintf(file, strlen(filename) + 10, "curl:%s", filename);
@@ -352,70 +307,199 @@ int ffurl_open_h2(URLContext **puc, const char *filename, int flags,const char *
     } else {
         ret = ffurl_alloc(puc, filename, flags);
     }
-    if (ret)
+    if (ret) {
         return ret;
-    if(headers){
-        (*puc)->headers=av_strdup(headers);
     }
-    if(flags&URL_SEGMENT_MEDIA){	 
+    ret = ffurl_connect(*puc);
+    if (!ret) {
+        return 0;
+    }
+    ffurl_close(*puc);
+    *puc = NULL;
+    return ret;
+}
+int ffurl_open_h(URLContext **puc, const char *filename, int flags, const char *headers, int * http_error_flag)
+{
+    int ret;
+    if (am_getconfig_bool("media.libplayer.curlenable")  && (!strncmp(filename, "https", strlen("https")) || !strncmp(filename, "shttps", strlen("shttps")))
+        && !is_use_androidhttp(filename)) {
+        char * file = (char *)av_malloc(strlen(filename) + 10);
+        int num = snprintf(file, strlen(filename) + 10, "curl:%s", filename);
+        ret = ffurl_alloc(puc, file, flags);
+        av_free(file);
+        file = NULL;
+    } else {
+        ret = ffurl_alloc(puc, filename, flags);
+    }
+    if (ret) {
+        return ret;
+    }
+    if (headers) {
+        (*puc)->headers = av_strdup(headers);
+    }
+    if (flags & URL_SEGMENT_MEDIA) {
         (*puc)->is_segment_media = 1;
-    }else{       
+    } else {
+        (*puc)->is_segment_media = 0;
+    }
+    ret = ffurl_connect(*puc);
+    if (http_error_flag) {
+        *http_error_flag = 0;
+        if (((*puc)->http_code >= 400 && (*puc)->http_code < 600 && (*puc)->http_code != 401) || (*puc)->http_code == ETIMEDOUT) {
+            *http_error_flag = -((*puc)->http_code);
+        }
+    }
+    if (!ret) {
+        return 0;
+    }
+    ffurl_close(*puc);
+    *puc = NULL;
+    if (*http_error_flag) {
+        return *http_error_flag;
+    }
+    return ret;
+}
+int ffurl_open_h2(URLContext **puc, const char *filename, int flags, const char *headers, int * http_error_flag, const unsigned long options)
+{
+    if (!options && !(*(AVDictionary **)options)) {
+        return ffurl_open_h(puc, filename, flags, headers, http_error_flag);
+    }
+
+    int ret;
+    if (am_getconfig_bool("media.libplayer.curlenable")  && (!strncmp(filename, "http", strlen("http")) || !strncmp(filename, "shttp", strlen("shttp")))
+        && !is_use_androidhttp(filename)) {
+        char * file = (char *)av_malloc(strlen(filename) + 10);
+        int num = snprintf(file, strlen(filename) + 10, "curl:%s", filename);
+        ret = ffurl_alloc(puc, file, flags);
+        av_free(file);
+        file = NULL;
+    } else {
+        ret = ffurl_alloc(puc, filename, flags);
+    }
+    if (ret) {
+        return ret;
+    }
+    if (headers) {
+        (*puc)->headers = av_strdup(headers);
+    }
+    if (flags & URL_SEGMENT_MEDIA) {
+        (*puc)->is_segment_media = 1;
+    } else {
         (*puc)->is_segment_media = 0;
     }
     AVDictionary **opt = (AVDictionary **)options;
     int notify_id = -1;
     AVDictionaryEntry *tag = av_dict_get(*opt, "pid", NULL, 0);
-    if (tag)
+    if (tag) {
         notify_id = atoi(tag->value);
+    }
     (*puc)->notify_id = notify_id;
     ret = ffurl_connect(*puc);
-    if(http_error_flag) {
+    if (http_error_flag) {
         *http_error_flag = 0;
-        if(404 == (*puc)->http_code)
-            *http_error_flag = -404;
-        if(503 == (*puc)->http_code)
-            *http_error_flag = -503;
-        if(500 == (*puc)->http_code)
-            *http_error_flag = -500;
-        if(408 == (*puc)->http_code)
-            *http_error_flag = -408;
+        if (((*puc)->http_code >= 400 && (*puc)->http_code < 600 && (*puc)->http_code != 401) || (*puc)->http_code == ETIMEDOUT) {
+            *http_error_flag = -((*puc)->http_code);
+        }
     }
-    if (!ret)
+    if (!ret) {
         return 0;
+    }
     ffurl_close(*puc);
     *puc = NULL;
+    if (*http_error_flag) {
+        return *http_error_flag;
+    }
+    return ret;
+}
+
+/*add for hls get notify_id, just add options paraments compare for function ffurl_open_h */
+int ffurl_open_h3(URLContext **puc, const char *filename, int flags, const char *headers, int * http_error_flag, const unsigned long options)
+{
+    if (!options && !(*(AVDictionary **)options)) {
+        return ffurl_open_h(puc, filename, flags, headers, http_error_flag);
+    }
+
+    int ret;
+    av_log(NULL, AV_LOG_INFO, "function:%s,line:%d\n", __FUNCTION__, __LINE__);
+    if (am_getconfig_bool("media.libplayer.curlenable")  && (!strncmp(filename, "https", strlen("https")) || !strncmp(filename, "shttps", strlen("shttps")))
+        && !is_use_androidhttp(filename)) {
+        char * file = (char *)av_malloc(strlen(filename) + 10);
+        int num = snprintf(file, strlen(filename) + 10, "curl:%s", filename);
+        ret = ffurl_alloc(puc, file, flags);
+        av_free(file);
+        file = NULL;
+    } else {
+        ret = ffurl_alloc(puc, filename, flags);
+    }
+    if (ret) {
+        return ret;
+    }
+    if (headers) {
+        (*puc)->headers = av_strdup(headers);
+    }
+    if (flags & URL_SEGMENT_MEDIA) {
+        (*puc)->is_segment_media = 1;
+    } else {
+        (*puc)->is_segment_media = 0;
+    }
+    AVDictionary **opt = (AVDictionary **)options;
+    int notify_id = -1;
+    AVDictionaryEntry *tag = av_dict_get(*opt, "pid", NULL, 0);
+    if (tag) {
+        notify_id = atoi(tag->value);
+    }
+    (*puc)->notify_id = notify_id;
+    ret = ffurl_connect(*puc);
+    if (http_error_flag) {
+        *http_error_flag = 0;
+        if (((*puc)->http_code >= 400 && (*puc)->http_code < 600 && (*puc)->http_code != 401) || (*puc)->http_code == ETIMEDOUT) {
+            *http_error_flag = -((*puc)->http_code);
+        }
+    }
+    if (!ret) {
+        return 0;
+    }
+    ffurl_close(*puc);
+    *puc = NULL;
+    if (*http_error_flag) {
+        return *http_error_flag;
+    }
     return ret;
 }
 
 
-
 static inline int retry_transfer_wrapper(URLContext *h, unsigned char *buf, int size, int size_min,
-                                         int (*transfer_func)(URLContext *h, unsigned char *buf, int size))
+        int (*transfer_func)(URLContext *h, unsigned char *buf, int size))
 {
     int ret, len;
-    int64_t timeouttime = 10*(1000*1000);/*10*1S.*/
-    int retry=0;
+    int64_t timeouttime = 10 * (1000 * 1000); /*10*1S.*/
+    int retry = 0;
     len = 0;
-    if(h->flags & URL_LESS_WAIT)
-        timeouttime = av_gettime() + timeouttime /10;
-    else
+    if (h->flags & URL_LESS_WAIT) {
+        timeouttime = av_gettime() + timeouttime / 10;
+    } else {
         timeouttime = av_gettime() + timeouttime;
+    }
     while (len < size_min) {
-        ret = transfer_func(h, buf+len, size-len);/*low level retry 1S*/
-        if (url_interrupt_cb())
+        ret = transfer_func(h, buf + len, size - len); /*low level retry 1S*/
+        if (url_interrupt_cb()) {
             return AVERROR_EXIT;
-        if (ret == AVERROR(EINTR))
+        }
+        if (ret == AVERROR(EINTR)) {
             continue;
-        if (h->flags & AVIO_FLAG_NONBLOCK)
+        }
+        if (h->flags & AVIO_FLAG_NONBLOCK) {
             return ret;
-        if (ret == AVERROR(EAGAIN)) { 
-			if(av_gettime()>=timeouttime)
-				return AVERROR(EAGAIN);
-			//av_log(NULL,AV_LOG_INFO,"retry_transfer_wrapper,retry=%d\n",retry++);
-        } else if (ret < 1){
+        }
+        if (ret == AVERROR(EAGAIN)) {
+            if (av_gettime() >= timeouttime) {
+                return AVERROR(EAGAIN);
+            }
+            //av_log(NULL,AV_LOG_INFO,"retry_transfer_wrapper,retry=%d\n",retry++);
+        } else if (ret < 1) {
             return ret < 0 ? ret : len;
-        }else{
-        	len+=ret;
+        } else {
+            len += ret;
         }
     }
     return len;
@@ -423,51 +507,62 @@ static inline int retry_transfer_wrapper(URLContext *h, unsigned char *buf, int 
 
 int ffurl_read(URLContext *h, unsigned char *buf, int size)
 {
-    if (!h) return 0;
-    if (!(h->flags & AVIO_FLAG_READ))
+    if (!h) {
+        return 0;
+    }
+    if (!(h->flags & AVIO_FLAG_READ)) {
         return AVERROR(EIO);
+    }
     return retry_transfer_wrapper(h, buf, size, 1, h->prot->url_read);
 }
 
 int ffurl_read_complete(URLContext *h, unsigned char *buf, int size)
 {
-#define MAX_RETRY (6) //10S*6=1MIN;
-    int maxretry=MAX_RETRY;
-    int toread=size;
-    int readedlen=0;
-    if  (!(h->flags & AVIO_FLAG_READ))
+#define MAX_RETRY (6*60) //10S*6*60=60MIN;
+    int maxretry = MAX_RETRY;
+    int toread = size;
+    int readedlen = 0;
+    if (!(h->flags & AVIO_FLAG_READ)) {
         return AVERROR(EIO);
-    while (toread>0 && maxretry-->0) {
+    }
+    while (toread > 0 && maxretry-- > 0) {
         // that is only used by rtsp potocol. to avoid the read block, cause rtsp keep alive timeout.
         // invoke > rtsp_invoke > rtsp_keep_alive > ff_rtsp_send_cmd_async
-        if (h->invoke != NULL)
+        if (h->invoke != NULL) {
             h->invoke((void *)h);
+        }
 
         int ret;
-        ret=retry_transfer_wrapper(h, buf+readedlen, toread, toread, h->prot->url_read);
+        ret = retry_transfer_wrapper(h, buf + readedlen, toread, toread, h->prot->url_read);
         if (ret > 0) {
-            toread-=ret;
-            readedlen+=ret;
-        }else if (ret != AVERROR(EAGAIN)) {
+            toread -= ret;
+            readedlen += ret;
+        } else if (ret != AVERROR(EAGAIN)) {
             return ret;/*error of EOF*/
         }
-        if (url_interrupt_cb())
+        if (url_interrupt_cb()) {
             return AVERROR_EXIT;
+        }
     }
-    if((size-toread)!=0)
-        return (size-toread);
-    else
-        return AVERROR(ETIMEDOUT);/*retry too long time,//time out...*/
+    if ((size - toread) != 0) {
+        return (size - toread);
+    } else {
+        return AVERROR(ETIMEDOUT);    /*retry too long time,//time out...*/
+    }
 }
 
 int ffurl_write(URLContext *h, const unsigned char *buf, int size)
 {
-    if (!h) return 0;
-    if (!(h->flags & AVIO_FLAG_WRITE))
+    if (!h) {
+        return 0;
+    }
+    if (!(h->flags & AVIO_FLAG_WRITE)) {
         return AVERROR(EIO);
+    }
     /* avoid sending too big packets */
-    if (h->max_packet_size && size > h->max_packet_size)
+    if (h->max_packet_size && size > h->max_packet_size) {
         return AVERROR(EIO);
+    }
 
     return retry_transfer_wrapper(h, buf, size, size, (void*)h->prot->url_write);
 }
@@ -476,8 +571,9 @@ int64_t ffurl_seek(URLContext *h, int64_t pos, int whence)
 {
     int64_t ret;
 
-    if (!h->prot->url_seek)
+    if (!h->prot->url_seek) {
         return AVERROR(ENOSYS);
+    }
     ret = h->prot->url_seek(h, pos, whence & ~AVSEEK_FORCE);
     return ret;
 }
@@ -485,16 +581,22 @@ int64_t ffurl_seek(URLContext *h, int64_t pos, int whence)
 int ffurl_close(URLContext *h)
 {
     int ret = 0;
-    if (!h) return 0; /* can happen when ffurl_open fails */
+    if (!h) {
+        return 0;    /* can happen when ffurl_open fails */
+    }
 
-    if (h->is_connected && h->prot->url_close)
+    if (h->is_connected && h->prot->url_close) {
         ret = h->prot->url_close(h);
+    }
 #if CONFIG_NETWORK
     ff_network_close();
 #endif
-    if (h->prot->priv_data_size)
+    if (h->prot->priv_data_size) {
         av_free(h->priv_data);
-	if(h->headers) av_free(h->headers);
+    }
+    if (h->headers) {
+        av_free(h->headers);
+    }
     av_free(h);
     return ret;
 }
@@ -503,8 +605,9 @@ int ffurl_close(URLContext *h)
 int url_exist(const char *filename)
 {
     URLContext *h;
-    if (ffurl_open(&h, filename, AVIO_FLAG_READ) < 0)
+    if (ffurl_open(&h, filename, AVIO_FLAG_READ) < 0) {
         return 0;
+    }
     ffurl_close(h);
     return 1;
 }
@@ -514,15 +617,17 @@ int avio_check(const char *url, int flags)
 {
     URLContext *h;
     int ret = ffurl_alloc(&h, url, flags);
-    if (ret)
+    if (ret) {
         return ret;
+    }
 
     if (h->prot->url_check) {
         ret = h->prot->url_check(h, flags);
     } else {
         ret = ffurl_connect(h);
-        if (ret >= 0)
+        if (ret >= 0) {
             ret = flags;
+        }
     }
 
     ffurl_close(h);
@@ -533,11 +638,12 @@ int64_t ffurl_size(URLContext *h)
 {
     int64_t pos, size;
 
-    size= ffurl_seek(h, 0, AVSEEK_SIZE);
-    if(size<0){
+    size = ffurl_seek(h, 0, AVSEEK_SIZE);
+    if (size < 0) {
         pos = ffurl_seek(h, 0, SEEK_CUR);
-        if ((size = ffurl_seek(h, -1, SEEK_END)) < 0)
+        if ((size = ffurl_seek(h, -1, SEEK_END)) < 0) {
             return size;
+        }
         size++;
         ffurl_seek(h, pos, SEEK_SET);
     }
@@ -546,36 +652,40 @@ int64_t ffurl_size(URLContext *h)
 
 int ffurl_get_file_handle(URLContext *h)
 {
-    if (!h->prot->url_get_file_handle)
+    if (!h->prot->url_get_file_handle) {
         return -1;
+    }
     return h->prot->url_get_file_handle(h);
 }
 
 int url_interrupt_cb(void)
 {
-	return url_interrupt_cb_ext(0);
+    return url_interrupt_cb_ext(0);
 }
 
-void avio_set_interrupt_cb(URLInterruptCB *interrupt_cb )
+void avio_set_interrupt_cb(URLInterruptCB *interrupt_cb)
 {
-    if (!interrupt_cb)
+    if (!interrupt_cb) {
         interrupt_cb = url_interrupt_cb_ext;
+    }
     url_interrupt_cb_ext = interrupt_cb;
 }
 
 #if FF_API_OLD_AVIO
 int av_url_read_pause(URLContext *h, int pause)
 {
-    if (!h->prot->url_read_pause)
+    if (!h->prot->url_read_pause) {
         return AVERROR(ENOSYS);
+    }
     return h->prot->url_read_pause(h, pause);
 }
 
 int64_t av_url_read_seek(URLContext *h,
-        int stream_index, int64_t timestamp, int flags)
+                         int stream_index, int64_t timestamp, int flags)
 {
-    if (!h->prot->url_read_seek)
+    if (!h->prot->url_read_seek) {
         return AVERROR(ENOSYS);
+    }
     return h->prot->url_read_seek(h, stream_index, timestamp, flags);
 }
 #endif

@@ -69,18 +69,20 @@ typedef struct TTAContext {
 #if 0
 static inline int shift_1(int i)
 {
-    if (i < 32)
+    if (i < 32) {
         return 1 << i;
-    else
-        return 0x80000000; // 16 << 31
+    } else {
+        return 0x80000000;    // 16 << 31
+    }
 }
 
 static inline int shift_16(int i)
 {
-    if (i < 28)
+    if (i < 28) {
         return 16 << i;
-    else
-        return 0x80000000; // 16 << 27
+    } else {
+        return 0x80000000;    // 16 << 27
+    }
 }
 #else
 static const uint32_t shift_1[] = {
@@ -106,16 +108,18 @@ static const int32_t ttafilter_configs[4][2] = {
     {12, 0}
 };
 
-static void ttafilter_init(TTAFilter *c, int32_t shift, int32_t mode) {
+static void ttafilter_init(TTAFilter *c, int32_t shift, int32_t mode)
+{
     memset(c, 0, sizeof(TTAFilter));
     c->shift = shift;
-   c->round = shift_1[shift-1];
-//    c->round = 1 << (shift - 1);
+    c->round = shift_1[shift - 1];
+    //    c->round = 1 << (shift - 1);
     c->mode = mode;
 }
 
 // FIXME: copy paste from original
-static inline void memshl(register int32_t *a, register int32_t *b) {
+static inline void memshl(register int32_t *a, register int32_t *b)
+{
     *a++ = *b++;
     *a++ = *b++;
     *a++ = *b++;
@@ -128,7 +132,8 @@ static inline void memshl(register int32_t *a, register int32_t *b) {
 
 // FIXME: copy paste from original
 // mode=1 encoder, mode=0 decoder
-static inline void ttafilter_process(TTAFilter *c, int32_t *in, int32_t mode) {
+static inline void ttafilter_process(TTAFilter *c, int32_t *in, int32_t mode)
+{
     register int32_t *dl = c->dl, *qm = c->qm, *dx = c->dx, sum = c->round;
 
     if (!c->error) {
@@ -141,7 +146,7 @@ static inline void ttafilter_process(TTAFilter *c, int32_t *in, int32_t mode) {
         sum += *dl++ * *qm, qm++;
         sum += *dl++ * *qm, qm++;
         dx += 8;
-    } else if(c->error < 0) {
+    } else if (c->error < 0) {
         sum += *dl++ * (*qm -= *dx++), qm++;
         sum += *dl++ * (*qm -= *dx++), qm++;
         sum += *dl++ * (*qm -= *dx++), qm++;
@@ -161,10 +166,10 @@ static inline void ttafilter_process(TTAFilter *c, int32_t *in, int32_t mode) {
         sum += *dl++ * (*qm += *dx++), qm++;
     }
 
-    *(dx-0) = ((*(dl-1) >> 30) | 1) << 2;
-    *(dx-1) = ((*(dl-2) >> 30) | 1) << 1;
-    *(dx-2) = ((*(dl-3) >> 30) | 1) << 1;
-    *(dx-3) = ((*(dl-4) >> 30) | 1);
+    *(dx - 0) = ((*(dl - 1) >> 30) | 1) << 2;
+    *(dx - 1) = ((*(dl - 2) >> 30) | 1) << 1;
+    *(dx - 2) = ((*(dl - 3) >> 30) | 1) << 1;
+    *(dx - 3) = ((*(dl - 4) >> 30) | 1);
 
     // compress
     if (mode) {
@@ -178,9 +183,9 @@ static inline void ttafilter_process(TTAFilter *c, int32_t *in, int32_t mode) {
     }
 
     if (c->mode) {
-        *(dl-1) = *dl - *(dl-1);
-        *(dl-2) = *(dl-1) - *(dl-2);
-        *(dl-3) = *(dl-2) - *(dl-3);
+        *(dl - 1) = *dl - *(dl - 1);
+        *(dl - 2) = *(dl - 1) - *(dl - 2);
+        *(dl - 3) = *(dl - 2) - *(dl - 3);
     }
 
     memshl(c->dl, c->dl + 1);
@@ -200,18 +205,19 @@ static int tta_get_unary(GetBitContext *gb)
     int ret = 0;
 
     // count ones
-    while(get_bits1(gb))
+    while (get_bits1(gb)) {
         ret++;
+    }
     return ret;
 }
 
 static const int64_t tta_channel_layouts[7] = {
     AV_CH_LAYOUT_STEREO,
-    AV_CH_LAYOUT_STEREO|AV_CH_LOW_FREQUENCY,
+    AV_CH_LAYOUT_STEREO | AV_CH_LOW_FREQUENCY,
     AV_CH_LAYOUT_QUAD,
     0,
     AV_CH_LAYOUT_5POINT1_BACK,
-    AV_CH_LAYOUT_5POINT1_BACK|AV_CH_BACK_CENTER,
+    AV_CH_LAYOUT_5POINT1_BACK | AV_CH_BACK_CENTER,
     AV_CH_LAYOUT_7POINT1_WIDE
 };
 
@@ -223,55 +229,60 @@ static av_cold int tta_decode_init(AVCodecContext * avctx)
     s->avctx = avctx;
 
     // 30bytes includes a seektable with one frame
-    if (avctx->extradata_size < 30)
+    if (avctx->extradata_size < 30) {
         return -1;
+    }
 
     init_get_bits(&s->gb, avctx->extradata, avctx->extradata_size);
-    if (show_bits_long(&s->gb, 32) == AV_RL32("TTA1"))
-    {
+    if (show_bits_long(&s->gb, 32) == AV_RL32("TTA1")) {
         /* signature */
         skip_bits(&s->gb, 32);
-//        if (get_bits_long(&s->gb, 32) != av_bswap32(AV_RL32("TTA1"))) {
-//            av_log(s->avctx, AV_LOG_ERROR, "Missing magic\n");
-//            return -1;
-//        }
+        //        if (get_bits_long(&s->gb, 32) != av_bswap32(AV_RL32("TTA1"))) {
+        //            av_log(s->avctx, AV_LOG_ERROR, "Missing magic\n");
+        //            return -1;
+        //        }
 
         s->flags = get_bits(&s->gb, 16);
-        if (s->flags != 1 && s->flags != 3)
-        {
+        if (s->flags != 1 && s->flags != 3) {
             av_log(s->avctx, AV_LOG_ERROR, "Invalid flags\n");
             return -1;
         }
         s->is_float = (s->flags == FORMAT_FLOAT);
         avctx->channels = s->channels = get_bits(&s->gb, 16);
-        if (s->channels > 1 && s->channels < 9)
-            avctx->channel_layout = tta_channel_layouts[s->channels-2];
+        if (s->channels > 1 && s->channels < 9) {
+            avctx->channel_layout = tta_channel_layouts[s->channels - 2];
+        }
         avctx->bits_per_coded_sample = get_bits(&s->gb, 16);
         s->bps = (avctx->bits_per_coded_sample + 7) / 8;
         avctx->sample_rate = get_bits_long(&s->gb, 32);
-        if(avctx->sample_rate > 1000000){ //prevent FRAME_TIME * avctx->sample_rate from overflowing and sanity check
+        if (avctx->sample_rate > 1000000) { //prevent FRAME_TIME * avctx->sample_rate from overflowing and sanity check
             av_log(avctx, AV_LOG_ERROR, "sample_rate too large\n");
             return -1;
         }
         s->data_length = get_bits_long(&s->gb, 32);
         skip_bits(&s->gb, 32); // CRC32 of header
 
-        if (s->is_float)
-        {
+        if (s->is_float) {
             avctx->sample_fmt = AV_SAMPLE_FMT_FLT;
             av_log_ask_for_sample(s->avctx, "Unsupported sample format.\n");
             return -1;
-        }
-        else switch(s->bps) {
-            case 1: avctx->sample_fmt = AV_SAMPLE_FMT_U8; break;
-            case 2: avctx->sample_fmt = AV_SAMPLE_FMT_S16; break;
-            case 3: avctx->bits_per_coded_sample = 24;
-            case 4: avctx->sample_fmt = AV_SAMPLE_FMT_S32; break;
+        } else switch (s->bps) {
+            case 1:
+                avctx->sample_fmt = AV_SAMPLE_FMT_U8;
+                break;
+            case 2:
+                avctx->sample_fmt = AV_SAMPLE_FMT_S16;
+                break;
+            case 3:
+                avctx->bits_per_coded_sample = 24;
+            case 4:
+                avctx->sample_fmt = AV_SAMPLE_FMT_S32;
+                break;
             default:
                 av_log_ask_for_sample(s->avctx,
                                       "Invalid/unsupported sample format.\n");
                 return -1;
-        }
+            }
 
         // FIXME: horribly broken, but directly from reference source
 #define FRAME_TIME 1.04489795918367346939
@@ -279,30 +290,33 @@ static av_cold int tta_decode_init(AVCodecContext * avctx)
 
         s->last_frame_length = s->data_length % s->frame_length;
         s->total_frames = s->data_length / s->frame_length +
-                        (s->last_frame_length ? 1 : 0);
+                          (s->last_frame_length ? 1 : 0);
 
         av_log(s->avctx, AV_LOG_DEBUG, "flags: %x chans: %d bps: %d rate: %d block: %d\n",
-            s->flags, avctx->channels, avctx->bits_per_coded_sample, avctx->sample_rate,
-            avctx->block_align);
+               s->flags, avctx->channels, avctx->bits_per_coded_sample, avctx->sample_rate,
+               avctx->block_align);
         av_log(s->avctx, AV_LOG_DEBUG, "data_length: %d frame_length: %d last: %d total: %d\n",
-            s->data_length, s->frame_length, s->last_frame_length, s->total_frames);
+               s->data_length, s->frame_length, s->last_frame_length, s->total_frames);
 
         // FIXME: seek table
-        for (i = 0; i < s->total_frames; i++)
+        for (i = 0; i < s->total_frames; i++) {
             skip_bits(&s->gb, 32);
+        }
         skip_bits(&s->gb, 32); // CRC32 of seektable
 
-        if(s->frame_length >= UINT_MAX / (s->channels * sizeof(int32_t))){
+        if (s->frame_length >= UINT_MAX / (s->channels * sizeof(int32_t))) {
             av_log(avctx, AV_LOG_ERROR, "frame_length too large\n");
             return -1;
         }
 
-        s->decode_buffer = av_mallocz(sizeof(int32_t)*s->frame_length*s->channels);
-        if (!s->decode_buffer)
+        s->decode_buffer = av_mallocz(sizeof(int32_t) * s->frame_length * s->channels);
+        if (!s->decode_buffer) {
             return AVERROR(ENOMEM);
+        }
         s->ch_ctx = av_malloc(avctx->channels * sizeof(*s->ch_ctx));
-        if (!s->ch_ctx)
+        if (!s->ch_ctx) {
             return AVERROR(ENOMEM);
+        }
     } else {
         av_log(avctx, AV_LOG_ERROR, "Wrong extradata present\n");
         return -1;
@@ -312,15 +326,15 @@ static av_cold int tta_decode_init(AVCodecContext * avctx)
 }
 
 static int tta_decode_frame(AVCodecContext *avctx,
-        void *data, int *data_size,
-        AVPacket *avpkt)
+                            void *data, int *data_size,
+                            AVPacket *avpkt)
 {
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;
     TTAContext *s = avctx->priv_data;
     int i;
 
-    init_get_bits(&s->gb, buf, buf_size*8);
+    init_get_bits(&s->gb, buf, buf_size * 8);
     {
         int cur_chan = 0, framelen = s->frame_length;
         int32_t *p;
@@ -331,13 +345,14 @@ static int tta_decode_frame(AVCodecContext *avctx,
         }
         // FIXME: seeking
         s->total_frames--;
-        if (!s->total_frames && s->last_frame_length)
+        if (!s->total_frames && s->last_frame_length) {
             framelen = s->last_frame_length;
+        }
 
         // init per channel states
         for (i = 0; i < s->channels; i++) {
             s->ch_ctx[i].predictor = 0;
-            ttafilter_init(&s->ch_ctx[i].filter, ttafilter_configs[s->bps-1][0], ttafilter_configs[s->bps-1][1]);
+            ttafilter_init(&s->ch_ctx[i].filter, ttafilter_configs[s->bps - 1][0], ttafilter_configs[s->bps - 1][1]);
             rice_init(&s->ch_ctx[i].rice, 10, 10);
         }
 
@@ -359,31 +374,36 @@ static int tta_decode_frame(AVCodecContext *avctx,
                 unary--;
             }
 
-            if (get_bits_left(&s->gb) < k)
+            if (get_bits_left(&s->gb) < k) {
                 return -1;
+            }
 
             if (k) {
-                if (k > MIN_CACHE_BITS)
+                if (k > MIN_CACHE_BITS) {
                     return -1;
+                }
                 value = (unary << k) + get_bits(&s->gb, k);
-            } else
+            } else {
                 value = unary;
+            }
 
             // FIXME: copy paste from original
             switch (depth) {
             case 1:
                 rice->sum1 += value - (rice->sum1 >> 4);
-                if (rice->k1 > 0 && rice->sum1 < shift_16[rice->k1])
+                if (rice->k1 > 0 && rice->sum1 < shift_16[rice->k1]) {
                     rice->k1--;
-                else if(rice->sum1 > shift_16[rice->k1 + 1])
+                } else if (rice->sum1 > shift_16[rice->k1 + 1]) {
                     rice->k1++;
+                }
                 value += shift_1[rice->k0];
             default:
                 rice->sum0 += value - (rice->sum0 >> 4);
-                if (rice->k0 > 0 && rice->sum0 < shift_16[rice->k0])
+                if (rice->k0 > 0 && rice->sum0 < shift_16[rice->k0]) {
                     rice->k0--;
-                else if(rice->sum0 > shift_16[rice->k0 + 1])
+                } else if (rice->sum0 > shift_16[rice->k0 + 1]) {
                     rice->k0++;
+                }
             }
 
             // extract coded value
@@ -396,10 +416,16 @@ static int tta_decode_frame(AVCodecContext *avctx,
             // fixed order prediction
 #define PRED(x, k) (int32_t)((((uint64_t)x << k) - x) >> k)
             switch (s->bps) {
-                case 1: *p += PRED(*predictor, 4); break;
-                case 2:
-                case 3: *p += PRED(*predictor, 5); break;
-                case 4: *p += *predictor; break;
+            case 1:
+                *p += PRED(*predictor, 4);
+                break;
+            case 2:
+            case 3:
+                *p += PRED(*predictor, 5);
+                break;
+            case 4:
+                *p += *predictor;
+                break;
             }
             *predictor = *p;
 
@@ -423,59 +449,64 @@ static int tta_decode_frame(AVCodecContext *avctx,
             }*/
 
             // flip channels
-            if (cur_chan < (s->channels-1))
+            if (cur_chan < (s->channels - 1)) {
                 cur_chan++;
-            else {
+            } else {
                 // decorrelate in case of stereo integer
                 if (!s->is_float && (s->channels > 1)) {
                     int32_t *r = p - 1;
-                    for (*p += *r / 2; r > p - s->channels; r--)
+                    for (*p += *r / 2; r > p - s->channels; r--) {
                         *r = *(r + 1) - *r;
+                    }
                 }
                 cur_chan = 0;
             }
         }
 
-        if (get_bits_left(&s->gb) < 32)
+        if (get_bits_left(&s->gb) < 32) {
             return -1;
+        }
         skip_bits(&s->gb, 32); // frame crc
 
         // convert to output buffer
-        switch(s->bps) {
-            case 1: {
-                uint8_t *samples = data;
-                for (p = s->decode_buffer; p < s->decode_buffer + (framelen * s->channels); p++)
-                    *samples++ = *p + 0x80;
-                *data_size = samples - (uint8_t *)data;
-                break;
+        switch (s->bps) {
+        case 1: {
+            uint8_t *samples = data;
+            for (p = s->decode_buffer; p < s->decode_buffer + (framelen * s->channels); p++) {
+                *samples++ = *p + 0x80;
             }
-            case 2: {
-                uint16_t *samples = data;
-                for (p = s->decode_buffer; p < s->decode_buffer + (framelen * s->channels); p++) {
-//                    *samples++ = (unsigned char)*p;
-//                    *samples++ = (unsigned char)(*p >> 8);
-                    *samples++ = *p;
-                }
-                *data_size = (uint8_t *)samples - (uint8_t *)data;
-                break;
+            *data_size = samples - (uint8_t *)data;
+            break;
+        }
+        case 2: {
+            uint16_t *samples = data;
+            for (p = s->decode_buffer; p < s->decode_buffer + (framelen * s->channels); p++) {
+                //                    *samples++ = (unsigned char)*p;
+                //                    *samples++ = (unsigned char)(*p >> 8);
+                *samples++ = *p;
             }
-            case 3: {
-                int32_t *samples = data;
-                for (p = s->decode_buffer; p < s->decode_buffer + (framelen * s->channels); p++)
-                    *samples++ = AV_RN32(p) << 8;
-                *data_size = (uint8_t *)samples - (uint8_t *)data;
-                break;
+            *data_size = (uint8_t *)samples - (uint8_t *)data;
+            break;
+        }
+        case 3: {
+            int32_t *samples = data;
+            for (p = s->decode_buffer; p < s->decode_buffer + (framelen * s->channels); p++) {
+                *samples++ = AV_RN32(p) << 8;
             }
-            default:
-                av_log(s->avctx, AV_LOG_ERROR, "Error, only 16bit samples supported!\n");
+            *data_size = (uint8_t *)samples - (uint8_t *)data;
+            break;
+        }
+        default:
+            av_log(s->avctx, AV_LOG_ERROR, "Error, only 16bit samples supported!\n");
         }
     }
 
-//    return get_bits_count(&s->gb)+7)/8;
+    //    return get_bits_count(&s->gb)+7)/8;
     return buf_size;
 }
 
-static av_cold int tta_decode_close(AVCodecContext *avctx) {
+static av_cold int tta_decode_close(AVCodecContext *avctx)
+{
     TTAContext *s = avctx->priv_data;
 
     av_free(s->decode_buffer);

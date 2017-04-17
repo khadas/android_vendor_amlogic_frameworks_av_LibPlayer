@@ -40,13 +40,14 @@ ogm_header(AVFormatContext *s, int idx)
     uint64_t time_unit;
     uint64_t spu;
 
-    if(!(*p & 1))
+    if (!(*p & 1)) {
         return 0;
+    }
 
-    if(*p == 1) {
+    if (*p == 1) {
         p++;
 
-        if(*p == 'v'){
+        if (*p == 'v') {
             int tag;
             st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
             p += 8;
@@ -76,7 +77,7 @@ ogm_header(AVFormatContext *s, int idx)
         p += 4;                     /* default_len */
         p += 8;                     /* buffersize + bits_per_sample */
 
-        if(st->codec->codec_type == AVMEDIA_TYPE_VIDEO){
+        if (st->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
             st->codec->width = bytestream_get_le32(&p);
             st->codec->height = bytestream_get_le32(&p);
             st->codec->time_base.den = spu * 10000000;
@@ -90,8 +91,9 @@ ogm_header(AVFormatContext *s, int idx)
             av_set_pts_info(st, 64, 1, st->codec->sample_rate);
         }
     } else if (*p == 3) {
-        if (os->psize > 8)
-            ff_vorbis_comment(s, &st->metadata, p+7, os->psize-8);
+        if (os->psize > 8) {
+            ff_vorbis_comment(s, &st->metadata, p + 7, os->psize - 8);
+        }
     }
 
     return 1;
@@ -106,21 +108,23 @@ ogm_dshow_header(AVFormatContext *s, int idx)
     uint8_t *p = os->buf + os->pstart;
     uint32_t t;
 
-    if(!(*p & 1))
+    if (!(*p & 1)) {
         return 0;
-    if(*p != 1)
+    }
+    if (*p != 1) {
         return 1;
+    }
 
     t = AV_RL32(p + 96);
 
-    if(t == 0x05589f80){
+    if (t == 0x05589f80) {
         st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
         st->codec->codec_id = ff_codec_get_id(ff_codec_bmp_tags, AV_RL32(p + 68));
         st->codec->time_base.den = 10000000;
         st->codec->time_base.num = AV_RL64(p + 164);
         st->codec->width = AV_RL32(p + 176);
         st->codec->height = AV_RL32(p + 180);
-    } else if(t == 0x05589f81){
+    } else if (t == 0x05589f81) {
         st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
         st->codec->codec_id = ff_codec_get_id(ff_codec_wav_tags, AV_RL16(p + 124));
         st->codec->channels = AV_RL16(p + 126);
@@ -139,15 +143,17 @@ ogm_packet(AVFormatContext *s, int idx)
     uint8_t *p = os->buf + os->pstart;
     int lb;
 
-    if(*p & 8)
+    if (*p & 8) {
         os->pflags |= AV_PKT_FLAG_KEY;
+    }
 
     lb = ((*p & 2) << 1) | ((*p >> 6) & 3);
     os->pstart += lb + 1;
     os->psize -= lb + 1;
 
-    while (lb--)
-        os->pduration += p[lb+1] << (lb*8);
+    while (lb--) {
+        os->pduration += p[lb + 1] << (lb * 8);
+    }
 
     return 0;
 }

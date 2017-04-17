@@ -54,6 +54,7 @@ FUNC    .endfunc
         .global EXTERN_ASM\name
 ELF     .type   EXTERN_ASM\name, %function
 FUNC    .func   EXTERN_ASM\name
+
 EXTERN_ASM\name:
     .else
 ELF     .type   \name, %function

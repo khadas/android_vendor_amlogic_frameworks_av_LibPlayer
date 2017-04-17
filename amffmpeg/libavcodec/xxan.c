@@ -47,8 +47,9 @@ static av_cold int xan_decode_init(AVCodecContext *avctx)
 
     s->buffer_size = avctx->width * avctx->height;
     s->y_buffer = av_malloc(s->buffer_size);
-    if (!s->y_buffer)
+    if (!s->y_buffer) {
         return AVERROR(ENOMEM);
+    }
     s->scratch_buffer = av_malloc(s->buffer_size + 130);
     if (!s->scratch_buffer) {
         av_freep(&s->y_buffer);
@@ -61,42 +62,45 @@ static av_cold int xan_decode_init(AVCodecContext *avctx)
 static int xan_unpack_luma(const uint8_t *src, const int src_size,
                            uint8_t *dst, const int dst_size)
 {
-   int tree_size, eof;
-   const uint8_t *tree;
-   int bits, mask;
-   int tree_root, node;
-   const uint8_t *dst_end = dst + dst_size;
-   const uint8_t *src_end = src + src_size;
+    int tree_size, eof;
+    const uint8_t *tree;
+    int bits, mask;
+    int tree_root, node;
+    const uint8_t *dst_end = dst + dst_size;
+    const uint8_t *src_end = src + src_size;
 
-   tree_size = *src++;
-   eof       = *src++;
-   tree      = src - eof * 2 - 2;
-   tree_root = eof + tree_size;
-   src += tree_size * 2;
+    tree_size = *src++;
+    eof       = *src++;
+    tree      = src - eof * 2 - 2;
+    tree_root = eof + tree_size;
+    src += tree_size * 2;
 
-   node = tree_root;
-   bits = *src++;
-   mask = 0x80;
-   for (;;) {
-       int bit = !!(bits & mask);
-       mask >>= 1;
-       node = tree[node*2 + bit];
-       if (node == eof)
-           break;
-       if (node < eof) {
-           *dst++ = node;
-           if (dst > dst_end)
-               break;
-           node = tree_root;
-       }
-       if (!mask) {
-           bits = *src++;
-           if (src > src_end)
-               break;
-           mask = 0x80;
-       }
-   }
-   return dst != dst_end;
+    node = tree_root;
+    bits = *src++;
+    mask = 0x80;
+    for (;;) {
+        int bit = !!(bits & mask);
+        mask >>= 1;
+        node = tree[node * 2 + bit];
+        if (node == eof) {
+            break;
+        }
+        if (node < eof) {
+            *dst++ = node;
+            if (dst > dst_end) {
+                break;
+            }
+            node = tree_root;
+        }
+        if (!mask) {
+            bits = *src++;
+            if (src > src_end) {
+                break;
+            }
+            mask = 0x80;
+        }
+    }
+    return dst != dst_end;
 }
 
 /* almost the same as in xan_wc3 decoder */
@@ -126,11 +130,13 @@ static int xan_unpack(uint8_t *dest, const int dest_len,
                 size  = opcode & 3;
                 back  = ((opcode & 0x10) << 12) + bytestream_get_be16(&src) + 1;
                 size2 = ((opcode & 0x0c) <<  6) + *src++ + 5;
-                if (size + size2 > dest_end - dest)
+                if (size + size2 > dest_end - dest) {
                     break;
+                }
             }
-            if (src + size > src_end || dest + size + size2 > dest_end)
+            if (src + size > src_end || dest + size + size2 > dest_end) {
                 return -1;
+            }
             bytestream_get_buffer(&src, dest, size);
             dest += size;
             av_memcpy_backptr(dest, back, size2);
@@ -139,12 +145,14 @@ static int xan_unpack(uint8_t *dest, const int dest_len,
             int finish = opcode >= 0xfc;
 
             size = finish ? opcode & 3 : ((opcode & 0x1f) << 2) + 4;
-            if (src + size > src_end || dest + size > dest_end)
+            if (src + size > src_end || dest + size > dest_end) {
                 return -1;
+            }
             bytestream_get_buffer(&src, dest, size);
             dest += size;
-            if (finish)
+            if (finish) {
                 break;
+            }
         }
     }
     return dest - orig_dest;
@@ -163,8 +171,9 @@ static int xan_decode_chroma(AVCodecContext *avctx, AVPacket *avpkt)
     int mode, offset, dec_size;
 
     chroma_off = AV_RL32(buf + 4);
-    if (!chroma_off)
+    if (!chroma_off) {
         return 0;
+    }
     if (chroma_off + 10 >= avpkt->size) {
         av_log(avctx, AV_LOG_ERROR, "Invalid chroma block position\n");
         return -1;
@@ -202,8 +211,9 @@ static int xan_decode_chroma(AVCodecContext *avctx, AVPacket *avpkt)
                     U[i] = uval | (uval >> 5);
                     V[i] = vval | (vval >> 5);
                 }
-                if (src == src_end)
+                if (src == src_end) {
                     return 0;
+                }
             }
             U += s->pic.linesize[1];
             V += s->pic.linesize[2];
@@ -219,8 +229,8 @@ static int xan_decode_chroma(AVCodecContext *avctx, AVPacket *avpkt)
                     val  = AV_RL16(table + (val << 1));
                     uval = (val >> 3) & 0xF8;
                     vval = (val >> 8) & 0xF8;
-                    U[i] = U[i+1] = U2[i] = U2[i+1] = uval | (uval >> 5);
-                    V[i] = V[i+1] = V2[i] = V2[i+1] = vval | (vval >> 5);
+                    U[i] = U[i + 1] = U2[i] = U2[i + 1] = uval | (uval >> 5);
+                    V[i] = V[i + 1] = V2[i] = V2[i + 1] = vval | (vval >> 5);
                 }
             }
             U  += s->pic.linesize[1] * 2;
@@ -246,18 +256,21 @@ static int xan_decode_frame_type0(AVCodecContext *avctx, AVPacket *avpkt)
     corr_off   = AV_RL32(buf + 8);
     chroma_off = AV_RL32(buf + 4);
 
-    if ((ret = xan_decode_chroma(avctx, avpkt)) != 0)
+    if ((ret = xan_decode_chroma(avctx, avpkt)) != 0) {
         return ret;
+    }
 
     size = avpkt->size - 4;
     if (corr_off >= avpkt->size) {
         av_log(avctx, AV_LOG_WARNING, "Ignoring invalid correction block position\n");
         corr_off = 0;
     }
-    if (corr_off)
+    if (corr_off) {
         size = corr_off;
-    if (chroma_off)
+    }
+    if (chroma_off) {
         size = FFMIN(size, chroma_off);
+    }
     ret = xan_unpack_luma(buf + 12, size, src, s->buffer_size >> 1);
     if (ret) {
         av_log(avctx, AV_LOG_ERROR, "Luma decoding failed\n");
@@ -270,7 +283,7 @@ static int xan_decode_frame_type0(AVCodecContext *avctx, AVPacket *avpkt)
     for (j = 1; j < avctx->width - 1; j += 2) {
         cur = (last + *src++) & 0x1F;
         ybuf[j]   = last + cur;
-        ybuf[j+1] = cur << 1;
+        ybuf[j + 1] = cur << 1;
         last = cur;
     }
     ybuf[j]  = last << 1;
@@ -283,7 +296,7 @@ static int xan_decode_frame_type0(AVCodecContext *avctx, AVPacket *avpkt)
         for (j = 1; j < avctx->width - 1; j += 2) {
             cur = ((prev_buf[j + 1] >> 1) + *src++) & 0x1F;
             ybuf[j]   = last + cur;
-            ybuf[j+1] = cur << 1;
+            ybuf[j + 1] = cur << 1;
             last = cur;
         }
         ybuf[j] = last << 1;
@@ -295,22 +308,26 @@ static int xan_decode_frame_type0(AVCodecContext *avctx, AVPacket *avpkt)
         int corr_end, dec_size;
 
         corr_end = avpkt->size;
-        if (chroma_off > corr_off)
+        if (chroma_off > corr_off) {
             corr_end = chroma_off;
+        }
         dec_size = xan_unpack(s->scratch_buffer, s->buffer_size,
                               avpkt->data + 8 + corr_off,
                               corr_end - corr_off);
-        if (dec_size < 0)
+        if (dec_size < 0) {
             dec_size = 0;
-        for (i = 0; i < dec_size; i++)
-            s->y_buffer[i*2+1] = (s->y_buffer[i*2+1] + (s->scratch_buffer[i] << 1)) & 0x3F;
+        }
+        for (i = 0; i < dec_size; i++) {
+            s->y_buffer[i * 2 + 1] = (s->y_buffer[i * 2 + 1] + (s->scratch_buffer[i] << 1)) & 0x3F;
+        }
     }
 
     src  = s->y_buffer;
     ybuf = s->pic.data[0];
     for (j = 0; j < avctx->height; j++) {
-        for (i = 0; i < avctx->width; i++)
+        for (i = 0; i < avctx->width; i++) {
             ybuf[i] = (src[i] << 2) | (src[i] >> 3);
+        }
         src  += avctx->width;
         ybuf += s->pic.linesize[0];
     }
@@ -327,8 +344,9 @@ static int xan_decode_frame_type1(AVCodecContext *avctx, AVPacket *avpkt)
     int i, j;
     int ret;
 
-    if ((ret = xan_decode_chroma(avctx, avpkt)) != 0)
+    if ((ret = xan_decode_chroma(avctx, avpkt)) != 0) {
         return ret;
+    }
 
     ret = xan_unpack_luma(buf + 16, avpkt->size - 16, src,
                           s->buffer_size >> 1);
@@ -344,7 +362,7 @@ static int xan_decode_frame_type1(AVCodecContext *avctx, AVPacket *avpkt)
         for (j = 1; j < avctx->width - 1; j += 2) {
             cur = (ybuf[j + 1] + (*src++ << 1)) & 0x3F;
             ybuf[j]   = (last + cur) >> 1;
-            ybuf[j+1] = cur;
+            ybuf[j + 1] = cur;
             last = cur;
         }
         ybuf[j] = last;
@@ -354,8 +372,9 @@ static int xan_decode_frame_type1(AVCodecContext *avctx, AVPacket *avpkt)
     src = s->y_buffer;
     ybuf = s->pic.data[0];
     for (j = 0; j < avctx->height; j++) {
-        for (i = 0; i < avctx->width; i++)
+        for (i = 0; i < avctx->width; i++) {
             ybuf[i] = (src[i] << 2) | (src[i] >> 3);
+        }
         src  += avctx->width;
         ybuf += s->pic.linesize[0];
     }
@@ -392,8 +411,9 @@ static int xan_decode_frame(AVCodecContext *avctx,
         av_log(avctx, AV_LOG_ERROR, "Unknown frame type %d\n", ftype);
         return -1;
     }
-    if (ret)
+    if (ret) {
         return ret;
+    }
 
     *data_size = sizeof(AVFrame);
     *(AVFrame*)data = s->pic;
@@ -405,8 +425,9 @@ static av_cold int xan_decode_end(AVCodecContext *avctx)
 {
     XanContext *s = avctx->priv_data;
 
-    if (s->pic.data[0])
+    if (s->pic.data[0]) {
         avctx->release_buffer(avctx, &s->pic);
+    }
 
     av_freep(&s->y_buffer);
     av_freep(&s->scratch_buffer);

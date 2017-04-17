@@ -90,7 +90,7 @@ static int stream_ts_init(play_para_t *p_para)
             log_print("main profile aac not supported by dsp decoder,so set dspdec_not_supported flag\n");
         }
         codec->avsync_threshold = p_para->start_param->avsync_threshold;
-        log_print("[%s:%d]audio bitrate=%d sample_rate=%d channels=%d codec_id=%x block_align=%d,extra size %d\n",
+        log_print("[%s:%d]audio bitrate=%d sample_rate=%d channels=%d codec_id=%x block_align=%d,extra size=%d\n",
                   __FUNCTION__, __LINE__, codec->audio_info.bitrate, codec->audio_info.sample_rate, codec->audio_info.channels,
                   codec->audio_info.codec_id, codec->audio_info.block_align, codec->audio_info.extradata_size);
     }
@@ -102,6 +102,13 @@ static int stream_ts_init(play_para_t *p_para)
 
     codec->stream_type = stream_type_convert(p_para->stream_type, codec->has_video, codec->has_audio);
     codec->packet_size = p_para->pFormatCtx->orig_packet_size;
+#if 0
+    if (p_para->pFormatCtx && p_para->pFormatCtx->pb && p_para->pFormatCtx->pb->local_playback == 1) {
+        codec->localplay_flag = 1;
+    } else {
+        codec->localplay_flag = 0;
+    }
+#endif
     ret = codec_init(codec);
     if (ret != CODEC_ERROR_NONE) {
         if (ret != CODEC_OPEN_HANDLE_FAILED) {

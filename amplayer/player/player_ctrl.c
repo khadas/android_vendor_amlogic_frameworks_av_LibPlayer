@@ -25,13 +25,15 @@
 #include "player_update.h"
 #include "thread_mgt.h"
 #include "player_ffmpeg_ctrl.h"
+//#include "player_cache_mgt.h"
 #include "player_priv.h"
+#include <amthreadpool.h>
 #include "player_hwdec.h"
 #include "libavformat/tcp_pool.h"
 
 #include "../../amcodec/audio_ctl/audio_ctrl.h"
-
-#include <amthreadpool.h>
+#include "udrm.h"
+#include "message.h"
 
 #ifndef FBIOPUT_OSD_SRCCOLORKEY
 #define  FBIOPUT_OSD_SRCCOLORKEY    0x46fb
@@ -43,9 +45,18 @@
 
 extern codec_para_t *get_subtitle_codec(play_para_t *player);
 extern void print_version_info();
+int auto_refresh_rate_enable = 0;
 
-static pthread_mutex_t player_stop_mutex;
-static pthread_mutex_t player_exit_mutex;
+static int udrm_callback(int error_num, void *cb_data)
+{
+    play_para_t *player_para = (play_para_t *)cb_data;
+    log_print("[libplayer_udrm callback] error_num=%d\n", error_num);
+    if (player_para != NULL) {
+        send_event(player_para, PLAYER_EVENTS_UDRM_MSG, (unsigned long)error_num, 0);
+    }
+
+    return 0;
+}
 /* --------------------------------------------------------------------------*/
 /**
  * @function    player_init
@@ -67,7 +78,7 @@ static pthread_mutex_t player_exit_mutex;
 
 int player_init(void)
 {
-    set_video_seek_flag(0);
+    reset_auto_refresh_rate();
     print_version_info();
     update_loglevel_setting();
     /*register all formats and codecs*/
@@ -84,8 +95,7 @@ int player_init(void)
     rm_register_stream_decoder();
     audio_register_stream_decoder();
     video_register_stream_decoder();
-    pthread_mutex_init(&player_stop_mutex, NULL);
-    pthread_mutex_init(&player_exit_mutex, NULL);
+    udrm_init();
     return PLAYER_SUCCESS;
 }
 
@@ -110,11 +120,19 @@ int player_start(play_control_t *ctrl_p, unsigned long  priv)
     int ret;
     int pid = -1;
     play_para_t *p_para;
+    char url[1024] = {0};
+#if 1
+    ret = am_getconfig("libplayer.testurl", url, NULL);
+    if (ret > 0) {
+        strcpy(ctrl_p->file_name, url);
+        ctrl_p->auto_buffing_enable = 1;
+    }
+#endif
     //char stb_source[32];
 
     update_loglevel_setting();
     update_dump_dir_path();
-    print_version_info();
+    //print_version_info();
     log_print("[player_start:enter]p=%p black=%d\n", ctrl_p, get_black_policy());
 
     if (ctrl_p == NULL) {
@@ -129,6 +147,7 @@ int player_start(play_control_t *ctrl_p, unsigned long  priv)
     } else if (!check_file_same(ctrl_p->file_name)) {
         set_black_policy(1);
     }
+    auto_refresh_rate_enable = get_auto_refresh_rate();
     pid = player_request_pid();
     if (pid < 0) {
         return PLAYER_NOT_VALID_PID;
@@ -160,6 +179,7 @@ int player_start(play_control_t *ctrl_p, unsigned long  priv)
         return PLAYER_CAN_NOT_CREAT_THREADS;
     }
     log_print("[player_start:exit]pid = %d \n", pid);
+    udrm_set_msg_func(udrm_callback, (void *)p_para);
 
     return pid;
 }
@@ -230,10 +250,9 @@ int player_stop(int pid)
     player_status sta;
 
     log_print("[player_stop:enter]pid=%d\n", pid);
-    pthread_mutex_lock(&player_stop_mutex);
+
     player_para = player_open_pid_data(pid);
     if (player_para == NULL) {
-        pthread_mutex_unlock(&player_stop_mutex);
         return PLAYER_NOT_VALID_PID;
     }
     sta = get_player_state(player_para);
@@ -241,7 +260,6 @@ int player_stop(int pid)
     if (PLAYER_THREAD_IS_STOPPED(sta)) {
         player_close_pid_data(pid);
         log_print("[player_stop]pid=%d thread is already stopped\n", pid);
-        pthread_mutex_unlock(&player_stop_mutex);
         return PLAYER_SUCCESS;
     }
     /*if (player_para->pFormatCtx) {
@@ -263,7 +281,6 @@ int player_stop(int pid)
 
     player_close_pid_data(pid);
     log_print("[player_stop:exit]pid=%d\n", pid);
-    pthread_mutex_unlock(&player_stop_mutex);
     tcppool_refresh_link_and_check(0);
     log_print("[tcppool_refresh_link_and_check]pid=%d\n", pid);
     return r;
@@ -344,7 +361,7 @@ int player_exit(int pid)
     play_para_t *para;
 
     log_print("[player_exit:enter]pid=%d\n", pid);
-    pthread_mutex_lock(&player_exit_mutex);
+
     para = player_open_pid_data(pid);
     if (para != NULL) {
         log_print("[player_exit]player_state=0x%x\n", get_player_state(para));
@@ -360,7 +377,7 @@ int player_exit(int pid)
     }
     player_close_pid_data(pid);
     player_release_pid(pid);
-    pthread_mutex_unlock(&player_exit_mutex);
+    udrm_set_msg_func(NULL, NULL);
     log_print("[player_exit:exit]pid=%d\n", pid);
 
     return ret;
@@ -613,18 +630,19 @@ int player_backward(int pid, int speed)
  * @details     audio_id is audio stream index
  */
 /* --------------------------------------------------------------------------*/
-int player_aid(int pid, int audio_id)
+int player_aid(int pid, int audio_id, int audio_idx)
 {
     player_cmd_t cmd;
 
     int ret;
 
-    log_print("[player_aid:enter]pid=%d aid=%d\n", pid, audio_id);
+    log_print("[player_aid:enter]pid=%d aid=%d, audio_idx=%d\n", pid, audio_id, audio_idx);
 
     MEMSET(&cmd, 0, sizeof(player_cmd_t));
 
     cmd.ctrl_cmd = CMD_SWITCH_AID;
     cmd.param = audio_id;
+    cmd.param1 = audio_idx;
     if (player_get_state(pid) >= PLAYER_INITOK && player_get_state(pid) < PLAYER_RUNNING) {
         play_para_t *player_para;
         player_para = player_open_pid_data(pid);
@@ -646,13 +664,13 @@ int player_switch_program(int pid, int video_pid, int audio_pid)
     int ret;
 
     log_print("[player_switch_program:enter]pid=%d video_pid=%d audio_pid=%d CMD_SWITCH_TSPROGRAM:%x\n",
-        pid, video_pid, audio_pid, CMD_SWITCH_TSPROGRAM);
+              pid, video_pid, audio_pid, CMD_SWITCH_TSPROGRAM);
 
     MEMSET(&cmd, 0, sizeof(player_cmd_t));
 
     cmd.ctrl_cmd = CMD_SWITCH_TSPROGRAM;
     cmd.param = video_pid;
-    cmd.param1= audio_pid;
+    cmd.param1 = audio_pid;
 
     ret = player_send_message(pid, &cmd);
     log_print("[player_switch_program:exit]pid=%d ret=%d\n", pid, ret);
@@ -1150,6 +1168,14 @@ int player_get_bitrate(int pid)
     if (player_para == NULL) {
         return PLAYER_NOT_VALID_PID;    /*this data is 0 for default!*/
     }
+#if 1
+    ffmpeg_geturl_netstream_info(player_para, 2, &vrate);
+    if (vrate == 0) {
+        if (player_para->state.full_time > 0) {
+            vrate = (player_para->file_size * 8) / player_para->state.full_time;
+        }
+    }
+#else
     if (player_para->codec) {
         codec_get_audio_checkin_bitrate(player_para->codec, &arate);
         codec_get_video_checkin_bitrate(player_para->codec, &vrate);
@@ -1161,6 +1187,7 @@ int player_get_bitrate(int pid)
             codec_get_audio_checkin_bitrate(player_para->acodec, &arate);
         }
     }
+#endif
     player_close_pid_data(pid);
     //log_print("[player_get_bitrate] vrate %d, arate %d, total rate %d\n", vrate, arate, vrate+arate);
     return vrate + arate;
@@ -1268,88 +1295,6 @@ int audio_get_volume(int pid, float *vol)
     log_print("[audio_get_volume:%d]r=%d\n", __LINE__, r);
 
     return r;//codec_get_volume(NULL);
-}
-
-/* --------------------------------------------------------------------------*/
-/**
- * @function    audio_set_pre_gain
- *
- * @brief       set val to source pre_gain
- *
- * @param[in]   pid player tag which get from player_start return value
- * @param[in]   gain pre-gain value in dB
- *
- * @return      PLAYER_SUCCESS  success
- *              PLAYER_FAILED   failed
- *
- * @details     gain range: -12dB~+12dB
- */
-/* --------------------------------------------------------------------------*/
-int audio_set_pre_gain(int pid, float gain)
-{
-    return codec_set_pre_gain(NULL, gain);
-}
-
-/* --------------------------------------------------------------------------*/
-/**
- * @function    audio_get_pre_gain
- *
- * @brief       get pre_gain
- *
- * @param[in]   pid player tag which get from player_start return value
- *
- * @return      r = 0  success
- *
- * @details     gain range: -12dB~+12dB
- */
-/* --------------------------------------------------------------------------*/
-int audio_get_pre_gain(int pid, float *gain)
-{
-    int r;
-
-    r = codec_get_pre_gain(NULL, gain);
-    log_print("[audio_get_pre_gain:%d]r=%d\n", __LINE__, r);
-
-    return r;
-}
-
-/* --------------------------------------------------------------------------*/
-/**
- * @function    audio_set_pre_mute
- *
- * @brief       set val to source pre_gain
- *
- * @param[in]   pid player tag which get from player_start return value
- * @param[in]   pre mute value
- *
- * @return      PLAYER_SUCCESS  success
- *              PLAYER_FAILED   failed
- */
-/* --------------------------------------------------------------------------*/
-int audio_set_pre_mute(int pid, uint mute)
-{
-    return codec_set_pre_mute(NULL, mute);
-}
-
-/* --------------------------------------------------------------------------*/
-/**
- * @function    audio_get_pre_mute
- *
- * @brief       get pre mute
- *
- * @param[in]   pid player tag which get from player_start return value
- *
- * @return      r = 0  success
- */
-/* --------------------------------------------------------------------------*/
-int audio_get_pre_mute(int pid, uint *mute)
-{
-    int r;
-
-    r = codec_get_pre_mute(NULL, mute);
-    log_print("[audio_get_pre_mute:%d]r=%d\n", __LINE__, r);
-
-    return r;
 }
 
 /* --------------------------------------------------------------------------*/
@@ -1560,7 +1505,7 @@ int audio_stereo(int pid)
 + *              PLAYER_FAILED   failed+ * @details+
 */
 /* --------------------------------------------------------------------------*/
-int audio_lr_mix_set(int pid, int enable)
+int audio_lr_mix_set(int pid, int lr_mode)
 {
     int ret = -1;
     play_para_t *player_para;
@@ -1572,7 +1517,7 @@ int audio_lr_mix_set(int pid, int enable)
     }
     p = get_audio_codec(player_para);
     if (p != NULL) {
-        ret = codec_lr_mix_set(p, enable);
+        ret = codec_lr_mix_set(p, lr_mode);
     } else {
         log_print("[%s %d] p==NULL,set fail audio_lr_mix!!", __FUNCTION__, __LINE__);
     }
@@ -1580,11 +1525,12 @@ int audio_lr_mix_set(int pid, int enable)
     return ret;
 }
 
-int audio_cur_pcmpara_Applied_get(int pid, int *pfs, int *pch ,int *lfepresent)
+int audio_cur_pcmpara_Applied_get(int pid, int *pfs, int *pch)
 {
     int ret = -1;
     play_para_t *player_para;
     codec_para_t *p;
+    int lfepresent;
     player_para = player_open_pid_data(pid);
     if (player_para == NULL) {
         log_print("[%s %d] player_para==NULL,set fail audio_FsNch_get!!", __FUNCTION__, __LINE__);
@@ -1592,7 +1538,7 @@ int audio_cur_pcmpara_Applied_get(int pid, int *pfs, int *pch ,int *lfepresent)
     }
     p = get_audio_codec(player_para);
     if (p != NULL) {
-        ret = codec_pcmpara_Applied_get(p, pfs, pch,lfepresent);
+        ret = codec_pcmpara_Applied_get(p, pfs, pch, &lfepresent);
     } else {
         log_print("[%s %d] p==NULL,set fail audio_FsNch_get!!", __FUNCTION__, __LINE__);
     }
@@ -1684,6 +1630,18 @@ int player_list_allpid(pid_info_t *pid)
 
     return 0;
 }
+int player_set_inner_exit(int pid)
+{
+    player_set_inner_exit_pid(pid);
+    return 0;
+}
+int player_is_inner_exit(int pid)
+{
+    int ret = 0;
+    ret = player_is_inner_exit_pid(pid);
+    return ret;
+}
+
 
 /* --------------------------------------------------------------------------*/
 /**
@@ -1701,8 +1659,11 @@ int player_list_allpid(pid_info_t *pid)
  * @details
  */
 /* --------------------------------------------------------------------------*/
+
+
 int player_cache_system_init(int enable, const char*dir, int max_size, int block_size)
 {
+    //return cache_system_init(enable, dir, max_size, block_size);
     /*do nothing*/
     return 0;
 }
@@ -1901,16 +1862,10 @@ static char* player_aformat2str(aformat_t value)
 
     case AFORMAT_EAC3:
         return "AFORMAT_EAC3";
-
     case AFORMAT_TRUEHD:
         return "AFORMAT_TRUEHD";
-
     case AFORMAT_WMAVOI:
         return "AFORMAT_WMAVOI";
-
-    case AFORMAT_WMALOSSLESS:
-            return "AFORMAT_WMALOSSLESS";
-
     default:
         return "NOT_SUPPORT AFORMAT";
     }
@@ -1979,6 +1934,49 @@ int player_closeCodec(int pid)
     codec_pause(player_para);
     return codec_close(player_para);
 }
+
+int resume_auto_refresh_rate()
+{
+    return set_auto_refresh_rate(auto_refresh_rate_enable);
+}
+
+/* --------------------------------------------------------------------------*/
+/**
+ * @function    player_set_sub_filename
+ *
+ * @brief       set filename for subtitle of idx+sub;
+ *
+ * @param[in]   pid; player tag which get from player_start return value
+ *
+ * @param[in]   filename; the name of idx + sub
+ *
+ * @return      r = 0 for success
+ *
+ */
+/* --------------------------------------------------------------------------*/
+
+
+int player_set_sub_filename(int pid, const char* filename)
+{
+    int ret = 0;
+    play_para_t *player_para;
+    codec_para_t *p;
+    log_print("player_set_sub_filename,pid=%d,filename=%s !\n", pid, filename);
+
+    player_para = player_open_pid_data(pid);
+    if (player_para == NULL) {
+        return -1;    /*this data is 0 for default!*/
+    }
+    if (filename) {
+        player_para->sub_filename = filename;
+    }
+
+    player_close_pid_data(pid);
+
+    return 0;
+
+}
+
 
 /* --------------------------------------------------------------------------*/
 /**
@@ -2230,12 +2228,8 @@ int player_select_streaming_track(int pid, int index, int select)
                 return -1;
             }
         }
+
         ret = player_para->pFormatCtx->iformat->select_stream(player_para->pFormatCtx, index, select);
-        if (type == 1) { // resume audio
-            codec_resume_audio(audio_codec, player_para->astream_info.resume_audio);
-            audio_codec->automute_flag = 0;
-            log_print("[%s:%d] audio reset end!", __FUNCTION__, __LINE__);
-        }
     }
     player_close_pid_data(pid);
     return ret;
@@ -2272,7 +2266,8 @@ int player_get_streaming_selected_track(int pid, int type, int * selected_track)
     player_close_pid_data(pid);
     return ret;
 }
-int audio_set_playback_rate(int pid,void *rate)
+
+int audio_set_playback_rate(int pid, void *rate)
 {
     play_para_t *player_para;
     log_print("[audio_set_playback_rate:enter]pid=%d\n", pid);
@@ -2287,4 +2282,44 @@ int audio_set_playback_rate(int pid,void *rate)
     }
     return codec_set_track_rate(player_para->acodec, rate);
 }
+
+/* --------------------------------------------------------------------------*/
+/**
+ * @function    player_get_play_mode
+ *
+ * @brief       get play mode from amplayer parament
+ *
+ * @param[in]   pid; player tag which get from player_start return value
+ *
+ * @param[in]   mode; play mode
+ *
+ * @param[in]   selected_track; selected audio/sub track index
+ *
+ * @return      r = 0 for success
+ *
+ */
+/* --------------------------------------------------------------------------*/
+
+int player_get_play_mode(int pid)
+{
+    int ret = -1;
+    play_para_t * player_para;
+    player_para = player_open_pid_data(pid);
+    if (player_para == NULL) {
+        return -1;    /*this data is 0 for default!*/
+    }
+
+    if ((player_para->pFormatCtx) && (player_para->pFormatCtx->pb)
+        && (player_para->pFormatCtx->pb->local_playback == 1)) {
+        ret = 0; // local playback
+    } else if (player_para->start_param->is_livemode > 0) {
+        ret = 1; // live playback
+    } else {
+        ret = 2; //VOD playback
+    }
+
+    player_close_pid_data(pid);
+    return ret;
+}
+
 

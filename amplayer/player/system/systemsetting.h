@@ -6,5 +6,6 @@ float PlayerGetSettingfloat(const char* path);
 int PlayerSettingIsEnable();
 int PlayerGetVFilterFormat();
 int PlayerGetAFilterFormat(const char *prop);
+
 #endif
 

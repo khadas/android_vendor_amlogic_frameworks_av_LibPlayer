@@ -45,10 +45,11 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size,
     const uint8_t *buf = avpkt->data;
     const uint8_t *buf_end = buf + avpkt->size;
 
-    if (pic->data[0])
+    if (pic->data[0]) {
         avctx->release_buffer(avctx, pic);
+    }
 
-    if (avpkt->size < avctx->width * 2 * avctx->height + 4 + 2*8) {
+    if (avpkt->size < avctx->width * 2 * avctx->height + 4 + 2 * 8) {
         av_log(avctx, AV_LOG_ERROR, "Packet is too small.\n");
         return -1;
     }
@@ -58,8 +59,9 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size,
     }
 
     pic->reference = 0;
-    if (avctx->get_buffer(avctx, pic) < 0)
+    if (avctx->get_buffer(avctx, pic) < 0) {
         return -1;
+    }
 
     pic->pict_type = AV_PICTURE_TYPE_I;
     pic->key_frame = 1;
@@ -71,8 +73,9 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size,
         int field_h = (avctx->height + !field) >> 1;
         int field_size, min_field_size = avctx->width * 2 * field_h;
         uint8_t *dst = pic->data[0];
-        if (buf_end - buf < 8)
+        if (buf_end - buf < 8) {
             return -1;
+        }
         buf += 4; // flags? 0x80 == bottom field maybe?
         field_size = bytestream_get_le32(&buf);
         if (field_size < min_field_size) {
@@ -83,8 +86,9 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size,
             av_log(avctx, AV_LOG_ERROR, "Packet is too small, need %i, have %i\n", field_size, (int)(buf_end - buf));
             return -1;
         }
-        if (field)
+        if (field) {
             dst += pic->linesize[0];
+        }
         for (i = 0; i < field_h; i++) {
             memcpy(dst, buf, avctx->width * 2);
             buf += avctx->width * 2;
@@ -102,8 +106,9 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size,
 static av_cold int decode_close(AVCodecContext *avctx)
 {
     AVFrame *pic = avctx->coded_frame;
-    if (pic->data[0])
+    if (pic->data[0]) {
         avctx->release_buffer(avctx, pic);
+    }
     av_freep(&avctx->coded_frame);
 
     return 0;

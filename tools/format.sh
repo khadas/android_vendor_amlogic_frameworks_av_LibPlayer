@@ -1,6 +1,6 @@
 #!/bin/bash
 #Format the source code(s)
-astyle --style=linux --indent=spaces=4 --brackets=linux --indent-col1-comments --pad-oper --pad-header \
+astyle --style=linux --indent=spaces=4 --indent-col1-comments --pad-oper --pad-header \
        --unpad-paren --add-brackets --convert-tabs --mode=c --lineend=linux $@ >/tmp/astyle.log
 
 #Deal with the log of astyle 

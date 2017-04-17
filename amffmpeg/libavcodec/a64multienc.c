@@ -36,7 +36,7 @@
 #define CROP_SCREENS  1
 
 /* gray gradient */
-static const int mc_colors[5]={0x0,0xb,0xc,0xf,0x1};
+static const int mc_colors[5] = {0x0, 0xb, 0xc, 0xf, 0x1};
 
 /* other possible gradients - to be tested */
 //static const int mc_colors[5]={0x0,0x8,0xa,0xf,0x7};
@@ -54,7 +54,7 @@ static void to_meta_with_crop(AVCodecContext *avctx, AVFrame *p, int *dest)
         for (blockx = 0; blockx < C64XRES; blockx += 8) {
             for (y = blocky; y < blocky + 8 && y < C64YRES; y++) {
                 for (x = blockx; x < blockx + 8 && x < C64XRES; x += 2) {
-                    if(x < width && y < height) {
+                    if (x < width && y < height) {
                         /* build average over 2 pixels */
                         luma = (src[(x + 0 + y * p->linesize[0])] +
                                 src[(x + 1 + y * p->linesize[0])]) / 2;
@@ -86,15 +86,17 @@ static void render_charset(AVCodecContext *avctx, uint8_t *charset,
 
     /* generate lookup-tables for dither and index before looping */
     i = 0;
-    for (a=0; a < 256; a++) {
-        if(i < c->mc_pal_size -1 && a == c->mc_luma_vals[i + 1]) {
+    for (a = 0; a < 256; a++) {
+        if (i < c->mc_pal_size - 1 && a == c->mc_luma_vals[i + 1]) {
             distance = c->mc_luma_vals[i + 1] - c->mc_luma_vals[i];
-            for(b = 0; b <= distance; b++) {
-                  dither[c->mc_luma_vals[i] + b] = b * (DITHERSTEPS - 1) / distance;
+            for (b = 0; b <= distance; b++) {
+                dither[c->mc_luma_vals[i] + b] = b * (DITHERSTEPS - 1) / distance;
             }
             i++;
         }
-        if(i >= c->mc_pal_size - 1) dither[a] = 0;
+        if (i >= c->mc_pal_size - 1) {
+            dither[a] = 0;
+        }
         index1[a] = i;
         index2[a] = FFMIN(i + 1, c->mc_pal_size - 1);
     }
@@ -104,51 +106,60 @@ static void render_charset(AVCodecContext *avctx, uint8_t *charset,
         lowdiff  = 0;
         highdiff = 0;
         for (y = 0; y < 8; y++) {
-            row1 = 0; row2 = 0;
+            row1 = 0;
+            row2 = 0;
             for (x = 0; x < 4; x++) {
                 pix = best_cb[y * 4 + x];
 
                 /* accumulate error for brightest/darkest color */
-                if (index1[pix] >= 3)
+                if (index1[pix] >= 3) {
                     highdiff += pix - c->mc_luma_vals[3];
-                if (index1[pix] < 1)
+                }
+                if (index1[pix] < 1) {
                     lowdiff += c->mc_luma_vals[1] - pix;
+                }
 
                 row1 <<= 2;
 
                 if (INTERLACED) {
                     row2 <<= 2;
-                    if (interlaced_dither_patterns[dither[pix]][(y & 3) * 2 + 0][x & 3])
-                        row1 |= 3-(index2[pix] & 3);
-                    else
-                        row1 |= 3-(index1[pix] & 3);
+                    if (interlaced_dither_patterns[dither[pix]][(y & 3) * 2 + 0][x & 3]) {
+                        row1 |= 3 - (index2[pix] & 3);
+                    } else {
+                        row1 |= 3 - (index1[pix] & 3);
+                    }
 
-                    if (interlaced_dither_patterns[dither[pix]][(y & 3) * 2 + 1][x & 3])
-                        row2 |= 3-(index2[pix] & 3);
-                    else
-                        row2 |= 3-(index1[pix] & 3);
-                }
-                else {
-                    if (multi_dither_patterns[dither[pix]][(y & 3)][x & 3])
-                        row1 |= 3-(index2[pix] & 3);
-                    else
-                        row1 |= 3-(index1[pix] & 3);
+                    if (interlaced_dither_patterns[dither[pix]][(y & 3) * 2 + 1][x & 3]) {
+                        row2 |= 3 - (index2[pix] & 3);
+                    } else {
+                        row2 |= 3 - (index1[pix] & 3);
+                    }
+                } else {
+                    if (multi_dither_patterns[dither[pix]][(y & 3)][x & 3]) {
+                        row1 |= 3 - (index2[pix] & 3);
+                    } else {
+                        row1 |= 3 - (index1[pix] & 3);
+                    }
                 }
             }
-            charset[y+0x000] = row1;
-            if (INTERLACED) charset[y+0x800] = row2;
+            charset[y + 0x000] = row1;
+            if (INTERLACED) {
+                charset[y + 0x800] = row2;
+            }
         }
         /* do we need to adjust pixels? */
         if (highdiff > 0 && lowdiff > 0 && c->mc_use_5col) {
             if (lowdiff > highdiff) {
-                for (x = 0; x < 32; x++)
+                for (x = 0; x < 32; x++) {
                     best_cb[x] = FFMIN(c->mc_luma_vals[3], best_cb[x]);
+                }
             } else {
-                for (x = 0; x < 32; x++)
+                for (x = 0; x < 32; x++) {
                     best_cb[x] = FFMAX(c->mc_luma_vals[1], best_cb[x]);
+                }
             }
             charpos--;          /* redo now adjusted char */
-        /* no adjustment needed, all fine */
+            /* no adjustment needed, all fine */
         } else {
             /* advance pointers */
             best_cb += 32;
@@ -191,16 +202,16 @@ static av_cold int a64multi_init_encoder(AVCodecContext *avctx)
 
     /* precalc luma values for later use */
     for (a = 0; a < c->mc_pal_size; a++) {
-        c->mc_luma_vals[a]=a64_palette[mc_colors[a]][0] * 0.30 +
-                           a64_palette[mc_colors[a]][1] * 0.59 +
-                           a64_palette[mc_colors[a]][2] * 0.11;
+        c->mc_luma_vals[a] = a64_palette[mc_colors[a]][0] * 0.30 +
+                             a64_palette[mc_colors[a]][1] * 0.59 +
+                             a64_palette[mc_colors[a]][2] * 0.11;
     }
 
     if (!(c->mc_meta_charset = av_malloc(32000 * c->mc_lifetime * sizeof(int))) ||
-       !(c->mc_best_cb       = av_malloc(CHARSET_CHARS * 32 * sizeof(int)))     ||
-       !(c->mc_charmap       = av_mallocz(1000 * c->mc_lifetime * sizeof(int))) ||
-       !(c->mc_colram        = av_mallocz(CHARSET_CHARS * sizeof(uint8_t)))     ||
-       !(c->mc_charset       = av_malloc(0x800 * (INTERLACED+1) * sizeof(uint8_t)))) {
+        !(c->mc_best_cb       = av_malloc(CHARSET_CHARS * 32 * sizeof(int)))     ||
+        !(c->mc_charmap       = av_mallocz(1000 * c->mc_lifetime * sizeof(int))) ||
+        !(c->mc_colram        = av_mallocz(CHARSET_CHARS * sizeof(uint8_t)))     ||
+        !(c->mc_charset       = av_malloc(0x800 * (INTERLACED + 1) * sizeof(uint8_t)))) {
         av_log(avctx, AV_LOG_ERROR, "Failed to allocate buffer memory.\n");
         return AVERROR(ENOMEM);
     }
@@ -218,8 +229,9 @@ static av_cold int a64multi_init_encoder(AVCodecContext *avctx)
     avctx->coded_frame            = &c->picture;
     avctx->coded_frame->pict_type = AV_PICTURE_TYPE_I;
     avctx->coded_frame->key_frame = 1;
-    if (!avctx->codec_tag)
-         avctx->codec_tag = AV_RL32("a64m");
+    if (!avctx->codec_tag) {
+        avctx->codec_tag = AV_RL32("a64m");
+    }
 
     return 0;
 }
@@ -234,7 +246,9 @@ static void a64_compress_colram(unsigned char *buf, int *charmap, uint8_t *colra
         temp  = colram[charmap[a + 0x000]] << 0;
         temp |= colram[charmap[a + 0x100]] << 1;
         temp |= colram[charmap[a + 0x200]] << 2;
-        if (a < 0xe8) temp |= colram[charmap[a + 0x300]] << 3;
+        if (a < 0xe8) {
+            temp |= colram[charmap[a + 0x300]] << 3;
+        }
         buf[a] = temp << 2;
     }
 }
@@ -263,9 +277,9 @@ static int a64multi_encode_frame(AVCodecContext *avctx, unsigned char *buf,
     int colram_size  = 0x100 * c->mc_use_5col;
     int screen_size;
 
-    if(CROP_SCREENS) {
-        b_height = FFMIN(avctx->height,C64YRES) >> 3;
-        b_width  = FFMIN(avctx->width ,C64XRES) >> 3;
+    if (CROP_SCREENS) {
+        b_height = FFMIN(avctx->height, C64YRES) >> 3;
+        b_width  = FFMIN(avctx->width , C64XRES) >> 3;
         screen_size = b_width * b_height;
     } else {
         b_height = C64YRES >> 3;
@@ -276,14 +290,18 @@ static int a64multi_encode_frame(AVCodecContext *avctx, unsigned char *buf,
     /* no data, means end encoding asap */
     if (!data) {
         /* all done, end encoding */
-        if (!c->mc_lifetime) return 0;
+        if (!c->mc_lifetime) {
+            return 0;
+        }
         /* no more frames in queue, prepare to flush remaining frames */
         if (!c->mc_frame_counter) {
             c->mc_lifetime = 0;
         }
         /* still frames in queue so limit lifetime to remaining frames */
-        else c->mc_lifetime = c->mc_frame_counter;
-    /* still new data available */
+        else {
+            c->mc_lifetime = c->mc_frame_counter;
+        }
+        /* still new data available */
     } else {
         /* fill up mc_meta_charset with data until lifetime exceeds */
         if (c->mc_frame_counter < c->mc_lifetime) {
@@ -304,13 +322,13 @@ static int a64multi_encode_frame(AVCodecContext *avctx, unsigned char *buf,
         if (c->mc_lifetime) {
             /* calc optimal new charset + charmaps */
             ff_init_elbg(meta, 32, 1000 * c->mc_lifetime, best_cb, CHARSET_CHARS, 50, charmap, &c->randctx);
-            ff_do_elbg  (meta, 32, 1000 * c->mc_lifetime, best_cb, CHARSET_CHARS, 50, charmap, &c->randctx);
+            ff_do_elbg(meta, 32, 1000 * c->mc_lifetime, best_cb, CHARSET_CHARS, 50, charmap, &c->randctx);
 
             /* create colorram map and a c64 readable charset */
             render_charset(avctx, charset, colram);
 
             /* copy charset to buf */
-            memcpy(buf,charset, charset_size);
+            memcpy(buf, charset, charset_size);
 
             /* advance pointers */
             buf      += charset_size;
@@ -318,7 +336,9 @@ static int a64multi_encode_frame(AVCodecContext *avctx, unsigned char *buf,
             req_size += charset_size;
         }
         /* no charset so clean buf */
-        else memset(buf, 0, charset_size);
+        else {
+            memset(buf, 0, charset_size);
+        }
 
         /* write x frames to buf */
         for (frame = 0; frame < c->mc_lifetime; frame++) {

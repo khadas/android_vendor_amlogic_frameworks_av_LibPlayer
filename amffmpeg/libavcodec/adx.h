@@ -32,13 +32,13 @@
 #define AVCODEC_ADX_H
 
 typedef struct {
-    int s1,s2;
+    int s1, s2;
 } PREV;
 
 typedef struct {
     PREV prev[2];
     int header_parsed;
-    unsigned char dec_temp[18*2];
+    unsigned char dec_temp[18 * 2];
     int in_temp;
 } ADXContext;
 

@@ -1,6 +1,6 @@
 //coded by peter,20130215
 
-//#define LOG_NDEBUG 0
+#define LOG_NDEBUG 0
 #define LOG_TAG "M3uParser"
 
 
@@ -12,6 +12,9 @@
 #include <ctype.h>
 #include "hls_m3uparser.h"
 #include "hls_utils.h"
+#include "libavformat/avformat.h"
+
+
 
 #ifdef HAVE_ANDROID_OS
 #include "hls_common.h"
@@ -23,141 +26,123 @@
 #define FOURCC(c1, c2, c3, c4) \
     (c1 << 24 | c2 << 16 | c3 << 8 | c4)
 
-typedef struct _M3UParser {
-    int is_variant_playlist;
-    int is_extm3u;
-    int is_complete;
-    int is_initcheck;
-    int target_duration;
-    int base_node_num;
-    int media_group_num;
-    int log_level;
-    char *baseUrl;
-    int64_t durationUs;
-    struct list_head  head;
-    struct list_head  mediaGroup_head;
-} M3UParser;
-
-extern void av_url_split(char *proto, int proto_size,
-                  char *authorization, int authorization_size,
-                  char *hostname, int hostname_size,
-                  int *port_ptr,
-                  char *path, int path_size,
-                  const char *url);
-
 //====================== media group ==============================
 
-static void codecIsType(const char * codec, MediaType * type) {
+static void codecIsType(const char * codec, MediaType * type)
+{
     if (strlen(codec) < 4) {
         return;
     }
     switch (FOURCC(codec[0], codec[1], codec[2], codec[3])) {
-        case 'ac-3':
-        case 'alac':
-        case 'dra1':
-        case 'dtsc':
-        case 'dtse':
-        case 'dtsh':
-        case 'dtsl':
-        case 'ec-3':
-        case 'enca':
-        case 'g719':
-        case 'g726':
-        case 'm4ae':
-        case 'mlpa':
-        case 'mp4a':
-        case 'raw ':
-        case 'samr':
-        case 'sawb':
-        case 'sawp':
-        case 'sevc':
-        case 'sqcp':
-        case 'ssmv':
-        case 'twos':
-        case 'agsm':
-        case 'alaw':
-        case 'dvi ':
-        case 'fl32':
-        case 'fl64':
-        case 'ima4':
-        case 'in24':
-        case 'in32':
-        case 'lpcm':
-        case 'Qclp':
-        case 'QDM2':
-        case 'QDMC':
-        case 'ulaw':
-        case 'vdva':
-            *type |= TYPE_AUDIO;
-            return;
+    case 'ac-3':
+    case 'alac':
+    case 'dra1':
+    case 'dtsc':
+    case 'dtse':
+    case 'dtsh':
+    case 'dtsl':
+    case 'ec-3':
+    case 'enca':
+    case 'g719':
+    case 'g726':
+    case 'm4ae':
+    case 'mlpa':
+    case 'mp4a':
+    case 'raw ':
+    case 'samr':
+    case 'sawb':
+    case 'sawp':
+    case 'sevc':
+    case 'sqcp':
+    case 'ssmv':
+    case 'twos':
+    case 'agsm':
+    case 'alaw':
+    case 'dvi ':
+    case 'fl32':
+    case 'fl64':
+    case 'ima4':
+    case 'in24':
+    case 'in32':
+    case 'lpcm':
+    case 'Qclp':
+    case 'QDM2':
+    case 'QDMC':
+    case 'ulaw':
+    case 'vdva':
+        *type |= TYPE_AUDIO;
+        return;
 
-        case 'avc1':
-        case 'avc2':
-        case 'hvc1':
-        case 'hev1':
-        case 'avcp':
-        case 'drac':
-        case 'encv':
-        case 'mjp2':
-        case 'mp4v':
-        case 'mvc1':
-        case 'mvc2':
-        case 'resv':
-        case 's263':
-        case 'svc1':
-        case 'vc-1':
-        case 'CFHD':
-        case 'civd':
-        case 'DV10':
-        case 'dvh5':
-        case 'dvh6':
-        case 'dvhp':
-        case 'DVOO':
-        case 'DVOR':
-        case 'DVTV':
-        case 'DVVT':
-        case 'flic':
-        case 'gif ':
-        case 'h261':
-        case 'h263':
-        case 'HD10':
-        case 'jpeg':
-        case 'M105':
-        case 'mjpa':
-        case 'mjpb':
-        case 'png ':
-        case 'PNTG':
-        case 'rle ':
-        case 'rpza':
-        case 'Shr0':
-        case 'Shr1':
-        case 'Shr2':
-        case 'Shr3':
-        case 'Shr4':
-        case 'SVQ1':
-        case 'SVQ3':
-        case 'tga ':
-        case 'tiff':
-        case 'WRLE':
-            *type |= TYPE_VIDEO;
-            return;
+    case 'avc1':
+    case 'avc2':
+    case 'hvc1':
+    case 'hev1':
+    case 'avcp':
+    case 'drac':
+    case 'encv':
+    case 'mjp2':
+    case 'mp4v':
+    case 'mvc1':
+    case 'mvc2':
+    case 'resv':
+    case 's263':
+    case 'svc1':
+    case 'vc-1':
+    case 'CFHD':
+    case 'civd':
+    case 'DV10':
+    case 'dvh5':
+    case 'dvh6':
+    case 'dvhp':
+    case 'DVOO':
+    case 'DVOR':
+    case 'DVTV':
+    case 'DVVT':
+    case 'flic':
+    case 'gif ':
+    case 'h261':
+    case 'h263':
+    case 'HD10':
+    case 'jpeg':
+    case 'M105':
+    case 'mjpa':
+    case 'mjpb':
+    case 'png ':
+    case 'PNTG':
+    case 'rle ':
+    case 'rpza':
+    case 'Shr0':
+    case 'Shr1':
+    case 'Shr2':
+    case 'Shr3':
+    case 'Shr4':
+    case 'SVQ1':
+    case 'SVQ3':
+    case 'tga ':
+    case 'tiff':
+    case 'WRLE':
+        *type |= TYPE_VIDEO;
+        return;
 
-        default:
-            return;
+    default:
+        return;
     }
 }
 
-static void add_mediaGroup_to_head(M3UParser * var, M3uMediaGroup * group) {
+static void add_mediaGroup_to_head(M3UParser * var, M3uMediaGroup * group)
+{
     list_add(&group->mediaGroup_parser_list, &var->mediaGroup_head);
     var->media_group_num++;
 }
 
-static void add_mediaItem_to_group_head(M3UParser * var, M3uMediaGroup * group, M3uMediaItem * item) {
+static void add_mediaItem_to_group_head(M3UParser * var, M3uMediaGroup * group, M3uMediaItem * item)
+{
     list_add(&item->mediaItem_list, &group->mediaGroup_item_head);
     group->mediaItem_num++;
 }
 
-static M3uMediaGroup * get_mediaGroup_by_id(M3UParser * var, MediaType type, const char * groupID) {
+static M3uMediaGroup * get_mediaGroup_by_id(M3UParser * var, MediaType type, const char * groupID)
+{
     M3uMediaGroup * pos = NULL;
     M3uMediaGroup * tmp = NULL;
 
@@ -170,7 +155,8 @@ static M3uMediaGroup * get_mediaGroup_by_id(M3UParser * var, MediaType type, con
     return NULL;
 }
 
-static M3uMediaItem * get_mediaItem_in_group(M3uMediaGroup * group, int index_to_select) {
+static M3uMediaItem * get_mediaItem_in_group(M3uMediaGroup * group, int index_to_select)
+{
     M3uMediaItem * pos = NULL;
     M3uMediaItem * tmp = NULL;
     int index = 0;
@@ -199,23 +185,24 @@ static M3uMediaItem * get_mediaItem_in_group(M3uMediaGroup * group, int index_to
     return pos;
 }
 
-static M3uTrackInfo * get_trackInfo_in_group(M3uMediaGroup * group, int index) {
+static M3uTrackInfo * get_trackInfo_in_group(M3uMediaGroup * group, int index)
+{
     M3uTrackInfo * trackInfo = (M3uTrackInfo *)malloc(sizeof(M3uTrackInfo));
     memset(trackInfo, 0, sizeof(M3uTrackInfo));
     int trackType;
     switch (group->type) {
-        case TYPE_AUDIO:
-            trackType = M3U_MEDIA_TRACK_TYPE_AUDIO;
-            break;
-        case TYPE_VIDEO:
-            trackType = M3U_MEDIA_TRACK_TYPE_VIDEO;
-            break;
-        case TYPE_SUBS:
-            trackType = M3U_MEDIA_TRACK_TYPE_SUBTITLE;
-            break;
-        default:
-            trackType = M3U_MEDIA_TRACK_TYPE_UNKNOWN;
-            break;
+    case TYPE_AUDIO:
+        trackType = M3U_MEDIA_TRACK_TYPE_AUDIO;
+        break;
+    case TYPE_VIDEO:
+        trackType = M3U_MEDIA_TRACK_TYPE_VIDEO;
+        break;
+    case TYPE_SUBS:
+        trackType = M3U_MEDIA_TRACK_TYPE_SUBTITLE;
+        break;
+    default:
+        trackType = M3U_MEDIA_TRACK_TYPE_UNKNOWN;
+        break;
     }
     trackInfo->track_type = trackType;
     M3uMediaItem * item = get_mediaItem_in_group(group, index);
@@ -236,7 +223,8 @@ static M3uTrackInfo * get_trackInfo_in_group(M3uMediaGroup * group, int index) {
     return trackInfo;
 }
 
-static MediaType get_media_type_by_codec(const char * codec) {
+static MediaType get_media_type_by_codec(const char * codec)
+{
     if (!codec) {
         return TYPE_NONE;
     }
@@ -255,7 +243,8 @@ static MediaType get_media_type_by_codec(const char * codec) {
     return type;
 }
 
-static void clean_all_mediaGroup(M3UParser * var) {
+static void clean_all_mediaGroup(M3UParser * var)
+{
     M3uMediaGroup * pos = NULL;
     M3uMediaGroup * tmp = NULL;
     M3uMediaItem * item_pos = NULL;
@@ -280,11 +269,11 @@ static void clean_all_mediaGroup(M3UParser * var) {
 }
 
 //====================== list abouts===============================
-#define BASE_NODE_MAX  8*1024 //max to 8k
+#define BASE_NODE_MAX  32*1024 //max to 8k
 
 static int add_node_to_head(M3UParser* var, M3uBaseNode* item)
 {
-    if (var->base_node_num > BASE_NODE_MAX) {
+    if (var->base_node_num > var->max_base_node_num) {
         return -1;
     }
     list_add(&item->list, &var->head);
@@ -353,22 +342,20 @@ static M3uBaseNode* get_node_by_url(M3UParser* var, char *srcurl)
     }
     char * tmp_url = srcurl;
     int len = strlen(srcurl);
-    char * is_wasu = strstr(srcurl, "&owsid="); // wasu server differ the same ts segment.
-    if (is_wasu) {
-        len -= strlen(is_wasu);
+    if (srcurl) {
         tmp_url = (char*)malloc(len + 1);
         strncpy(tmp_url, srcurl, len);
         tmp_url[len] = '\0';
     }
     list_for_each_entry_safe(pos, tmp, &var->head, list) {
         if (strstr(pos->fileUrl, tmp_url)) {
-            if (is_wasu) {
+            if (srcurl) {
                 free(tmp_url);
             }
             return pos;
         }
     }
-    if (is_wasu) {
+    if (srcurl) {
         free(tmp_url);
     }
     return NULL;
@@ -393,10 +380,10 @@ static int dump_all_nodes(M3UParser* var)
         if (var->is_variant_playlist && var->log_level >= HLS_SHOW_URL) {
             LOGI("***Stream index:%d,url:%s,bandwidth:%d,program-id:%d\n", pos->index, pos->fileUrl, pos->bandwidth, pos->program_id);
         } else {
-            if (var->log_level >= HLS_SHOW_URL) {
+            if ((var->log_level >= HLS_SHOW_URL) || (var->is_complete < 1)) {
                 LOGI("***Segment index:%d,url:%s,startUs:%lld,duration:%lld\n", pos->index, pos->fileUrl, (long long)pos->startUs, (long long)pos->durationUs);
             }
-            LOGI("***Media range:%lld,media offset:%lld,media seq:%d", (long long)pos->range_length, (long long)pos->range_offset, pos->media_sequence);
+            LOGI("***Media fileSize:%lld,media readOffset:%lld,media seq:%d", (long long)pos->fileSize, (long long)pos->readOffset, pos->media_sequence);
             LOGI("***With encrypt key info:%s\n", pos->flags & CIPHER_INFO_FLAG ? "YES" : "NO");
             if ((pos->flags & CIPHER_INFO_FLAG) && var->log_level >= HLS_SHOW_URL) {
                 LOGI("***Cipher key 's url:%s\n", pos->key != NULL ? pos->key->keyUrl : "unknow");
@@ -412,16 +399,16 @@ static int clean_all_nodes(M3UParser* var)
 {
     M3uBaseNode* pos = NULL;
     M3uBaseNode* tmp = NULL;
+    int base_node_num = var->base_node_num;
+
     if (var->base_node_num == 0) {
         return 0;
     }
-    LOGV("*******************Clean All nodes from list start****************************\n");
+    LOGV("*******************Clean %d nodes from list start****************************\n", base_node_num);
     list_for_each_entry_safe(pos, tmp, &var->head, list) {
         list_del(&pos->list);
-        if (var->log_level >= HLS_SHOW_URL) {
-            LOGV("***Release node index:%d,url:%s\n", pos->index, pos->fileUrl);
-        } else {
-            LOGV("***Release node index:%d\n", pos->index);
+        if (base_node_num <= 10 && ((var->log_level >= HLS_SHOW_URL) || (var->is_complete < 1))) {
+            LOGV("***Release node index:%d,media_seq:%d ,url:%s\n", pos->index, pos->media_sequence, pos->fileUrl);
         }
         if (pos->flags & CIPHER_INFO_FLAG && pos->key != NULL) {
             if (var->log_level >= HLS_SHOW_URL) {
@@ -439,6 +426,24 @@ static int clean_all_nodes(M3UParser* var)
     return 0;
 
 }
+
+static void clean_all_iframe_nodes(M3UParser* var)
+{
+    if (var->iframe_node_num > 0) {
+        int i;
+        for (i = 0; i < var->iframe_node_num; i++) {
+            M3uIframeNode * node = var->iframe_node_list[i];
+            if (node) {
+                if (node->uri) {
+                    free(node->uri);
+                }
+                free(node);
+            }
+        }
+        free(var->iframe_node_list);
+    }
+}
+
 //=====================================utils func============================================
 static int startsWith(const char* data, const char *prefix)
 {
@@ -547,7 +552,7 @@ static int64_t parseDataTime(const char*line)
     }
 
     int len = strlen(dataTime);
-    LOGV("parseDataTime start dataTime: %s, len: %d\n", dataTime, len);
+    //LOGV("parseDataTime start dataTime: %s, len: %d\n", dataTime, len);
     int i = 0, j = 0;
     for (i = 0; i < len; i++) {
         if ((*(dataTime + i) < '0') || (*(dataTime + i) > '9')) {
@@ -561,7 +566,7 @@ static int64_t parseDataTime(const char*line)
             }
         }
     }
-    LOGV("parseDataTime end dataTime: %s\n", dataTime);
+    //LOGV("parseDataTime end dataTime: %s\n", dataTime);
 
     int64_t x = 0;
     int err = parseInt64(dataTime, &x);
@@ -592,9 +597,10 @@ static int64_t parseMetaDataDurationUs(const char* line)
     if (err != 0) {
         return err;
     }
-
+    /* fix node  duration less than zero*/
     if (x < 0) {
-        x = 0;
+        LOGI("Warnning parse DurationUs: %lf,don't drop\n", x);
+        //x = 0;
     }
 
     return ((int64_t)(x * 1E6));
@@ -683,6 +689,7 @@ struct variant_info {
     char audio_groupID[128];
     char video_groupID[128];
     char sub_groupID[128];
+    char iframeUri[MAX_URL_SIZE];
 };
 
 struct media_info {
@@ -717,11 +724,15 @@ static void handle_variant_args(struct variant_info *info, const char *key,
     } else if (!strncmp(key, "SUBTITLES=", key_len)) {
         *dest     =        info->sub_groupID;
         *dest_len = sizeof(info->sub_groupID);
+    } else if (!strncmp(key, "URI=", key_len)) {
+        *dest     =        info->iframeUri;
+        *dest_len = sizeof(info->iframeUri);
     }
 }
 
 static void handle_media_info(struct media_info *info, const char *key,
-                                int key_len, char **dest, int *dest_len) {
+                              int key_len, char **dest, int *dest_len)
+{
     if (!strncmp(key, "TYPE=", key_len)) {
         *dest     = info->type;
         *dest_len = sizeof(info->type);
@@ -912,11 +923,31 @@ static int parseStreamInf(M3UParser* var, char* line, M3uBaseNode * node)
             memcpy(node->sub_groupID, info.sub_groupID, sizeof(node->sub_groupID));
         }
     }
+
     return 0;
 }
 
 
-static int parseMedia(M3UParser* var, char * line) {
+static int parseStreamIFrameInf(M3UParser* var, char* line, M3uBaseNode * node)
+{
+    const char *match = strstr(line, ":");
+
+    if (match == NULL) {
+        return -1;
+    }
+    trimInvalidSpace(line);
+    ssize_t colonPos = match - line;
+    struct variant_info info;
+    memset(&info, 0, sizeof(struct variant_info));
+    parseKeyValue(line + colonPos + 1, (parse_key_val_cb)handle_variant_args, &info);
+    if (info.iframeUri[0] != '\0') {
+        makeUrl(node->iframeUrl, sizeof(node->iframeUrl), var->baseUrl, info.iframeUri);
+    }
+    return 0;
+}
+
+static int parseMedia(M3UParser* var, char * line)
+{
     const char * match = strstr(line, ":");
     if (!match) {
         return -1;
@@ -1105,6 +1136,8 @@ static int parseCipherInfo(const char* line, const char* baseUrl, M3uKeyInfo* in
 #define EXT_X_ENDLIST               "#EXT-X-ENDLIST"
 #define EXT_X_MEDIA                 "#EXT-X-MEDIA"
 #define EXT_X_STREAM_INF            "#EXT-X-STREAM-INF"
+#define EXT_X_I_FRAME_STREAM_INF    "#EXT-X-I-FRAME-STREAM-INF"
+#define EXT_X_I_FRAMES_ONLY         "#EXT-X-I-FRAMES-ONLY"
 #define EXT_X_DISCONTINUITY         "#EXT-X-DISCONTINUITY"
 #define EXT_X_VERSION               "#EXT-X-VERSION"
 #define EXT_X_BYTERANGE             "#EXT-X-BYTERANGE"  //>=version 4
@@ -1124,17 +1157,28 @@ static int fast_parse(M3UParser* var, const void *_data, int size)
     int isVariantPlaylist = 0;
     int ret = 0, bandwidth = 0;
     int hasKey = 0;
+    int isIframeOnly = 0;
+    int last_uri_index = -1;
     uint64_t segmentRangeOffset = 0;
     int64_t duration = 0;
     int64_t totaltime = 0;
     const char* ptr = NULL;
+    char * last_uri = (char *)malloc(MAX_URL_SIZE);
+    memset(last_uri, 0, MAX_URL_SIZE);
     M3uKeyInfo* keyinfo = NULL;
     M3uBaseNode tmpNode;
     memset(&tmpNode, 0, sizeof(M3uBaseNode));
-    tmpNode.media_sequence = -1;
-    tmpNode.range_length = -1;
-    tmpNode.range_offset = -1;
+    tmpNode.media_sequence = 0;
+    tmpNode.fileSize = -1;
+    tmpNode.readOffset = 0;
     tmpNode.durationUs = -1;
+
+    M3uIframeNode tmpIframeNode;
+    memset(&tmpIframeNode, 0, sizeof(M3uIframeNode));
+    tmpIframeNode.fileSize = -1;
+    tmpIframeNode.readOffset = -1;
+    tmpIframeNode.durationUs = -1;
+    tmpIframeNode.url_index = -1;
 
     //cut BOM header
     if (data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF) {
@@ -1167,8 +1211,13 @@ static int fast_parse(M3UParser* var, const void *_data, int size)
             continue;
         }
 
-        if (lineNo == 0 && startsWith(line, EXTM3U)) {
-            var->is_extm3u = 1;
+        if (lineNo == 0) {
+            if (startsWith(line, EXTM3U)) {
+                var->is_extm3u = 1;
+            } else {
+                LOGI("error url is not m3u8\n");
+                goto error;
+            }
         }
 
         if (var->is_extm3u > 0) {
@@ -1218,9 +1267,11 @@ static int fast_parse(M3UParser* var, const void *_data, int size)
                     var->is_initcheck = -1;
                     break;
                 }
-                tmpNode.durationUs = parseMetaDataDurationUs(line);
-
-
+                if (isIframeOnly) {
+                    tmpIframeNode.durationUs = parseMetaDataDurationUs(line);
+                } else {
+                    tmpNode.durationUs = parseMetaDataDurationUs(line);
+                }
             } else if (startsWith(line, EXT_X_DISCONTINUITY)) {
                 if (isVariantPlaylist) {
                     var->is_initcheck = -1;
@@ -1238,6 +1289,11 @@ static int fast_parse(M3UParser* var, const void *_data, int size)
             } else if (startsWith(line, EXT_X_STREAM_INF)) {
                 ret = parseStreamInf(var, line, &tmpNode);
                 isVariantPlaylist = 1;
+            } else if (startsWith(line, EXT_X_I_FRAME_STREAM_INF)) {
+                M3uBaseNode * node = get_node_by_index(var, index - 1);
+                ret = parseStreamIFrameInf(var, line, node);
+            } else if (startsWith(line, EXT_X_I_FRAMES_ONLY)) {
+                isIframeOnly = 1;
             } else if (startsWith(line, EXT_X_ALLOW_CACHE)) {
                 ptr = line + strlen(EXT_X_ALLOW_CACHE) + 1;
                 if (!strncasecmp(ptr, "YES", strlen("YES"))) {
@@ -1254,8 +1310,8 @@ static int fast_parse(M3UParser* var, const void *_data, int size)
                 }
 
                 tmpNode.dataTime = parseDataTime(line);
-                LOGV("M3u8 dataTime is :%lld\n", tmpNode.dataTime);
-            } else if (startsWith(line, "#EXT-X-BYTERANGE")) {
+                //LOGV("M3u8 dataTime is :%lld\n", tmpNode.dataTime);
+            } else if (startsWith(line, EXT_X_BYTERANGE)) {
                 if (isVariantPlaylist) {
                     var->is_initcheck = -1;
                     break;
@@ -1264,8 +1320,13 @@ static int fast_parse(M3UParser* var, const void *_data, int size)
                 ret = parseByteRange(line, segmentRangeOffset, &length, &offset);
 
                 if (ret == 0) {
-                    tmpNode.range_length = length;
-                    tmpNode.range_offset = offset;
+                    if (isIframeOnly) {
+                        tmpIframeNode.fileSize = length + offset;
+                        tmpIframeNode.readOffset = offset;
+                    } else {
+                        tmpNode.fileSize = length;
+                        tmpNode.readOffset = offset;
+                    }
                     segmentRangeOffset = offset + length;
                 }
 
@@ -1274,52 +1335,91 @@ static int fast_parse(M3UParser* var, const void *_data, int size)
         if (strlen(line) > 0 && !startsWith(line, "#")) {
 
             if (!isVariantPlaylist) {
-                if (tmpNode.durationUs < 0) {
+                int64_t tmpDur = 0;
+                if (isIframeOnly) {
+                    tmpDur = tmpIframeNode.durationUs;
+                } else {
+                    tmpDur = tmpNode.durationUs;
+                }/*
+                if (tmpDur < 0) {
                     var->is_initcheck = -1;
                     LOGE("Get invalid node,failed to parse m3u\n");
                     break;
+                }*/
+
+            }
+
+            if (isIframeOnly) {
+                M3uIframeNode * node = (M3uIframeNode *)malloc(sizeof(M3uIframeNode));
+                if (node == NULL) {
+                    LOGE("Failed to malloc memory for iframe node\n");
+                    var->is_initcheck = -1;
+                    break;
+                }
+                memcpy(node, &tmpIframeNode, sizeof(M3uIframeNode));
+                if (!isVariantPlaylist) {
+                    node->startUs = var->durationUs;
+                    var->durationUs += node->durationUs;
+                }
+                node->index = index;
+                if (strcmp(last_uri, line)) {
+                    strlcpy(last_uri, line, MAX_URL_SIZE);
+                    char * tmpUri = (char *)malloc(MAX_URL_SIZE);
+                    memset(tmpUri, 0, MAX_URL_SIZE);
+                    makeUrl(tmpUri, MAX_URL_SIZE, var->baseUrl, line);
+                    node->uri = (char *)malloc(MAX_URL_SIZE);
+                    strlcpy(node->uri, tmpUri, MAX_URL_SIZE);
+                    last_uri_index = index;
+                    free(tmpUri);
+                }
+                node->url_index = last_uri_index;
+                in_dynarray_add(&var->iframe_node_list, &var->iframe_node_num, node);
+                memset(&tmpIframeNode, 0, sizeof(M3uIframeNode));
+                tmpIframeNode.fileSize = -1;
+                tmpIframeNode.readOffset = -1;
+                ++index;
+            } else {
+                M3uBaseNode* node  = (M3uBaseNode*)malloc(sizeof(M3uBaseNode));
+                if (node == NULL) {
+                    LOGE("Failed to malloc memory for node\n");
+                    var->is_initcheck = -1;
+                    break;
                 }
 
+                memcpy(node, &tmpNode, sizeof(M3uBaseNode));
+                tmpNode.durationUs = -1;
+                if (hasKey && keyinfo) {
+                    node->key = keyinfo;
+                    hasKey = 0;
+                    keyinfo = NULL;
+                }
+                if (!isVariantPlaylist) {
+                    node->startUs = var->durationUs;
+                    var->durationUs += node->durationUs;
+                }
+                makeUrl(node->fileUrl, sizeof(node->fileUrl), var->baseUrl, line);
+                node->index = index;
+                INIT_LIST_HEAD(&node->list);
+                add_node_to_head(var, node);
+                ++index;
+                memset(&tmpNode, 0, sizeof(M3uBaseNode));
+                tmpNode.readOffset = 0;
             }
-            M3uBaseNode* node  = (M3uBaseNode*)malloc(sizeof(M3uBaseNode));
-            if (node == NULL) {
-                LOGE("Failed to malloc memory for node\n");
-                var->is_initcheck = -1;
-                break;
-            }
-
-            memcpy(node, &tmpNode, sizeof(M3uBaseNode));
-            tmpNode.durationUs = -1;
-            if (hasKey && keyinfo) {
-                node->key = keyinfo;
-                hasKey = 0;
-                keyinfo = NULL;
-            }
-            if (!isVariantPlaylist) {
-                node->startUs = var->durationUs;
-                var->durationUs += node->durationUs;
-
-            }
-            makeUrl(node->fileUrl, sizeof(node->fileUrl), var->baseUrl, line);
-            node->index = index;
-            INIT_LIST_HEAD(&node->list);
-            add_node_to_head(var, node);
-            ++index;
-            memset(&tmpNode, 0, sizeof(M3uBaseNode));
-            tmpNode.range_offset = -1;
-
         }
 
         offset = offsetLF + 1;
         ++lineNo;
 
     }
+error:
     if (var->is_initcheck < 0) {
         if (hasKey > 0 && keyinfo) {
             free(keyinfo);
             keyinfo = NULL;
         }
     }
+
+    free(last_uri);
 
     if (isVariantPlaylist) {
         var->is_variant_playlist = 1;
@@ -1337,13 +1437,18 @@ int m3u_parse(const char *baseUrl, const void *data, size_t size, void** hParse)
     p->baseUrl = strndup(baseUrl, MAX_URL_SIZE);
 
     p->base_node_num = 0;
+    p->max_base_node_num = am_getconfig_int_def("libplayer.hls.maxnodenum", BASE_NODE_MAX);
     p->media_group_num = 0;
+    p->iframe_node_num = 0;
     p->durationUs = 0;
     p->is_complete = 0;
     p->is_extm3u = 0;
     p->is_variant_playlist = 0;
     p->target_duration = 0;
     p->log_level = 0;
+    p->iframe_node_list = 0;
+    p->is_invalid = 0;
+    p->is_initcheck = 1;
     if (in_get_sys_prop_bool("media.amplayer.disp_url") != 0) {
         p->log_level = HLS_SHOW_URL;
     }
@@ -1383,13 +1488,36 @@ int m3u_is_variant_playlist(void* hParse)
     LOGV("Is variant playlist? %s\n", p->is_variant_playlist > 0 ? "YES" : "NO");
     return p->is_variant_playlist;
 }
+
+int m3u_set_invalid(void *hParse, int value)
+{
+    if (NULL == hParse) {
+        return -2;
+    }
+    if (value != 0 && value != 1) {
+        return -1;
+    }
+    M3UParser* p = (M3UParser*)hParse;
+    p->is_invalid = value;
+    return 0;
+}
+
+int m3u_is_invalid(void *hParse)
+{
+    if (NULL == hParse) {
+        return -2;
+    }
+    M3UParser* p = (M3UParser*)hParse;
+    return p->is_invalid;
+}
+
 int m3u_is_complete(void* hParse)
 {
     if (NULL == hParse) {
         return -2;
     }
     M3UParser* p = (M3UParser*)hParse;
-    LOGV("Got end tag? %s\n", p->is_complete > 0 ? "YES" : "NO");
+    // LOGV("Got end tag? %s\n",p->is_complete>0?"YES":"NO");
     return p->is_complete;
 }
 int m3u_get_node_num(void* hParse)
@@ -1398,7 +1526,7 @@ int m3u_get_node_num(void* hParse)
         return -2;
     }
     M3UParser* p = (M3UParser*)hParse;
-    LOGV("Got node num: %d\n", p->base_node_num);
+    // LOGV("Got node num: %d\n",p->base_node_num);
     return p->base_node_num;
 }
 int64_t m3u_get_durationUs(void* hParse)
@@ -1407,7 +1535,7 @@ int64_t m3u_get_durationUs(void* hParse)
         return -2;
     }
     M3UParser* p = (M3UParser*)hParse;
-    LOGV("Got duration: %lld\n", (long long)p->durationUs);
+    // LOGV("Got duration: %lld\n",(long long)p->durationUs);
     return p->durationUs;
 }
 M3uBaseNode* m3u_get_node_by_index(void* hParse, int index)
@@ -1472,8 +1600,8 @@ int64_t m3u_get_node_span_size(void* hParse, int start_index, int end_index)
     }
     list_for_each_entry_safe_reverse(pos, tmp, &var->head, list) {
         if (start_index <= pos->index && pos->index < end_index) {
-            LOGI("[%s:%d]index=%d, range_length=%lld\n", __FUNCTION__, __LINE__, pos->index, pos->range_length);
-            spanfilesize += pos->range_length;
+            LOGI("[%s:%d]index=%d, fileSize=%lld\n", __FUNCTION__, __LINE__, pos->index, pos->fileSize);
+            spanfilesize += pos->fileSize;
         }
     }
 
@@ -1485,21 +1613,26 @@ int m3u_get_target_duration(void* hParse)
         return -2;
     }
     M3UParser* p = (M3UParser*)hParse;
-    LOGV("Got target duration: %d s\n", p->target_duration);
+    //LOGV("Got target duration: %d s\n",p->target_duration);
     return p->target_duration;
 
 }
 
 //////////////////////////////////////////////////////////////
-int m3u_get_mediaGroup_num(void * hParse) {
+int m3u_get_mediaGroup_num(void * hParse)
+{
     if (NULL == hParse) {
         return -1;
     }
     M3UParser * p = (M3UParser *)hParse;
+    if (p->media_group_num == 0 && in_get_sys_prop_bool("media.amplayer.hlsv5_support") == 1) {
+        return 1;
+    }
     return p->media_group_num;
 }
 
-M3uMediaItem * m3u_get_media_by_groupID(void * hParse, MediaType type, const char * groupID) {
+M3uMediaItem * m3u_get_media_by_groupID(void * hParse, MediaType type, const char * groupID)
+{
     if (NULL == hParse) {
         return NULL;
     }
@@ -1512,11 +1645,13 @@ M3uMediaItem * m3u_get_media_by_groupID(void * hParse, MediaType type, const cha
     return item;
 }
 
-MediaType m3u_get_media_type_by_codec(const char * codec) {
+MediaType m3u_get_media_type_by_codec(const char * codec)
+{
     return get_media_type_by_codec(codec);
 }
 
-MediaType m3u_get_media_type_by_index(void * hParse, int index) {
+MediaType m3u_get_media_type_by_index(void * hParse, int index)
+{
     if (NULL == hParse) {
         return TYPE_NONE;
     }
@@ -1533,7 +1668,8 @@ MediaType m3u_get_media_type_by_index(void * hParse, int index) {
     return TYPE_NONE;
 }
 
-int m3u_get_track_count(void * hParse) {
+int m3u_get_track_count(void * hParse)
+{
     if (NULL == hParse) {
         return -1;
     }
@@ -1547,7 +1683,8 @@ int m3u_get_track_count(void * hParse) {
     return trackCount;
 }
 
-M3uTrackInfo * m3u_get_track_info(void * hParse, int index) {
+M3uTrackInfo * m3u_get_track_info(void * hParse, int index)
+{
     if (NULL == hParse) {
         return NULL;
     }
@@ -1566,7 +1703,8 @@ M3uTrackInfo * m3u_get_track_info(void * hParse, int index) {
     return trackInfo;
 }
 
-int m3u_select_track(void * hParse, int index, int select) {
+int m3u_select_track(void * hParse, int index, int select)
+{
     if (NULL == hParse) {
         return -1;
     }
@@ -1598,24 +1736,25 @@ int m3u_select_track(void * hParse, int index, int select) {
     return -1;
 }
 
-int m3u_get_selected_track(void * hParse, MediaTrackType type) {
+int m3u_get_selected_track(void * hParse, MediaTrackType type)
+{
     if (NULL == hParse) {
         return -1;
     }
     M3UParser * p = (M3UParser *)hParse;
     MediaType m_type;
     switch (type) {
-        case M3U_MEDIA_TRACK_TYPE_AUDIO:
-            m_type = TYPE_AUDIO;
-            break;
-        case M3U_MEDIA_TRACK_TYPE_VIDEO:
-            m_type = TYPE_VIDEO;
-            break;
-        case M3U_MEDIA_TRACK_TYPE_SUBTITLE:
-            m_type = TYPE_SUBS;
-            break;
-        default:
-            return -1;
+    case M3U_MEDIA_TRACK_TYPE_AUDIO:
+        m_type = TYPE_AUDIO;
+        break;
+    case M3U_MEDIA_TRACK_TYPE_VIDEO:
+        m_type = TYPE_VIDEO;
+        break;
+    case M3U_MEDIA_TRACK_TYPE_SUBTITLE:
+        m_type = TYPE_SUBS;
+        break;
+    default:
+        return -1;
     }
     int selectedIndex = 0;
     M3uMediaGroup * pos = NULL;
@@ -1643,6 +1782,7 @@ int m3u_release(void* hParse)
         free(p->baseUrl);
     }
     clean_all_nodes(p);
+    clean_all_iframe_nodes(p);
     clean_all_mediaGroup(p);
     free(p);
     return 0;

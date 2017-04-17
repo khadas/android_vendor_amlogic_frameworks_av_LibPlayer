@@ -48,7 +48,7 @@ typedef struct {
  */
 typedef struct {
     int32_t     tab_sel;    /// index of one of the predefined tables
-                            /// or "7" for custom one
+    /// or "7" for custom one
     VLC         *tab;       /// pointer to the table associated with tab_sel
 
     //! the following are used only when tab_sel == 7
@@ -77,7 +77,7 @@ extern const uint8_t ff_ivi_direct_scan_4x4[16];
  *  Declare inverse transform function types
  */
 typedef void (InvTransformPtr)(const int32_t *in, int16_t *out, uint32_t pitch, const uint8_t *flags);
-typedef void (DCTransformPtr) (const int32_t *in, int16_t *out, uint32_t pitch, int blk_size);
+typedef void (DCTransformPtr)(const int32_t *in, int16_t *out, uint32_t pitch, int blk_size);
 
 
 /**
@@ -152,7 +152,7 @@ typedef struct {
     IVIHuffTab      blk_vlc;        ///< vlc table for decoding block data
 
     int             num_corr;       ///< number of correction entries
-    uint8_t         corr[61*2];     ///< rvmap correction pairs
+    uint8_t         corr[61 * 2];   ///< rvmap correction pairs
     int             rvmap_sel;      ///< rvmap table selector
     RVMapDesc       *rv_map;        ///< ptr to the RLE table for this band
     int             num_tiles;      ///< number of tiles in this band
@@ -341,11 +341,11 @@ void ff_ivi_output_plane(IVIPlaneDesc *plane, uint8_t *dst, int dst_pitch);
 /**
  *  Calculate band checksum from band data.
  */
-uint16_t ivi_calc_band_checksum (IVIBandDesc *band);
+uint16_t ivi_calc_band_checksum(IVIBandDesc *band);
 
 /**
  *  Verify that band data lies in range.
  */
-int ivi_check_band (IVIBandDesc *band, const uint8_t *ref, int pitch);
+int ivi_check_band(IVIBandDesc *band, const uint8_t *ref, int pitch);
 
 #endif /* AVCODEC_IVI_COMMON_H */

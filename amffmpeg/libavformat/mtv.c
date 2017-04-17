@@ -54,24 +54,27 @@ typedef struct MTVDemuxContext {
 static int mtv_probe(AVProbeData *p)
 {
     /* Magic is 'AMV' */
-    if(*(p->buf) != 'A' || *(p->buf+1) != 'M' || *(p->buf+2) != 'V')
+    if (*(p->buf) != 'A' || *(p->buf + 1) != 'M' || *(p->buf + 2) != 'V') {
         return 0;
-
-    /* Check for nonzero in bpp and (width|height) header fields */
-    if(!(p->buf[51] && AV_RL16(&p->buf[52]) | AV_RL16(&p->buf[54])))
-        return 0;
-
-    /* If width or height are 0 then imagesize header field should not */
-    if(!AV_RL16(&p->buf[52]) || !AV_RL16(&p->buf[54]))
-    {
-        if(!!AV_RL16(&p->buf[56]))
-            return AVPROBE_SCORE_MAX/2;
-        else
-            return 0;
     }
 
-    if(p->buf[51] != 16)
-        return AVPROBE_SCORE_MAX/4; // But we are going to assume 16bpp anyway ..
+    /* Check for nonzero in bpp and (width|height) header fields */
+    if (!(p->buf[51] && AV_RL16(&p->buf[52]) | AV_RL16(&p->buf[54]))) {
+        return 0;
+    }
+
+    /* If width or height are 0 then imagesize header field should not */
+    if (!AV_RL16(&p->buf[52]) || !AV_RL16(&p->buf[54])) {
+        if (!!AV_RL16(&p->buf[56])) {
+            return AVPROBE_SCORE_MAX / 2;
+        } else {
+            return 0;
+        }
+    }
+
+    if (p->buf[51] != 16) {
+        return AVPROBE_SCORE_MAX / 4;    // But we are going to assume 16bpp anyway ..
+    }
 
     return AVPROBE_SCORE_MAX;
 }
@@ -97,13 +100,13 @@ static int mtv_read_header(AVFormatContext *s, AVFormatParameters *ap)
 
     /* Calculate width and height if missing from header */
 
-    if(!mtv->img_width)
-        mtv->img_width=mtv->img_segment_size / (mtv->img_bpp>>3)
-                        / mtv->img_height;
+    if (!mtv->img_width)
+        mtv->img_width = mtv->img_segment_size / (mtv->img_bpp >> 3)
+                         / mtv->img_height;
 
-    if(!mtv->img_height)
-        mtv->img_height=mtv->img_segment_size / (mtv->img_bpp>>3)
-                        / mtv->img_width;
+    if (!mtv->img_height)
+        mtv->img_height = mtv->img_segment_size / (mtv->img_bpp >> 3)
+                          / mtv->img_width;
 
     avio_skip(pb, 4);
     audio_subsegments = avio_rl16(pb);
@@ -119,8 +122,9 @@ static int mtv_read_header(AVFormatContext *s, AVFormatParameters *ap)
     // video - raw rgb565
 
     st = av_new_stream(s, VIDEO_SID);
-    if(!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
 
     av_set_pts_info(st, 64, 1, mtv->video_fps);
     st->codec->codec_type      = AVMEDIA_TYPE_VIDEO;
@@ -135,8 +139,9 @@ static int mtv_read_header(AVFormatContext *s, AVFormatParameters *ap)
     // audio - mp3
 
     st = av_new_stream(s, AUDIO_SID);
-    if(!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
 
     av_set_pts_info(st, 64, 1, AUDIO_SAMPLING_RATE);
     st->codec->codec_type      = AVMEDIA_TYPE_AUDIO;
@@ -146,8 +151,9 @@ static int mtv_read_header(AVFormatContext *s, AVFormatParameters *ap)
 
     // Jump over header
 
-    if(avio_seek(pb, MTV_HEADER_SIZE, SEEK_SET) != MTV_HEADER_SIZE)
+    if (avio_seek(pb, MTV_HEADER_SIZE, SEEK_SET) != MTV_HEADER_SIZE) {
         return AVERROR(EIO);
+    }
 
     return 0;
 
@@ -162,22 +168,22 @@ static int mtv_read_packet(AVFormatContext *s, AVPacket *pkt)
     int i;
 #endif
 
-    if((avio_tell(pb) - s->data_offset + mtv->img_segment_size) % mtv->full_segment_size)
-    {
+    if ((avio_tell(pb) - s->data_offset + mtv->img_segment_size) % mtv->full_segment_size) {
         avio_skip(pb, MTV_AUDIO_PADDING_SIZE);
 
         ret = av_get_packet(pb, pkt, MTV_ASUBCHUNK_DATA_SIZE);
-        if(ret < 0)
+        if (ret < 0) {
             return ret;
+        }
 
         pkt->pos -= MTV_AUDIO_PADDING_SIZE;
         pkt->stream_index = AUDIO_SID;
 
-    }else
-    {
+    } else {
         ret = av_get_packet(pb, pkt, mtv->img_segment_size);
-        if(ret < 0)
+        if (ret < 0) {
             return ret;
+        }
 
 #if !HAVE_BIGENDIAN
 
@@ -187,8 +193,9 @@ static int mtv_read_packet(AVFormatContext *s, AVPacket *pkt)
          * just swap bytes as they come
          */
 
-        for(i=0;i<mtv->img_segment_size/2;i++)
-            *((uint16_t *)pkt->data+i) = av_bswap16(*((uint16_t *)pkt->data+i));
+        for (i = 0; i < mtv->img_segment_size / 2; i++) {
+            *((uint16_t *)pkt->data + i) = av_bswap16(*((uint16_t *)pkt->data + i));
+        }
 #endif
         pkt->stream_index = VIDEO_SID;
     }

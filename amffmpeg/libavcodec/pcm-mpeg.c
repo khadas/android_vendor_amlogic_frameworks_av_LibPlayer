@@ -74,7 +74,7 @@ static int pcm_bluray_parse_header(AVCodecContext *avctx,
         return -1;
     }
     avctx->sample_fmt = avctx->bits_per_coded_sample == 16 ? AV_SAMPLE_FMT_S16 :
-                                                             AV_SAMPLE_FMT_S32;
+                        AV_SAMPLE_FMT_S32;
 
     /* get the sample rate. Not all values are known or exist. */
     switch (header[2] & 0x0f) {
@@ -116,21 +116,21 @@ static int pcm_bluray_parse_header(AVCodecContext *avctx,
                 "pcm_bluray_parse_header: %d channels, %d bits per sample, %d kHz, %d kbit\n",
                 avctx->channels, avctx->bits_per_coded_sample,
                 avctx->sample_rate, avctx->bit_rate);
-    if(!avctx->extradata){
-	avctx->extradata = (char*)av_malloc(4);	
+    if (!avctx->extradata) {
+        avctx->extradata = (char*)av_malloc(4);
+    } else {
+        avctx->extradata = (char*)av_realloc(avctx->extradata, 4);
     }
-    else
-	avctx->extradata = (char*)av_realloc(avctx->extradata,4);	
 
     if (!avctx->extradata) {
         av_log(avctx, AV_LOG_ERROR, "pcm_bluray_parse_header malloc failed\n");
         return -1;
     }
-	avctx->extradata[0] = header[3];
-	avctx->extradata[1] = header[2];
-	avctx->extradata[2] = header[1];
-	avctx->extradata[3] = header[0];
-	avctx->extradata_size = 4;
+    avctx->extradata[0] = header[3];
+    avctx->extradata[1] = header[2];
+    avctx->extradata[2] = header[1];
+    avctx->extradata[3] = header[0];
+    avctx->extradata_size = 4;
     return 0;
 }
 
@@ -151,8 +151,9 @@ static int pcm_bluray_decode_frame(AVCodecContext *avctx,
         return -1;
     }
 
-    if (pcm_bluray_parse_header(avctx, src))
+    if (pcm_bluray_parse_header(avctx, src)) {
         return -1;
+    }
     src += 4;
     buf_size -= 4;
 
@@ -173,7 +174,7 @@ static int pcm_bluray_decode_frame(AVCodecContext *avctx,
 
     if (samples) {
         switch (avctx->channel_layout) {
-            /* cases with same number of source and coded channels */
+        /* cases with same number of source and coded channels */
         case AV_CH_LAYOUT_STEREO:
         case AV_CH_LAYOUT_4POINT0:
         case AV_CH_LAYOUT_2_2:
@@ -221,7 +222,7 @@ static int pcm_bluray_decode_frame(AVCodecContext *avctx,
                 } while (--samples);
             }
             break;
-            /* remapping: L, R, C, LBack, RBack, LF */
+        /* remapping: L, R, C, LBack, RBack, LF */
         case AV_CH_LAYOUT_5POINT1:
             if (AV_SAMPLE_FMT_S16 == avctx->sample_fmt) {
                 do {
@@ -245,7 +246,7 @@ static int pcm_bluray_decode_frame(AVCodecContext *avctx,
                 } while (--samples);
             }
             break;
-            /* remapping: L, R, C, LSide, LBack, RBack, RSide, <unused> */
+        /* remapping: L, R, C, LSide, LBack, RBack, RSide, <unused> */
         case AV_CH_LAYOUT_7POINT0:
             if (AV_SAMPLE_FMT_S16 == avctx->sample_fmt) {
                 do {
@@ -273,7 +274,7 @@ static int pcm_bluray_decode_frame(AVCodecContext *avctx,
                 } while (--samples);
             }
             break;
-            /* remapping: L, R, C, LSide, LBack, RBack, RSide, LF */
+        /* remapping: L, R, C, LSide, LBack, RBack, RSide, LF */
         case AV_CH_LAYOUT_7POINT1:
             if (AV_SAMPLE_FMT_S16 == avctx->sample_fmt) {
                 do {
@@ -320,7 +321,10 @@ AVCodec ff_pcm_bluray_decoder = {
     NULL,
     NULL,
     pcm_bluray_decode_frame,
-    .sample_fmts = (const enum AVSampleFormat[]){AV_SAMPLE_FMT_S16, AV_SAMPLE_FMT_S32,
-                                         AV_SAMPLE_FMT_NONE},
+    .sample_fmts = (const enum AVSampleFormat[])
+    {
+        AV_SAMPLE_FMT_S16, AV_SAMPLE_FMT_S32,
+        AV_SAMPLE_FMT_NONE
+    },
     .long_name = NULL_IF_CONFIG_SMALL("PCM signed 16|20|24-bit big-endian for Blu-ray media"),
 };

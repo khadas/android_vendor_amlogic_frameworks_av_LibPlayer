@@ -58,10 +58,10 @@
 #define JUMP_PTS  (int64_t)(200*90*1000)
 #define BASE_PTS_MAX (int64_t)(0xfffffffffffffff-0x1B7740)//20s
 #define RECALC_DISPTS_TAG ("amlogictsdiscontinue")
+#define RECALC_MAX_PROG   128
 
 //#define TS_DEBUG
 //#define PES_DUMP
-#define HDCP_LOCAL_PLAY_DEBUG
 #ifdef TS_DEBUG
 #define ts_print(level,fmt...) av_log(NULL,level,##fmt)
 #else
@@ -89,8 +89,8 @@ typedef struct MpegTSSectionFilter {
     int section_index;
     int section_h_size;
     uint8_t *section_buf;
-    unsigned int check_crc:1;
-    unsigned int end_of_section_reached:1;
+    unsigned int check_crc: 1;
+    unsigned int end_of_section_reached: 1;
     SectionCallback *section_cb;
     void *opaque;
 } MpegTSSectionFilter;
@@ -145,24 +145,24 @@ struct MpegTSContext {
     /** to detect seek                                       */
     int64_t last_pos;
 
-	int64_t first_pcrscr;
-//*************************************************/	
-	/*
-	soft demux qq/pplive living ts; segment duration is 5-10s;
+    int64_t first_pcrscr;
+    //*************************************************/
+    /*
+    soft demux qq/pplive living ts; segment duration is 5-10s;
 
-	*/
+    */
     int64_t jumppts;
-	int64_t basepts;
-	int64_t pts[32];
-	int64_t dts[32];
-	unsigned int  pts_nb[32];
-	unsigned char start_calcpts;
-	unsigned char pownon_recalcpts;
-	unsigned int apts_jump_count;
-	unsigned int vpts_jump_count;
-	unsigned int store_pts_count;
-	unsigned int segment_duration;//ms
-//*************************************************/	
+    int64_t basepts;
+    int64_t pts[RECALC_MAX_PROG];
+    int64_t dts[RECALC_MAX_PROG];
+    unsigned int  pts_nb[RECALC_MAX_PROG];
+    unsigned char start_calcpts;
+    unsigned char pownon_recalcpts;
+    unsigned int apts_jump_count;
+    unsigned int vpts_jump_count;
+    unsigned int store_pts_count;
+    unsigned int segment_duration;//ms
+    //*************************************************/
 
     /******************************************/
     /* private mpegts data */
@@ -170,29 +170,21 @@ struct MpegTSContext {
     /** structure to keep track of Program->pids mapping     */
     unsigned int nb_prg;
     struct Program *prg;
+
     int8_t crc_validity[NB_PID_MAX];
+
     /** filters for various streams specified by PMT + for the PAT and PMT */
     MpegTSFilter *pids[NB_PID_MAX];
     int current_pid;
-    int get_pcr_valid; //used for get pcr,if not get pcr when seek,use get dts instead
 };
 
 typedef int HDCPDecryptFunc(const void *inData, size_t size, uint32_t streamCTR, uint64_t inputCTR, void *outData);
 
-#ifdef HDCP_LOCAL_PLAY_DEBUG
-typedef void* HDCPCreateModuleFunc(void *, void*);
-typedef int HDCPModuleUseKeyFunc(void *module, uint8_t* key, uint32_t keylen);
-typedef int HDCPDestroyModuleFunc(void*);
-static HDCPCreateModuleFunc* HDCP_create_module = NULL;
-static HDCPModuleUseKeyFunc* HDCP_module_useKey = NULL;
-static HDCPDestroyModuleFunc* HDCP_destroy_module = NULL;
-static void* HDCP_module = NULL;
-static int hdcp_local_play = 0;
-#endif
-
 static const AVOption options[] = {
-    {"compute_pcr", "Compute exact PCR for each transport stream packet.", offsetof(MpegTSContext, mpeg2ts_compute_pcr), FF_OPT_TYPE_INT,
-     {.dbl = 0}, 0, 1, AV_OPT_FLAG_DECODING_PARAM },
+    {
+        "compute_pcr", "Compute exact PCR for each transport stream packet.", offsetof(MpegTSContext, mpeg2ts_compute_pcr), FF_OPT_TYPE_INT,
+        {.dbl = 0}, 0, 1, AV_OPT_FLAG_DECODING_PARAM
+    },
     { NULL },
 };
 
@@ -242,7 +234,7 @@ typedef struct PESContext {
     uint32_t track_index;
     uint64_t input_CTR;
     uint8_t header[MAX_PES_HEADER_SIZE];
-    
+
     uint8_t *buffer;
 } PESContext;
 
@@ -252,23 +244,25 @@ static void clear_program(MpegTSContext *ts, unsigned int programid)
 {
     int i;
 
-    for(i=0; i<ts->nb_prg; i++)
-        if(ts->prg[i].id == programid)
+    for (i = 0; i < ts->nb_prg; i++)
+        if (ts->prg[i].id == programid) {
             ts->prg[i].nb_pids = 0;
+        }
 }
 
 static void clear_programs(MpegTSContext *ts)
 {
     av_freep(&ts->prg);
-    ts->nb_prg=0;
+    ts->nb_prg = 0;
 }
 
 static void add_pat_entry(MpegTSContext *ts, unsigned int programid)
 {
     struct Program *p;
-    void *tmp = av_realloc(ts->prg, (ts->nb_prg+1)*sizeof(struct Program));
-    if(!tmp)
+    void *tmp = av_realloc(ts->prg, (ts->nb_prg + 1) * sizeof(struct Program));
+    if (!tmp) {
         return;
+    }
     ts->prg = tmp;
     p = &ts->prg[ts->nb_prg];
     p->id = programid;
@@ -280,25 +274,33 @@ static void add_pid_to_pmt(MpegTSContext *ts, unsigned int programid, unsigned i
 {
     int i;
     struct Program *p = NULL;
-    for(i=0; i<ts->nb_prg; i++) {
-        if(ts->prg[i].id == programid) {
+    for (i = 0; i < ts->nb_prg; i++) {
+        if (ts->prg[i].id == programid) {
             p = &ts->prg[i];
             break;
         }
     }
-    if(!p)
+    if (!p) {
         return;
+    }
 
-    if(p->nb_pids >= MAX_PIDS_PER_PROGRAM)
+    if (p->nb_pids >= MAX_PIDS_PER_PROGRAM) {
         return;
+    }
+
+    for (i = 0; i < p->nb_pids; i++)
+        if (p->pids[i] == pid) {
+            return;
+        }
+
     p->pids[p->nb_pids++] = pid;
 }
 
 static void set_pcr_pid(AVFormatContext *s, unsigned int programid, unsigned int pid)
 {
     int i;
-    for(i=0; i<s->nb_programs; i++) {
-        if(s->programs[i]->id == programid) {
+    for (i = 0; i < s->nb_programs; i++) {
+        if (s->programs[i]->id == programid) {
             s->programs[i]->pcr_pid = pid;
             break;
         }
@@ -318,18 +320,20 @@ static int discard_pid(MpegTSContext *ts, unsigned int pid)
     int i, j, k;
     int used = 0, discarded = 0;
     struct Program *p;
-    for(i=0; i<ts->nb_prg; i++) {
+    for (i = 0; i < ts->nb_prg; i++) {
         p = &ts->prg[i];
-        for(j=0; j<p->nb_pids; j++) {
-            if(p->pids[j] != pid)
+        for (j = 0; j < p->nb_pids; j++) {
+            if (p->pids[j] != pid) {
                 continue;
+            }
             //is program with id p->id set to be discarded?
-            for(k=0; k<ts->stream->nb_programs; k++) {
-                if(ts->stream->programs[k]->id == p->id) {
-                    if(ts->stream->programs[k]->discard == AVDISCARD_ALL)
+            for (k = 0; k < ts->stream->nb_programs; k++) {
+                if (ts->stream->programs[k]->id == p->id) {
+                    if (ts->stream->programs[k]->discard == AVDISCARD_ALL) {
                         discarded++;
-                    else
+                    } else {
                         used++;
+                    }
                 }
             }
         }
@@ -354,11 +358,13 @@ static void write_section_data(AVFormatContext *s, MpegTSFilter *tss1,
         tss->section_h_size = -1;
         tss->end_of_section_reached = 0;
     } else {
-        if (tss->end_of_section_reached)
+        if (tss->end_of_section_reached) {
             return;
+        }
         len = 4096 - tss->section_index;
-        if (buf_size < len)
+        if (buf_size < len) {
             len = buf_size;
+        }
         memcpy(tss->section_buf + tss->section_index, buf, len);
         tss->section_index += len;
     }
@@ -366,25 +372,27 @@ static void write_section_data(AVFormatContext *s, MpegTSFilter *tss1,
     /* compute section length if possible */
     if (tss->section_h_size == -1 && tss->section_index >= 3) {
         len = (AV_RB16(tss->section_buf + 1) & 0xfff) + 3;
-        if (len > 4096)
+        if (len > 4096) {
             return;
+        }
         tss->section_h_size = len;
     }
 
     if (tss->section_h_size != -1 && tss->section_index >= tss->section_h_size) {
         tss->end_of_section_reached = 1;
-	uint8_t *pcrc=&tss->section_buf[tss->section_h_size-4];
-	int crc32=pcrc[0]+pcrc[1]+pcrc[2]+pcrc[3];
-        if (!tss->check_crc || crc32==0 || /*if crc32==0,we think the ts stream  is not set the crc segment.some stream have this bug.*/
+        uint8_t *pcrc = &tss->section_buf[tss->section_h_size - 4];
+        int crc32 = pcrc[0] + pcrc[1] + pcrc[2] + pcrc[3];
+        if (!tss->check_crc || crc32 == 0 || /*if crc32 == 0,we think the ts stream  is not set the crc segment.some stream have this bug.*/
             av_crc(av_crc_get_table(AV_CRC_32_IEEE), -1,
-                   tss->section_buf, tss->section_h_size) == 0)
+                   tss->section_buf, tss->section_h_size) == 0) {
             tss->section_cb(tss1, tss->section_buf, tss->section_h_size);
+        }
     }
 }
 
 static MpegTSFilter *mpegts_open_section_filter(MpegTSContext *ts, unsigned int pid,
-                                         SectionCallback *section_cb, void *opaque,
-                                         int check_crc)
+        SectionCallback *section_cb, void *opaque,
+        int check_crc)
 
 {
     MpegTSFilter *filter;
@@ -392,11 +400,13 @@ static MpegTSFilter *mpegts_open_section_filter(MpegTSContext *ts, unsigned int 
 
     av_dlog(ts->stream, "Filter: pid=0x%x\n", pid);
 
-    if (pid >= NB_PID_MAX || ts->pids[pid])
+    if (pid >= NB_PID_MAX || ts->pids[pid]) {
         return NULL;
+    }
     filter = av_mallocz(sizeof(MpegTSFilter));
-    if (!filter)
+    if (!filter) {
         return NULL;
+    }
     ts->pids[pid] = filter;
     filter->type = MPEGTS_SECTION;
     filter->pid = pid;
@@ -414,17 +424,19 @@ static MpegTSFilter *mpegts_open_section_filter(MpegTSContext *ts, unsigned int 
 }
 
 static MpegTSFilter *mpegts_open_pes_filter(MpegTSContext *ts, unsigned int pid,
-                                     PESCallback *pes_cb,
-                                     void *opaque)
+        PESCallback *pes_cb,
+        void *opaque)
 {
     MpegTSFilter *filter;
     MpegTSPESFilter *pes;
 
-    if (pid >= NB_PID_MAX || ts->pids[pid])
+    if (pid >= NB_PID_MAX || ts->pids[pid]) {
         return NULL;
+    }
     filter = av_mallocz(sizeof(MpegTSFilter));
-    if (!filter)
+    if (!filter) {
         return NULL;
+    }
     ts->pids[pid] = filter;
     filter->type = MPEGTS_PES;
     filter->pid = pid;
@@ -440,9 +452,9 @@ static void mpegts_close_filter(MpegTSContext *ts, MpegTSFilter *filter)
     int pid;
 
     pid = filter->pid;
-    if (filter->type == MPEGTS_SECTION)
+    if (filter->type == MPEGTS_SECTION) {
         av_freep(&filter->u.section_filter.section_buf);
-    else if (filter->type == MPEGTS_PES) {
+    } else if (filter->type == MPEGTS_PES) {
         PESContext *pes = filter->u.pes_filter.opaque;
         av_freep(&pes->buffer);
         /* referenced private data will be freed later in
@@ -456,25 +468,30 @@ static void mpegts_close_filter(MpegTSContext *ts, MpegTSFilter *filter)
     ts->pids[pid] = NULL;
 }
 
-static int analyze(const uint8_t *buf, int size, int packet_size, int *index){
+static int analyze(const uint8_t *buf, int size, int packet_size, int *index)
+{
     int stat[TS_MAX_PACKET_SIZE];
     int i;
-    int x=0;
-    int best_score=0;
+    int x = 0;
+    int best_score = 0;
 
-    memset(stat, 0, packet_size*sizeof(int));
+    memset(stat, 0, packet_size * sizeof(int));
 
-    for(x=i=0; i<size-3; i++){
-        if(buf[i] == 0x47 && !(buf[i+1] & 0x80) && (buf[i+3] != 0x47)){
+    for (x = i = 0; i < size - 3; i++) {
+        if (buf[i] == 0x47 && !(buf[i + 1] & 0x80) && (buf[i + 3] != 0x47)) {
             stat[x]++;
-            if(stat[x] > best_score){
-                best_score= stat[x];
-                if(index) *index= x;
+            if (stat[x] > best_score) {
+                best_score = stat[x];
+                if (index) {
+                    *index = x;
+                }
             }
         }
 
         x++;
-        if(x == packet_size) x= 0;
+        if (x == packet_size) {
+            x = 0;
+        }
     }
 
     return best_score;
@@ -485,18 +502,24 @@ static int get_packet_size(const uint8_t *buf, int size)
 {
     int score, fec_score, dvhs_score;
 
-    if (size < (TS_FEC_PACKET_SIZE * 5 + 1))
+    if (size < (TS_FEC_PACKET_SIZE * 5 + 1)) {
         return -1;
+    }
 
     score    = analyze(buf, size, TS_PACKET_SIZE, NULL);
     dvhs_score    = analyze(buf, size, TS_DVHS_PACKET_SIZE, NULL);
-    fec_score= analyze(buf, size, TS_FEC_PACKET_SIZE, NULL);
-//    av_log(NULL, AV_LOG_DEBUG, "score: %d, dvhs_score: %d, fec_score: %d \n", score, dvhs_score, fec_score);
+    fec_score = analyze(buf, size, TS_FEC_PACKET_SIZE, NULL);
+    //    av_log(NULL, AV_LOG_DEBUG, "score: %d, dvhs_score: %d, fec_score: %d \n", score, dvhs_score, fec_score);
 
-    if     (score > fec_score && score > dvhs_score) return TS_PACKET_SIZE;
-    else if(dvhs_score > score && dvhs_score > fec_score) return TS_DVHS_PACKET_SIZE;
-    else if(score < fec_score && dvhs_score < fec_score) return TS_FEC_PACKET_SIZE;
-    else                       return -1;
+    if (score > fec_score && score > dvhs_score) {
+        return TS_PACKET_SIZE;
+    } else if (dvhs_score > score && dvhs_score > fec_score) {
+        return TS_DVHS_PACKET_SIZE;
+    } else if (score < fec_score && dvhs_score < fec_score) {
+        return TS_FEC_PACKET_SIZE;
+    } else {
+        return -1;
+    }
 }
 
 typedef struct SectionHeader {
@@ -513,8 +536,9 @@ static inline int get8(const uint8_t **pp, const uint8_t *p_end)
     int c;
 
     p = *pp;
-    if (p >= p_end)
+    if (p >= p_end) {
         return -1;
+    }
     c = *p++;
     *pp = p;
     return c;
@@ -526,8 +550,9 @@ static inline int get16(const uint8_t **pp, const uint8_t *p_end)
     int c;
 
     p = *pp;
-    if ((p + 1) >= p_end)
+    if ((p + 1) >= p_end) {
         return -1;
+    }
     c = AV_RB16(p);
     p += 2;
     *pp = p;
@@ -543,13 +568,16 @@ static char *getstr8(const uint8_t **pp, const uint8_t *p_end)
 
     p = *pp;
     len = get8(&p, p_end);
-    if (len < 0)
+    if (len < 0) {
         return NULL;
-    if ((p + len) > p_end)
+    }
+    if ((p + len) > p_end) {
         return NULL;
+    }
     str = av_malloc(len + 1);
-    if (!str)
+    if (!str) {
         return NULL;
+    }
     memcpy(str, p, len);
     str[len] = '\0';
     p += len;
@@ -563,25 +591,30 @@ static int parse_section_header(SectionHeader *h,
     int val;
 
     val = get8(pp, p_end);
-    if (val < 0)
+    if (val < 0) {
         return -1;
+    }
     h->tid = val;
     *pp += 2;
     val = get16(pp, p_end);
-    if (val < 0)
+    if (val < 0) {
         return -1;
+    }
     h->id = val;
     val = get8(pp, p_end);
-    if (val < 0)
+    if (val < 0) {
         return -1;
+    }
     h->version = (val >> 1) & 0x1f;
     val = get8(pp, p_end);
-    if (val < 0)
+    if (val < 0) {
         return -1;
+    }
     h->sec_num = val;
     val = get8(pp, p_end);
-    if (val < 0)
+    if (val < 0) {
         return -1;
+    }
     h->last_sec_num = val;
     return 0;
 }
@@ -627,13 +660,12 @@ static const StreamType MISC_types[] = {
 };
 
 static const StreamType REGD_types[] = {
-    { MKTAG('d','r','a','c'), AVMEDIA_TYPE_VIDEO, CODEC_ID_DIRAC },
-    { MKTAG('A','C','-','3'), AVMEDIA_TYPE_AUDIO,   CODEC_ID_AC3 },
-    { MKTAG('B','S','S','D'), AVMEDIA_TYPE_AUDIO, CODEC_ID_S302M },
-    { MKTAG('H','E','V','C'), AVMEDIA_TYPE_VIDEO, CODEC_ID_HEVC },
-    { MKTAG('D','T','S','H'), AVMEDIA_TYPE_AUDIO,   CODEC_ID_DTS },
-    { MKTAG('D','R','A','1'), AVMEDIA_TYPE_AUDIO,   CODEC_ID_DRA },
-    { MKTAG('d','t','s','+'), AVMEDIA_TYPE_AUDIO,   CODEC_ID_DTS },
+    { MKTAG('d', 'r', 'a', 'c'), AVMEDIA_TYPE_VIDEO, CODEC_ID_DIRAC },
+    { MKTAG('A', 'C', '-', '3'), AVMEDIA_TYPE_AUDIO,   CODEC_ID_AC3 },
+    { MKTAG('B', 'S', 'S', 'D'), AVMEDIA_TYPE_AUDIO, CODEC_ID_S302M },
+    { MKTAG('H', 'E', 'V', 'C'), AVMEDIA_TYPE_VIDEO, CODEC_ID_HEVC },
+    { MKTAG('D', 'T', 'S', 'H'), AVMEDIA_TYPE_AUDIO,   CODEC_ID_DTS },
+    { MKTAG('D', 'R', 'A', '1'), AVMEDIA_TYPE_AUDIO, CODEC_ID_DRA },
     { 0 },
 };
 
@@ -669,41 +701,7 @@ static HDCPDecryptFunc* get_HDCP_decrypt()
         return NULL;
     }
     av_log(NULL, AV_LOG_ERROR, "get_HDCP_decrypt\n");
-#ifdef HDCP_LOCAL_PLAY_DEBUG
-    if (hdcp_local_play) {
-        HDCP_create_module = (HDCPDecryptFunc*)dlsym(mLibHandle, "createHDCPModule");
-        if (HDCP_create_module == NULL) {
-            av_log(NULL, AV_LOG_ERROR, "Unable to locate createHDCPModule\n");
-            return NULL;
-        }
-        HDCP_module_useKey = (HDCPDecryptFunc*)dlsym(mLibHandle, "HDCPModuleUseKey");
-        if (HDCP_module_useKey == NULL) {
-            av_log(NULL, AV_LOG_ERROR, "Unable to locate HDCPModuleUseKey\n");
-            return NULL;
-        }
-        HDCP_destroy_module = (HDCPDecryptFunc*)dlsym(mLibHandle, "destroyHDCPModule");
-        if (HDCP_destroy_module != NULL) {
-            uint8_t key[32];
-            int key_size = 0;
-            FILE* key_fd = fopen("/data/hdcp/hdcpkey", "r+");
-            if (key_fd == NULL) {
-                av_log(NULL, AV_LOG_ERROR, "get HDCP_decrypt failed.");
-            }
-            if (key_fd != NULL) {
-                key_size = fread(key, 1, 32, key_fd);
-                av_log(NULL, AV_LOG_ERROR, "read key size size:%d", key_size);
-                fclose(key_fd);
-            }
-            HDCP_module = HDCP_create_module(NULL, NULL);
-            if (HDCP_module == NULL)
-                av_log(NULL, AV_LOG_ERROR, "HDCP_create_module failed");
-            HDCP_module_useKey(HDCP_module, key, key_size);
-        } else {
-            av_log(NULL, AV_LOG_ERROR, "Unable to locate destroyHDCPModule\n");
-            return NULL;
-        }
-    }
-#endif
+
     return (HDCPDecryptFunc*)dlsym(mLibHandle, "_ZN7android17HDCPModuleAmlogic7decryptEPKvjjyPv");
 }
 
@@ -721,13 +719,14 @@ static int mpegts_set_stream_info(AVStream *st, PESContext *pes,
     av_log(pes->stream, AV_LOG_INFO,
            "stream=%d stream_type=%x pid=%x prog_reg_desc=%.4s\n",
            st->index, pes->stream_type, pes->pid, (char*)&prog_reg_desc);
+
     st->codec->codec_tag = pes->stream_type;
 
     mpegts_find_stream_type(st, pes->stream_type, ISO_types);
     if (st->codec->codec_id == CODEC_ID_CAVS) {
         st->need_check_avs_version = 1;
-        st->need_parsing = AVSTREAM_PARSE_HEADERS;
     }
+
     if (st->codec->codec_id == CODEC_ID_NONE) {
         mpegts_find_stream_type(st, pes->stream_type, HDMV_types);
         if ((prog_reg_desc == AV_RL32("HDMV")) || (prog_reg_desc == AV_RL32("HDPR"))) {
@@ -737,8 +736,9 @@ static int mpegts_set_stream_info(AVStream *st, PESContext *pes,
                 AVStream *sub_st;
                 // priv_data cannot be shared between streams
                 PESContext *sub_pes = av_malloc(sizeof(*sub_pes));
-                if (!sub_pes)
+                if (!sub_pes) {
                     return AVERROR(ENOMEM);
+                }
                 memcpy(sub_pes, pes, sizeof(*sub_pes));
 
                 sub_st = av_new_stream(pes->stream, pes->pid);
@@ -760,8 +760,9 @@ static int mpegts_set_stream_info(AVStream *st, PESContext *pes,
                 AVStream *sub_st;
                 // priv_data cannot be shared between streams
                 PESContext *sub_pes = av_malloc(sizeof(*sub_pes));
-                if (!sub_pes)
+                if (!sub_pes) {
                     return AVERROR(ENOMEM);
+                }
                 memcpy(sub_pes, pes, sizeof(*sub_pes));
 
                 sub_st = av_new_stream(pes->stream, pes->pid);
@@ -778,25 +779,7 @@ static int mpegts_set_stream_info(AVStream *st, PESContext *pes,
                 sub_st->discard = AVDISCARD_ALL;
                 sub_pes->sub_st = pes->sub_st = sub_st;
             }
-        }else if (pes->stream_type == 0x82) {
-                AVStream *sub_st;
-                PESContext *sub_pes = av_malloc(sizeof(*sub_pes));
-                if (!sub_pes)
-                    return AVERROR(ENOMEM);
-                memcpy(sub_pes, pes, sizeof(*sub_pes));
-                sub_st = av_new_stream(pes->stream, pes->pid);
-                if (!sub_st) {
-                    av_free(sub_pes);
-                    return AVERROR(ENOMEM);
-                }
-
-                av_set_pts_info(sub_st, 33, 1, 90000);
-                sub_st->priv_data = sub_pes;
-                sub_st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
-                sub_st->codec->codec_id   = CODEC_ID_DTS;
-                sub_st->need_parsing = AVSTREAM_PARSE_FULL;
-                sub_pes->sub_st = pes->sub_st = sub_st;
-            } else {
+        } else {
             if (st->codec->codec_id != CODEC_ID_NONE
                 || pes->stream_type == 0x15) {
                 /* wrong case, don't have to probe */
@@ -807,9 +790,18 @@ static int mpegts_set_stream_info(AVStream *st, PESContext *pes,
             }
         }
     }
-    if (st->codec->codec_id == CODEC_ID_NONE)
+    if (st->codec->codec_id == CODEC_ID_NONE) {
         mpegts_find_stream_type(st, pes->stream_type, MISC_types);
-
+    }
+    if (prog_reg_desc == AV_RL32("HDCP")) {
+        if (HDCP_decrypt == NULL) {
+            HDCP_decrypt = get_HDCP_decrypt();
+            if (HDCP_decrypt == NULL) {
+                av_log(NULL, AV_LOG_ERROR, "get HDCP_decrypt failed.");
+            }
+        }
+        pes->has_hdcp_desc = 1;
+    }
     return 0;
 }
 
@@ -817,9 +809,9 @@ static int mpegts_set_stream_info(AVStream *st, PESContext *pes,
 static int get_nal_size(uint8_t* buf, int size)
 {
     int nal_size;
-    for(nal_size = 0; nal_size < size - 4; nal_size++) {
-        if(*(buf + nal_size) == 0 && *(buf + nal_size + 1) == 0 && 
-           *(buf + nal_size + 2) == 0 && *(buf + nal_size + 3) == 1) {
+    for (nal_size = 0; nal_size < size - 4; nal_size++) {
+        if (*(buf + nal_size) == 0 && *(buf + nal_size + 1) == 0 &&
+            *(buf + nal_size + 2) == 0 && *(buf + nal_size + 3) == 1) {
             return nal_size;
         }
     }
@@ -832,77 +824,77 @@ static void new_pes_packet(PESContext *pes, AVPacket *pkt)
 #ifdef PES_DUMP
     {
         static FILE* fd1 = NULL;
-        
-        if(fd1 == NULL) {
-            fd1 = fopen("/data/tmp/data1.dat", "w+");
+
+        if (fd1 == NULL) {
+            fd1 = fopen("/temp/data1.dat", "w+");
         }
-        if(fd1 == NULL) {
+        if (fd1 == NULL) {
             av_log(NULL, AV_LOG_ERROR, "open file1 failed.");
         }
-        if(fd1!=NULL) {
+        if (fd1 != NULL) {
             fwrite(pes->buffer, pes->data_index, 1, fd1);
-        }  
+        }
     }
 #endif
-    if(pes->has_hdcp_desc == 1 &&  pes->has_private_data == 1) {
+    if (pes->has_hdcp_desc == 1 &&  pes->has_private_data == 1) {
+
         int skip = 0;
         if (pes->buffer[0] == 0x00 && pes->buffer[1] == 0x00 &&
-                    pes->buffer[2] == 0x00 && pes->buffer[3] == 0x01) {
+            pes->buffer[2] == 0x00 && pes->buffer[3] == 0x01) {
             skip += 4;
-            if((*(pes->buffer + skip) & 0x1f) == 7) {
+            if ((*(pes->buffer + skip) & 0x1f) == 7) {
                 int skip_sps = get_nal_size(pes->buffer + skip, pes->data_index - skip);
-                if(skip_sps != -1) {
+                if (skip_sps != -1) {
                     skip += skip_sps + 4;
-                    if((*(pes->buffer + skip) & 0x1f) == 8) {
+                    if ((*(pes->buffer + skip) & 0x1f) == 8) {
                         int skip_pps = get_nal_size(pes->buffer + skip, pes->data_index - skip);
-                        if(skip_pps != -1) {
-                            skip += skip_pps +4;
+                        if (skip_pps != -1) {
+                            skip += skip_pps + 4;
                         }
                     }
-                 }
+                }
             }
-
         }
 
-	if (HDCP_decrypt != NULL) {
+        if (HDCP_decrypt != NULL) {
             int err = HDCP_decrypt(
-                           pes->buffer + skip, pes->data_index - skip,
-                           pes->track_index ,
-                           pes->input_CTR,
-                           pes->buffer + skip);
+                          pes->buffer + skip, pes->data_index - skip,
+                          pes->track_index ,
+                          pes->input_CTR,
+                          pes->buffer + skip);
             if (err) {
                 av_log(NULL, AV_LOG_ERROR, "HDCP_decrypt:%d, pes->track_index:%d,pes->input_CTR:%llx:skip:%d\n", pes->data_index, pes->track_index, pes->input_CTR, skip);
                 av_log(NULL, AV_LOG_ERROR, "HDCP_decrypt,ret:%d\n", err);
             }
         }
-
 #ifdef PES_DUMP
         {
             static FILE* fd2 = NULL;
-            if(fd2 == NULL) {
-                fd2  = fopen("/data/tmp/data2.dat", "w+");
+            if (fd2 == NULL) {
+                fd2  = fopen("/temp/data2.dat", "w+");
             }
-            if(fd2 == NULL) {
+            if (fd2 == NULL) {
                 av_log(NULL, AV_LOG_ERROR, "open file2 failed.");
             }
-            if(fd2!=NULL) {
+            if (fd2 != NULL) {
                 fwrite(pes->buffer, pes->data_index, 1, fd2);
-            }  
+            }
         }
-#endif        
+#endif
     }
     pkt->destruct = av_destruct_packet;
     pkt->data = pes->buffer;
     pkt->size = pes->data_index;
-    memset(pkt->data+pkt->size, 0, FF_INPUT_BUFFER_PADDING_SIZE);
+    memset(pkt->data + pkt->size, 0, FF_INPUT_BUFFER_PADDING_SIZE);
 
     // Separate out the AC3 substream from an HDMV combined TrueHD/AC3 PID
-    if (pes->sub_st && pes->stream_type == 0x83 && pes->extended_stream_id == 0x76)
+    if (pes->sub_st && pes->stream_type == 0x83 && pes->extended_stream_id == 0x76) {
         pkt->stream_index = pes->sub_st->index;
-    else if (pes->sub_st && pes->stream_type == 0x81 && pes->extended_stream_id == 0x72)
+    } else if (pes->sub_st && pes->stream_type == 0x81 && pes->extended_stream_id == 0x72) {
         pkt->stream_index = pes->sub_st->index;
-    else
+    } else {
         pkt->stream_index = pes->st->index;
+    }
     pkt->pts = pes->pts;
     pkt->dts = pes->dts;
     /* store position of first TS packet of this PES packet */
@@ -918,6 +910,23 @@ static void new_pes_packet(PESContext *pes, AVPacket *pkt)
     pes->input_CTR = 0;
 }
 
+static int mpegts_check_startcode(const uint8_t *buf, int buf_size)
+{
+    int i;
+    uint8_t *p;
+    int ret = 0;
+
+    p = buf;
+    for (i = 0; i < buf_size - 4; i++) {
+        if (p[0] == 0 && p[1] == 0 && p[2] == 0 && p[3] == 1) {
+            ret = 1;
+            break;
+        }
+        p++;
+    }
+
+    return ret;
+}
 /* return non zero if a packet could be constructed */
 static int mpegts_push_data(MpegTSFilter *filter,
                             const uint8_t *buf, int buf_size, int is_start,
@@ -930,8 +939,9 @@ static int mpegts_push_data(MpegTSFilter *filter,
     const uint8_t *p;
     int len, code;
 
-    if(!ts->pkt)
+    if (!ts->pkt) {
         return 0;
+    }
 
     if (is_start) {
         if (pes->state == MPEGTS_PAYLOAD && pes->data_index > 0) {
@@ -941,14 +951,49 @@ static int mpegts_push_data(MpegTSFilter *filter,
         pes->state = MPEGTS_HEADER;
         pes->data_index = 0;
         pes->ts_packet_pos = pos;
+    } else {
+        //some times, ts pack data may be cut off in ts file, and the first ts packet is not a pes header, this will cause the following ts packets been discarded.
+        //However, those discarded data may be contain some useful video data. In order to support this case, we have to check the discarded data, if we check
+        //there is some start code for hevc in the bits flow, we set pes stata from skip to pay load, then these data will been push into es stream and delive to
+        //video decoder.
+        if (ts->stream->hevc_no_pes_header_support == 1) {
+            if (ts->stream->pes_pid == pes->pid) {
+                if (mpegts_check_startcode(buf, buf_size)) {
+                    av_log(pes->stream, AV_LOG_ERROR, "pid = 0x%x, total_size = 0x%x, state = %d, pes->data_index = %d, pes->st = 0x%x, pes->buffer = 0x%x\n",
+                           pes->pid, pes->total_size, pes->state, pes->data_index, pes->st, pes->buffer);
+
+                    if (pes->state == MPEGTS_SKIP) {
+                        /* stream not present in PMT */
+                        if (!pes->st) {
+                            pes->st = av_new_stream(ts->stream, pes->pid);
+                            if (!pes->st) {
+                                return AVERROR(ENOMEM);
+                            }
+                            mpegts_set_stream_info(pes->st, pes, 0, 0);
+                        }
+
+                        pes->total_size = MAX_PES_PAYLOAD;
+                        pes->buffer = av_malloc(pes->total_size + FF_INPUT_BUFFER_PADDING_SIZE);
+                        if (!pes->buffer) {
+                            return AVERROR(ENOMEM);
+                        }
+
+                        ts->stream->hevc_no_pes_header_support = 0;
+
+                        pes->state = MPEGTS_PAYLOAD;
+                    }
+                }
+            }
+        }
     }
     p = buf;
     while (buf_size > 0) {
-        switch(pes->state) {
+        switch (pes->state) {
         case MPEGTS_HEADER:
             len = PES_START_SIZE - pes->data_index;
-            if (len > buf_size)
+            if (len > buf_size) {
                 len = buf_size;
+            }
             memcpy(pes->header + pes->data_index, p, len);
             pes->data_index += len;
             p += len;
@@ -963,27 +1008,39 @@ static int mpegts_push_data(MpegTSFilter *filter,
                     av_dlog(pes->stream, "pid=%x pes_code=%#x\n", pes->pid, code);
 
                     if ((pes->st && pes->st->discard == AVDISCARD_ALL) ||
-                        code == 0x1be) /* padding_stream */
+                        code == 0x1be) { /* padding_stream */
                         goto skip;
+                    }
 
                     /* stream not present in PMT */
                     if (!pes->st) {
                         pes->st = av_new_stream(ts->stream, pes->pid);
-                        if (!pes->st)
+                        if (!pes->st) {
                             return AVERROR(ENOMEM);
+                        }
                         mpegts_set_stream_info(pes->st, pes, 0, 0);
                     }
 
                     pes->total_size = AV_RB16(pes->header + 4);
                     /* NOTE: a zero total size means the PES size is
                        unbounded */
-                    if (!pes->total_size)
+                    if (!pes->total_size) {
                         pes->total_size = MAX_PES_PAYLOAD;
+                    }
+
+                    // avs error handle
+                    if (pes->total_size <= 12) {
+                        if (pes->st && pes->st->codec && pes->st->codec->codec_id == CODEC_ID_CAVS) {
+                            av_log(NULL, AV_LOG_INFO, "AVS pes total size less than 12.\n");
+                            pes->total_size = MAX_PES_PAYLOAD;
+                        }
+                    }
 
                     /* allocate pes buffer */
-                    pes->buffer = av_malloc(pes->total_size+FF_INPUT_BUFFER_PADDING_SIZE);
-                    if (!pes->buffer)
+                    pes->buffer = av_malloc(pes->total_size + FF_INPUT_BUFFER_PADDING_SIZE);
+                    if (!pes->buffer) {
                         return AVERROR(ENOMEM);
+                    }
 
                     if (code != 0x1bc && code != 0x1bf && /* program_stream_map, private_stream_2 */
                         code != 0x1f0 && code != 0x1f1 && /* ECM, EMM */
@@ -993,7 +1050,7 @@ static int mpegts_push_data(MpegTSFilter *filter,
                         if (pes->st->codec->codec_id == CODEC_ID_NONE && !pes->st->request_probe) {
                             av_dlog(pes->stream, "pid=%x stream_type=%x probing\n",
                                     pes->pid, pes->stream_type);
-                            pes->st->request_probe= 1;
+                            pes->st->request_probe = 1;
                         }
                     } else {
                         pes->state = MPEGTS_PAYLOAD;
@@ -1002,20 +1059,22 @@ static int mpegts_push_data(MpegTSFilter *filter,
                 } else {
                     /* otherwise, it should be a table */
                     /* skip packet */
-                skip:
+skip:
                     pes->state = MPEGTS_SKIP;
                     continue;
                 }
             }
             break;
-            /**********************************************/
-            /* PES packing parsing */
+        /**********************************************/
+        /* PES packing parsing */
         case MPEGTS_PESHEADER:
             len = PES_HEADER_SIZE - pes->data_index;
-            if (len < 0)
+            if (len < 0) {
                 return -1;
-            if (len > buf_size)
+            }
+            if (len > buf_size) {
                 len = buf_size;
+            }
             memcpy(pes->header + pes->data_index, p, len);
             pes->data_index += len;
             p += len;
@@ -1027,10 +1086,12 @@ static int mpegts_push_data(MpegTSFilter *filter,
             break;
         case MPEGTS_PESHEADER_FILL:
             len = pes->pes_header_size - pes->data_index;
-            if (len < 0)
+            if (len < 0) {
                 return -1;
-            if (len > buf_size)
+            }
+            if (len > buf_size) {
                 len = buf_size;
+            }
             memcpy(pes->header + pes->data_index, p, len);
             pes->data_index += len;
             p += len;
@@ -1055,29 +1116,29 @@ static int mpegts_push_data(MpegTSFilter *filter,
                 pes->extended_stream_id = -1;
                 if (flags & 0x01) { /* PES extension */
                     pes_ext = *r++;
-                    if (pes_ext & 0x80) {
+                    if (pes_ext & 0x8) {
                         //uint8_t private_data[16];
                         //memcpy(private_data, r, 16);
-                     
-                        pes->track_index =  (uint32_t)(r[1] &0xfe) << 29 |
-                                            (uint32_t)r[2] << 22 |
-                                            (uint32_t)(r[3] &0xfe) << 14 |
-                                            (uint32_t)r[4] << 7 |
-                                            (uint32_t)(r[5]&0xfe) >> 1;
-                                            
-                        pes->input_CTR =    (uint64_t)(r[7] &0xfe) << 59 |
-                                            (uint64_t)r[8] << 52 |
-                                            (uint64_t)(r[9] &0xfe) << 44 |
-                                            (uint64_t)r[10] << 37 |
-                                              (uint64_t)(r[11] &0xfe) << 29 |
-                                            (uint64_t)r[12] << 22 |
-                                            (uint64_t)(r[13] &0xfe) << 14 |
-                                            (uint64_t)r[14] << 7 |
-                                            (uint64_t)(r[15]&0xfe) >> 1;
+
+                        pes->track_index = (uint32_t)(r[1] & 0xfe) << 29 |
+                                           (uint32_t)r[2] << 22 |
+                                           (uint32_t)(r[3] & 0xfe) << 14 |
+                                           (uint32_t)r[4] << 7 |
+                                           (uint32_t)(r[5] & 0xfe) >> 1;
+
+                        pes->input_CTR = (uint64_t)(r[7] & 0xfe) << 59 |
+                                         (uint64_t)r[8] << 52 |
+                                         (uint64_t)(r[9] & 0xfe) << 44 |
+                                         (uint64_t)r[10] << 37 |
+                                         (uint64_t)(r[11] & 0xfe) << 29 |
+                                         (uint64_t)r[12] << 22 |
+                                         (uint64_t)(r[13] & 0xfe) << 14 |
+                                         (uint64_t)r[14] << 7 |
+                                         (uint64_t)(r[15] & 0xfe) >> 1;
                         pes->has_private_data = 1;
 
                     }
-                    
+
                     /* Skip PES private data, program packet sequence counter and P-STD buffer */
                     skip = (pes_ext >> 4) & 0xb;
                     skip += skip & 0x9;
@@ -1085,8 +1146,9 @@ static int mpegts_push_data(MpegTSFilter *filter,
                     if ((pes_ext & 0x41) == 0x01 &&
                         (r + 2) <= (pes->header + pes->pes_header_size)) {
                         /* PES extension 2 */
-                        if ((r[0] & 0x7f) > 0 && (r[1] & 0x80) == 0)
+                        if ((r[0] & 0x7f) > 0 && (r[1] & 0x80) == 0) {
                             pes->extended_stream_id = r[1];
+                        }
                     }
                 }
 
@@ -1099,19 +1161,20 @@ static int mpegts_push_data(MpegTSFilter *filter,
             //av_log(NULL, AV_LOG_ERROR, "MPEGTS_PAYLOAD :%d\n", buf_size);
 
             if (buf_size > 0 && pes->buffer) {
-                if (pes->data_index > 0 && pes->data_index+buf_size > pes->total_size) {
+                if (pes->data_index > 0 && pes->data_index + buf_size > pes->total_size) {
                     new_pes_packet(pes, ts->pkt);
                     pes->total_size = MAX_PES_PAYLOAD;
-                    pes->buffer = av_malloc(pes->total_size+FF_INPUT_BUFFER_PADDING_SIZE);
-                    if (!pes->buffer)
+                    pes->buffer = av_malloc(pes->total_size + FF_INPUT_BUFFER_PADDING_SIZE);
+                    if (!pes->buffer) {
                         return AVERROR(ENOMEM);
+                    }
                     ts->stop_parse = 1;
                 } else if (pes->data_index == 0 && buf_size > pes->total_size) {
                     // pes packet size is < ts size packet and pes data is padded with 0xff
                     // not sure if this is legal in ts but see issue #2392
                     buf_size = pes->total_size;
                 }
-                memcpy(pes->buffer+pes->data_index, p, buf_size);
+                memcpy(pes->buffer + pes->data_index, p, buf_size);
                 pes->data_index += buf_size;
             }
             buf_size = 0;
@@ -1142,8 +1205,9 @@ static PESContext *add_pes_stream(MpegTSContext *ts, int pid, int pcr_pid)
 
     /* if no pid found, then add a pid context */
     pes = av_mallocz(sizeof(PESContext));
-    if (!pes)
+    if (!pes) {
         return 0;
+    }
     pes->ts = ts;
     pes->stream = ts->stream;
     pes->pid = pid;
@@ -1189,8 +1253,9 @@ static int mp4_read_iods(AVFormatContext *s, const uint8_t *buf, unsigned size,
             len = ff_mp4_read_descr(s, &pb, &tag);
             if (tag == MP4DecConfigDescrTag) {
                 *dec_config_descr = av_malloc(len);
-                if (!*dec_config_descr)
+                if (!*dec_config_descr) {
                     return AVERROR(ENOMEM);
+                }
                 *dec_config_descr_size = len;
                 avio_read(&pb, *dec_config_descr, len);
             }
@@ -1210,40 +1275,46 @@ int ff_parse_mpeg2_descriptor(AVFormatContext *fc, AVStream *st, int stream_type
     int i;
 
     desc_tag = get8(pp, desc_list_end);
-    if (st == NULL)
+    if (st == NULL) {
         return -1;
-    if (desc_tag < 0)
+    }
+    if (desc_tag < 0) {
         return -1;
+    }
     desc_len = get8(pp, desc_list_end);
-    if (desc_len < 0)
+    if (desc_len < 0) {
         return -1;
+    }
     desc_end = *pp + desc_len;
-    if (desc_end > desc_list_end)
+    if (desc_end > desc_list_end) {
         return -1;
+    }
 
     av_dlog(fc, "tag: 0x%02x len=%d\n", desc_tag, desc_len);
 
     if (st->codec->codec_id == CODEC_ID_NONE &&
-        stream_type == STREAM_TYPE_PRIVATE_DATA)
+        stream_type == STREAM_TYPE_PRIVATE_DATA) {
         mpegts_find_stream_type(st, desc_tag, DESC_types);
+    }
 
-	if ((st->codec->codec_id == CODEC_ID_H264) && (av_match_ext(fc->filename, "mvc"))) {
-		av_log(NULL, AV_LOG_ERROR, "override codec_id to MVC\n");
-		st->codec->codec_id = CODEC_ID_H264MVC;
-	}
+    if ((st->codec->codec_id == CODEC_ID_H264) && (av_match_ext(fc->filename, "mvc"))) {
+        av_log(NULL, AV_LOG_ERROR, "override codec_id to MVC\n");
+        st->codec->codec_id = CODEC_ID_H264MVC;
+    }
 
-    switch(desc_tag) {
+    switch (desc_tag) {
     case 0x1F: /* FMC descriptor */
         get16(pp, desc_end);
         if (st->codec->codec_id == CODEC_ID_AAC_LATM &&
             mp4_dec_config_descr_len && mp4_es_id == pid) {
             AVIOContext pb;
             ffio_init_context(&pb, mp4_dec_config_descr,
-                          mp4_dec_config_descr_len, 0, NULL, NULL, NULL, NULL);
+                              mp4_dec_config_descr_len, 0, NULL, NULL, NULL, NULL);
             ff_mp4_read_dec_config_descr(fc, st, &pb);
             if (st->codec->codec_id == CODEC_ID_AAC &&
-                st->codec->extradata_size > 0)
+                st->codec->extradata_size > 0) {
                 st->need_parsing = 0;
+            }
         }
         break;
     case 0x56: /* DVB teletext descriptor */
@@ -1259,7 +1330,7 @@ int ff_parse_mpeg2_descriptor(AVFormatContext *fc, AVStream *st, int stream_type
         language[2] = get8(pp, desc_end);
         language[3] = 0;
         /* hearing impaired subtitles detection */
-        switch(get8(pp, desc_end)) {
+        switch (get8(pp, desc_end)) {
         case 0x20: /* DVB subtitles (for the hard of hearing) with no monitor aspect ratio criticality */
         case 0x21: /* DVB subtitles (for the hard of hearing) for display on 4:3 aspect ratio monitor */
         case 0x22: /* DVB subtitles (for the hard of hearing) for display on 16:9 aspect ratio monitor */
@@ -1270,8 +1341,9 @@ int ff_parse_mpeg2_descriptor(AVFormatContext *fc, AVStream *st, int stream_type
             break;
         }
         if (st->codec->extradata) {
-            if (st->codec->extradata_size == 4 && memcmp(st->codec->extradata, *pp, 4))
+            if (st->codec->extradata_size == 4 && memcmp(st->codec->extradata, *pp, 4)) {
                 av_log_ask_for_sample(fc, "DVB sub with multiple IDs\n");
+            }
         } else {
             st->codec->extradata = av_malloc(4 + FF_INPUT_BUFFER_PADDING_SIZE);
             if (st->codec->extradata) {
@@ -1288,11 +1360,17 @@ int ff_parse_mpeg2_descriptor(AVFormatContext *fc, AVStream *st, int stream_type
             language[i + 1] = get8(pp, desc_end);
             language[i + 2] = get8(pp, desc_end);
             language[i + 3] = ',';
-        switch (get8(pp, desc_end)) {
-            case 0x01: st->disposition |= AV_DISPOSITION_CLEAN_EFFECTS; break;
-            case 0x02: st->disposition |= AV_DISPOSITION_HEARING_IMPAIRED; break;
-            case 0x03: st->disposition |= AV_DISPOSITION_VISUAL_IMPAIRED; break;
-        }
+            switch (get8(pp, desc_end)) {
+            case 0x01:
+                st->disposition |= AV_DISPOSITION_CLEAN_EFFECTS;
+                break;
+            case 0x02:
+                st->disposition |= AV_DISPOSITION_HEARING_IMPAIRED;
+                break;
+            case 0x03:
+                st->disposition |= AV_DISPOSITION_VISUAL_IMPAIRED;
+                break;
+            }
         }
         if (i) {
             language[i - 1] = 0;
@@ -1303,18 +1381,18 @@ int ff_parse_mpeg2_descriptor(AVFormatContext *fc, AVStream *st, int stream_type
         st->codec->codec_tag = bytestream_get_le32(pp);
         av_dlog(fc, "reg_desc=%.4s\n", (char*)&st->codec->codec_tag);
         if (st->codec->codec_id == CODEC_ID_NONE &&
-            stream_type == STREAM_TYPE_PRIVATE_DATA)
+            stream_type == STREAM_TYPE_PRIVATE_DATA) {
             mpegts_find_stream_type(st, st->codec->codec_tag, REGD_types);
+        }
         break;
     case 0x52: /* stream identifier descriptor */
         st->stream_identifier = 1 + get8(pp, desc_end);
         break;
-    case 0x3f: /* avs descriptor */
-        {
-            int profile_id = get8(pp, desc_end);
-            //av_log(NULL,AV_LOG_ERROR,"avs profile_id:%x\n", profile_id);
-        }
-        break;
+    case 0x3f: { /* avs descriptor */
+        int profile_id = get8(pp, desc_end);
+        //av_log(NULL,AV_LOG_ERROR,"avs profile_id:%x\n", profile_id);
+    }
+    break;
     default:
         break;
     }
@@ -1336,42 +1414,48 @@ static void pmt_cb(MpegTSFilter *filter, const uint8_t *section, int section_len
     int mp4_dec_config_descr_len = 0;
     int mp4_es_id = 0;
 
-    av_log(ts->stream,AV_LOG_DEBUG1, "PMT: len %i\n", section_len);
+    av_log(ts->stream, AV_LOG_DEBUG1, "PMT: len %i\n", section_len);
     hex_dump_debug(ts->stream, (uint8_t *)section, section_len);
 
     p_end = section + section_len - 4;
     p = section;
-    if (parse_section_header(h, &p, p_end) < 0)
+    if (parse_section_header(h, &p, p_end) < 0) {
         return;
+    }
 
     av_dlog(ts->stream, "sid=0x%x sec_num=%d/%d\n",
-           h->id, h->sec_num, h->last_sec_num);
+            h->id, h->sec_num, h->last_sec_num);
 
-    if (h->tid != PMT_TID)
+    if (h->tid != PMT_TID) {
         return;
+    }
 
     clear_program(ts, h->id);
     pcr_pid = get16(&p, p_end) & 0x1fff;
-    if (pcr_pid < 0)
+    if (pcr_pid < 0) {
         return;
+    }
     add_pid_to_pmt(ts, h->id, pcr_pid);
     set_pcr_pid(ts->stream, h->id, pcr_pid);
 
-    av_log(ts->stream,AV_LOG_DEBUG1, "pcr_pid=0x%x\n", pcr_pid);
+    av_log(ts->stream, AV_LOG_DEBUG1, "pcr_pid=0x%x\n", pcr_pid);
 
     program_info_length = get16(&p, p_end) & 0xfff;
-    if (program_info_length < 0)
+    if (program_info_length < 0) {
         return;
-    while(program_info_length >= 2) {
+    }
+    while (program_info_length >= 2) {
         uint8_t tag, len;
         tag = get8(&p, p_end);
         len = get8(&p, p_end);
 
-        av_log(ts->stream,AV_LOG_DEBUG1,"program tag: 0x%02x len=%d\n", tag, len);
+        av_log(ts->stream, AV_LOG_DEBUG1, "program tag: 0x%02x len=%d\n", tag, len);
 
-        if(len > program_info_length - 2)
+        if (len > program_info_length - 2)
             //something else is broken, exit the program_descriptors_loop
+        {
             break;
+        }
         program_info_length -= len + 2;
         if (tag == 0x1d) { // IOD descriptor
             get8(&p, p_end); // scope
@@ -1386,57 +1470,49 @@ static void pmt_cb(MpegTSFilter *filter, const uint8_t *section, int section_len
         p += len;
     }
     p += program_info_length;
-    if (p >= p_end)
+    if (p >= p_end) {
         goto out;
+    }
 
     // stop parsing after pmt, we found header
-    if (!ts->stream->nb_streams)
+    if (!ts->stream->nb_streams) {
         ts->stop_parse = 1;
+    }
 
-    for(;;) {
+    for (;;) {
         st = 0;
         stream_type = get8(&p, p_end);
-        if (stream_type < 0)
+        if (stream_type < 0) {
             break;
+        }
         pid = get16(&p, p_end) & 0x1fff;
-        if (pid < 0)
+        if (pid < 0) {
             break;
+        }
 
         /* now create ffmpeg stream */
         if (ts->pids[pid] && ts->pids[pid]->type == MPEGTS_PES) {
             pes = ts->pids[pid]->u.pes_filter.opaque;
-            if (!pes->st)
+            if (!pes->st) {
                 pes->st = av_new_stream(pes->stream, pes->pid);
+            }
             st = pes->st;
         } else {
-            if (ts->pids[pid]) mpegts_close_filter(ts, ts->pids[pid]); //wrongly added sdt filter probably
+            if (ts->pids[pid]) {
+                mpegts_close_filter(ts, ts->pids[pid]);    //wrongly added sdt filter probably
+            }
             pes = add_pes_stream(ts, pid, pcr_pid);
-            if (pes)
+            if (pes) {
                 st = av_new_stream(pes->stream, pes->pid);
+            }
         }
 
-        if (!st)
+        if (!st) {
             goto out;
+        }
 
-        if (!pes->stream_type)
+        if (!pes->stream_type) {
             mpegts_set_stream_info(st, pes, stream_type, prog_reg_desc);
-
-        if (prog_reg_desc == AV_RL32("HDCP")) {
-            av_log(NULL, AV_LOG_ERROR, "prog_reg_desc HDCP,HDCP_decrypt:%p", HDCP_decrypt);
-
-            if (HDCP_decrypt == NULL) {
-#ifdef HDCP_LOCAL_PLAY_DEBUG
-                if (pes->stream->pb->local_playback == 1)
-                    hdcp_local_play = 1;
-#endif
-                HDCP_decrypt = get_HDCP_decrypt();
-                if (HDCP_decrypt == NULL) {
-                    av_log(NULL, AV_LOG_ERROR, "get HDCP_decrypt failed.");
-                }
-            }
-            pes->has_hdcp_desc = 1;
-        } else {
-            pes->has_hdcp_desc = 0;
         }
 
         add_pid_to_pmt(ts, h->id, pid);
@@ -1444,17 +1520,20 @@ static void pmt_cb(MpegTSFilter *filter, const uint8_t *section, int section_len
         ff_program_add_stream_index(ts->stream, h->id, st->index);
 
         desc_list_len = get16(&p, p_end) & 0xfff;
-        if (desc_list_len < 0)
+        if (desc_list_len < 0) {
             break;
+        }
         desc_list_end = p + desc_list_len;
-        if (desc_list_end > p_end)
+        if (desc_list_end > p_end) {
             break;
-        for(;;) {
+        }
+        for (;;) {
             if (ff_parse_mpeg2_descriptor(ts->stream, st, stream_type, &p, desc_list_end,
-                mp4_dec_config_descr_len, mp4_es_id, pid, mp4_dec_config_descr) < 0)
+                                          mp4_dec_config_descr_len, mp4_es_id, pid, mp4_dec_config_descr) < 0) {
                 break;
+            }
 
-            if (prog_reg_desc == AV_RL32("HDMV") && (stream_type == 0x83||stream_type == 0x81) && pes->sub_st) {
+            if (prog_reg_desc == AV_RL32("HDMV") && (stream_type == 0x83 || stream_type == 0x81) && pes->sub_st) {
                 ff_program_add_stream_index(ts->stream, h->id, pes->sub_st->index);
                 pes->sub_st->codec->codec_tag = st->codec->codec_tag;
             }
@@ -1463,12 +1542,12 @@ static void pmt_cb(MpegTSFilter *filter, const uint8_t *section, int section_len
 
     }
 
-    if(ts->stream->iformat!=NULL&&!(ts->stream->iformat->flags&AVFMT_TS_HASPMT)){
-    	ts->stream->iformat->flags|=AVFMT_TS_HASPMT;
-	av_log(ts->stream,AV_LOG_INFO,"[%s:%d]Use pmt to init the stream\n",__FUNCTION__,__LINE__);
+    if (ts->stream->iformat != NULL && !(ts->stream->iformat->flags & AVFMT_TS_HASPMT)) {
+        ts->stream->iformat->flags |= AVFMT_TS_HASPMT;
+        av_log(ts->stream, AV_LOG_INFO, "[%s:%d]Use pmt to init the stream\n", __FUNCTION__, __LINE__);
     }
-    
- out:
+
+out:
     av_free(mp4_dec_config_descr);
 }
 
@@ -1480,38 +1559,50 @@ static void pat_cb(MpegTSFilter *filter, const uint8_t *section, int section_len
     int sid, pmt_pid;
     AVProgram *program;
 
-    av_log(ts->stream,AV_LOG_DEBUG1,"PAT:\n");
+    av_log(ts->stream, AV_LOG_DEBUG1, "PAT:\n");
     hex_dump_debug(ts->stream, (uint8_t *)section, section_len);
 
     p_end = section + section_len - 4;
     p = section;
-    if (parse_section_header(h, &p, p_end) < 0)
+    if (parse_section_header(h, &p, p_end) < 0) {
         return;
-    if (h->tid != PAT_TID)
+    }
+    if (h->tid != PAT_TID) {
         return;
+    }
 
     ts->stream->ts_id = h->id;
 
     clear_programs(ts);
-    for(;;) {
+    for (;;) {
         sid = get16(&p, p_end);
-        if (sid < 0)
+        if (sid < 0) {
             break;
+        }
         pmt_pid = get16(&p, p_end) & 0x1fff;
-        if (pmt_pid < 0)
+        if (pmt_pid < 0) {
             break;
+        }
 
-        av_log(ts->stream,AV_LOG_DEBUG1, "sid=0x%x pid=0x%x\n", sid, pmt_pid);
+        av_log(ts->stream, AV_LOG_DEBUG1, "sid=0x%x pid=0x%x\n", sid, pmt_pid);
 
         if (sid == 0x0000) {
             /* NIT info */
         } else {
+            MpegTSFilter *fil = ts->pids[pmt_pid];
             program = av_new_program(ts->stream, sid);
             program->program_num = sid;
             program->pmt_pid = pmt_pid;
-            if (ts->pids[pmt_pid])
-                mpegts_close_filter(ts, ts->pids[pmt_pid]);
-            mpegts_open_section_filter(ts, pmt_pid, pmt_cb, ts, 1);
+            if (fil)
+                if (fil->type != MPEGTS_SECTION
+                    || fil->pid != pmt_pid
+                    || fil->u.section_filter.section_cb != pmt_cb) {
+                    mpegts_close_filter(ts, ts->pids[pmt_pid]);
+                }
+
+            if (!ts->pids[pmt_pid]) {
+                mpegts_open_section_filter(ts, pmt_pid, pmt_cb, ts, 1);
+            }
             add_pat_entry(ts, sid);
             add_pid_to_pmt(ts, sid, 0); //add pat pid to program
             add_pid_to_pmt(ts, sid, pmt_pid);
@@ -1532,53 +1623,65 @@ static void sdt_cb(MpegTSFilter *filter, const uint8_t *section, int section_len
 
     p_end = section + section_len - 4;
     p = section;
-    if (parse_section_header(h, &p, p_end) < 0)
+    if (parse_section_header(h, &p, p_end) < 0) {
         return;
-    if (h->tid != SDT_TID)
+    }
+    if (h->tid != SDT_TID) {
         return;
+    }
     onid = get16(&p, p_end);
-    if (onid < 0)
+    if (onid < 0) {
         return;
+    }
     val = get8(&p, p_end);
-    if (val < 0)
+    if (val < 0) {
         return;
-    for(;;) {
+    }
+    for (;;) {
         sid = get16(&p, p_end);
-        if (sid < 0)
+        if (sid < 0) {
             break;
+        }
         val = get8(&p, p_end);
-        if (val < 0)
+        if (val < 0) {
             break;
+        }
         desc_list_len = get16(&p, p_end) & 0xfff;
-        if (desc_list_len < 0)
+        if (desc_list_len < 0) {
             break;
+        }
         desc_list_end = p + desc_list_len;
-        if (desc_list_end > p_end)
+        if (desc_list_end > p_end) {
             break;
-        for(;;) {
+        }
+        for (;;) {
             desc_tag = get8(&p, desc_list_end);
-            if (desc_tag < 0)
+            if (desc_tag < 0) {
                 break;
+            }
             desc_len = get8(&p, desc_list_end);
             desc_end = p + desc_len;
-            if (desc_end > desc_list_end)
+            if (desc_end > desc_list_end) {
                 break;
+            }
 
             av_dlog(ts->stream, "tag: 0x%02x len=%d\n",
-                   desc_tag, desc_len);
+                    desc_tag, desc_len);
 
-            switch(desc_tag) {
+            switch (desc_tag) {
             case 0x48:
                 service_type = get8(&p, p_end);
-                if (service_type < 0)
+                if (service_type < 0) {
                     break;
+                }
                 provider_name = getstr8(&p, p_end);
-                if (!provider_name)
+                if (!provider_name) {
                     break;
+                }
                 name = getstr8(&p, p_end);
                 if (name) {
                     AVProgram *program = av_new_program(ts->stream, sid);
-                    if(program) {
+                    if (program) {
                         av_dict_set(&program->metadata, "service_name", name, 0);
                         av_dict_set(&program->metadata, "service_provider", provider_name, 0);
                     }
@@ -1597,147 +1700,152 @@ static void sdt_cb(MpegTSFilter *filter, const uint8_t *section, int section_len
 
 static int recalcpts_resetinfo(MpegTSContext *ts)
 {
-	if (ts->pownon_recalcpts != 1){
-		return 0x01;
-	}
-	ts->start_calcpts=0;
-	ts->basepts =0;
-	ts->jumppts=0;
-	ts->basepts=0;
-	ts->start_calcpts=0;
-	ts->pownon_recalcpts=0;//?
-	ts->segment_duration=0;
-    ts->apts_jump_count=0;
-	ts->vpts_jump_count=0;
-	ts->store_pts_count=0;
-	return 0;
+    if (ts->pownon_recalcpts != 1) {
+        return 0x01;
+    }
+    ts->start_calcpts = 0;
+    ts->basepts = 0;
+    ts->jumppts = 0;
+    ts->basepts = 0;
+    ts->start_calcpts = 0;
+    ts->pownon_recalcpts = 0; //?
+    ts->segment_duration = 0;
+    ts->apts_jump_count = 0;
+    ts->vpts_jump_count = 0;
+    ts->store_pts_count = 0;
+    return 0;
 }
 /*
 cachhttp.c will add a packet size of 188byte before every segment ,int the head we will
-add some info 
+add some info
 0-4 byte                      4-8                                     8- 188;
 0x47,0x00,0x1f,0xff       segment duration         "amlogictsdiscontinue"
 in the function wil get it and check it;
 */
 static int recalcpts_checkheadergetinfo(MpegTSContext *ts, const uint8_t *packet)
 {
-	if (ts->pownon_recalcpts != 1){
-		return 0x01;
-	}
-	unsigned int tmp_duration;
-	int taglen = strlen(RECALC_DISPTS_TAG);
-	char* gettag[30];
-	if ((*packet == 0x47) && (*(packet + 1)== 0x00) && (*(packet + 2)== 0x1f) && (*(packet + 3)== 0xff)){
-			memcpy(&tmp_duration,(packet + 4),4); 
-			ts->segment_duration = tmp_duration;
-			memcpy(gettag,(packet + 8),taglen);
-			if(!strncmp(gettag, RECALC_DISPTS_TAG,taglen)){
-				if (ts->start_calcpts==1){
-					ts->jumppts = JUMP_PTS;
-					ts->basepts = ts->basepts + ts->jumppts;
-					if (ts->basepts > BASE_PTS_MAX){
-						av_log(NULL,AV_LOG_ERROR,"RESET_BASE_PTS\n");
-						ts->basepts =0;
-					}
-				}
-				ts_print(AV_LOG_INFO,"CHECK_SEGMENT_HEAD basepts[%lld]jumppts[%lld]duration[%u]\n",ts->basepts,ts->jumppts,ts->segment_duration);
-				return 0x02;
-			}
-	}
-	return 0;
+    if (ts->pownon_recalcpts != 1) {
+        return 0x01;
+    }
+    unsigned int tmp_duration;
+    int taglen = strlen(RECALC_DISPTS_TAG);
+    char* gettag[30];
+    if ((*packet == 0x47) && (*(packet + 1) == 0x00) && (*(packet + 2) == 0x1f) && (*(packet + 3) == 0xff)) {
+        memcpy(&tmp_duration, (packet + 4), 4);
+        ts->segment_duration = tmp_duration;
+        memcpy(gettag, (packet + 8), taglen);
+        if (!strncmp(gettag, RECALC_DISPTS_TAG, taglen)) {
+            if (ts->start_calcpts == 1) {
+                ts->jumppts = JUMP_PTS;
+                ts->basepts = ts->basepts + ts->jumppts;
+                if (ts->basepts > BASE_PTS_MAX) {
+                    av_log(NULL, AV_LOG_ERROR, "RESET_BASE_PTS\n");
+                    ts->basepts = 0;
+                }
+            }
+            ts_print(AV_LOG_INFO, "CHECK_SEGMENT_HEAD basepts[%lld]jumppts[%lld]duration[%u]\n", ts->basepts, ts->jumppts, ts->segment_duration);
+            return 0x02;
+        }
+    }
+    return 0;
 }
 /*
 recalc the pts and dts base on ts->basepts (200s)
 avoid the s
 */
-static int recalcpts_pts(AVFormatContext *s,AVPacket *pkt)
+static int recalcpts_pts(AVFormatContext *s, AVPacket *pkt)
 {
-	MpegTSContext *ts = s->priv_data;
+    MpegTSContext *ts = s->priv_data;
 
-	if (ts->pownon_recalcpts != 1){
-		return 0x01;
-	}
-	if ((pkt->pts == AV_NOPTS_VALUE)||(pkt->dts == AV_NOPTS_VALUE)){
-		return -1;
-	}
+    if (ts->pownon_recalcpts != 1) {
+        return 0x01;
+    }
+    if ((pkt->pts == AV_NOPTS_VALUE) || (pkt->dts == AV_NOPTS_VALUE)) {
+        return -1;
+    }
 
-	if (ts->start_calcpts==1){
-		pkt->pts = pkt->pts + ts->basepts;
-		pkt->dts = pkt->dts + ts->basepts;
-		//ts_print(AV_LOG_INFO,"pkt->dts[%lld] pkt->pts[%lld] ts->base[%lld]\n",pkt->dts,pkt->pts,ts->basepts);
-	}
+    if (ts->start_calcpts == 1) {
+        pkt->pts = pkt->pts + ts->basepts;
+        pkt->dts = pkt->dts + ts->basepts;
+        //ts_print(AV_LOG_INFO,"pkt->dts[%lld] pkt->pts[%lld] ts->base[%lld]\n",pkt->dts,pkt->pts,ts->basepts);
+    }
 
-	return 0;
+    return 0;
 }
 /*
 judge if the pts jump every segment ;
 curpts- oldpts (jumppts < 0 ,int the segmentduration ,30s> |jumppts|> 4s ,)
 jumpcount ++;
 */
-static int recalcpts_startwhetherornot(AVFormatContext *s,AVPacket *pkt)
+static int recalcpts_startwhetherornot(AVFormatContext *s, AVPacket *pkt)
 {
-	MpegTSContext *ts = s->priv_data;
+    MpegTSContext *ts = s->priv_data;
 
-	if (ts->pownon_recalcpts != 1){
-		return 0x01;
-	}
-	
-	if (ts->start_calcpts==1){
-		return 0;
-	}
-	if ((pkt->pts == AV_NOPTS_VALUE)||(pkt->dts == AV_NOPTS_VALUE)){
-		return -1;
-	}
+    if (ts->pownon_recalcpts != 1) {
+        return 0x01;
+    }
 
-	int64_t vjump_val=0;
-	int64_t ajump_val=0;
-	int vjump_ms=0;
-	int ajump_ms=0;
-	int i;
+    if (ts->start_calcpts == 1) {
+        return 0;
+    }
+    if ((pkt->pts == AV_NOPTS_VALUE) || (pkt->dts == AV_NOPTS_VALUE)) {
+        return -1;
+    }
 
-	AVStream *st = s->streams[pkt->stream_index];
-	if (pkt->stream_index > 31)
-		return -1;
-	ts->store_pts_count++;
-	if ((ts->pts_nb[pkt->stream_index]>2)&&(st->codec->codec_type == AVMEDIA_TYPE_VIDEO)){
-		vjump_val = pkt->pts-ts->pts[pkt->stream_index]; 
-		vjump_ms = ((abs(pkt->dts-ts->dts[pkt->stream_index])*1000)/90000);	
-		if ((vjump_val< 0) && (vjump_ms <= (ts->segment_duration*2))&&(vjump_ms>DIFF_PTS_MIN)&&(ts->segment_duration < MAX_SEG_DURATION )){
-			ts->vpts_jump_count++;
-		}
-		ts_print(AV_LOG_ERROR,"vjump_val[%lld] pts:cur-old[%lld,%lld] duration[%u]ms vjump_ms[%u]ms vjumpcou[%d]\n",\
-		vjump_val,pkt->pts,ts->pts[pkt->stream_index],ts->segment_duration,vjump_ms,ts->vpts_jump_count);	
-	}
-	if ((ts->pts_nb[pkt->stream_index]>2)&&(st->codec->codec_type == AVMEDIA_TYPE_AUDIO)){
-		ajump_val = pkt->dts-ts->dts[pkt->stream_index];
-		ajump_ms = ((abs(pkt->dts-ts->dts[pkt->stream_index])*1000)/90000);	
-		if ((ajump_val < 0)&&(ajump_ms <= (ts->segment_duration*2))&&(ajump_ms>DIFF_PTS_MIN)&&(ts->segment_duration < MAX_SEG_DURATION )){
-			ts->apts_jump_count++;
-		}
-		ts_print(AV_LOG_INFO,"ajump_val[%lld] pts:cur-old[%lld,%lld] duration[%u]ms ajump_ms[%u]ms  ajumpcou[%d]\n",\
-		ajump_val,pkt->pts,ts->pts[pkt->stream_index],ts->segment_duration,ajump_ms,ts->apts_jump_count);	
-	}
-	ts->pts[pkt->stream_index] = pkt->pts; 
-	ts->dts[pkt->stream_index] = pkt->dts;
-	ts->pts_nb[pkt->stream_index]++;
+    int64_t vjump_val = 0;
+    int64_t ajump_val = 0;
+    int vjump_ms = 0;
+    int ajump_ms = 0;
+    int i;
 
-	if ((ts->vpts_jump_count > MAX_VPTSJUMPNUM)||(ts->apts_jump_count > MAX_APTSJUMPNUM)){
-		ts_print(AV_LOG_INFO,"start_calcpts\n");
-		ts->start_calcpts=1;
-	}
-		
-	if (ts->store_pts_count > MAX_STOREPSTNUM ){
-		ts->vpts_jump_count=0;
-		ts->apts_jump_count=0;
-		ts->store_pts_count=0;
-		ts->start_calcpts=0;//switch ;
-		for(i=0;i<32;i++){
-			ts->pts_nb[i]=0;
-		}
-		ts_print(AV_LOG_INFO,"not_calc\n");
-	}
+    /*
+        make sure element in this array is not out of range
+    */
+    if (!(pkt->stream_index < RECALC_MAX_PROG && pkt->stream_index >= 0)) {
+        av_log(NULL, AV_LOG_INFO, " recalcpts_startwhetherornot error stream_index:%d is out of range :%d \n", pkt->stream_index, RECALC_MAX_PROG);
+        return -1;
+    }
+    AVStream *st = s->streams[pkt->stream_index];
+    ts->store_pts_count++;
+    if ((ts->pts_nb[pkt->stream_index] > 2) && (st->codec->codec_type == AVMEDIA_TYPE_VIDEO)) {
+        vjump_val = pkt->pts - ts->pts[pkt->stream_index];
+        vjump_ms = ((abs(pkt->dts - ts->dts[pkt->stream_index]) * 1000) / 90000);
+        if ((vjump_val < 0) && (vjump_ms <= (ts->segment_duration * 2)) && (vjump_ms > DIFF_PTS_MIN) && (ts->segment_duration < MAX_SEG_DURATION)) {
+            ts->vpts_jump_count++;
+        }
+        ts_print(AV_LOG_ERROR, "vjump_val[%lld] pts:cur-old[%lld,%lld] duration[%u]ms vjump_ms[%u]ms vjumpcou[%d]\n", \
+                 vjump_val, pkt->pts, ts->pts[pkt->stream_index], ts->segment_duration, vjump_ms, ts->vpts_jump_count);
+    }
+    if ((ts->pts_nb[pkt->stream_index] > 2) && (st->codec->codec_type == AVMEDIA_TYPE_AUDIO)) {
+        ajump_val = pkt->dts - ts->dts[pkt->stream_index];
+        ajump_ms = ((abs(pkt->dts - ts->dts[pkt->stream_index]) * 1000) / 90000);
+        if ((ajump_val < 0) && (ajump_ms <= (ts->segment_duration * 2)) && (ajump_ms > DIFF_PTS_MIN) && (ts->segment_duration < MAX_SEG_DURATION)) {
+            ts->apts_jump_count++;
+        }
+        ts_print(AV_LOG_INFO, "ajump_val[%lld] pts:cur-old[%lld,%lld] duration[%u]ms ajump_ms[%u]ms  ajumpcou[%d]\n", \
+                 ajump_val, pkt->pts, ts->pts[pkt->stream_index], ts->segment_duration, ajump_ms, ts->apts_jump_count);
+    }
+    ts->pts[pkt->stream_index] = pkt->pts;
+    ts->dts[pkt->stream_index] = pkt->dts;
+    ts->pts_nb[pkt->stream_index]++;
 
-	return 0;
+    if ((ts->vpts_jump_count > MAX_VPTSJUMPNUM) || (ts->apts_jump_count > MAX_APTSJUMPNUM)) {
+        ts_print(AV_LOG_INFO, "start_calcpts\n");
+        ts->start_calcpts = 1;
+    }
+
+    if (ts->store_pts_count > MAX_STOREPSTNUM) {
+        ts->vpts_jump_count = 0;
+        ts->apts_jump_count = 0;
+        ts->store_pts_count = 0;
+        ts->start_calcpts = 0; //switch ;
+        for (i = 0; i < RECALC_MAX_PROG; i++) {
+            ts->pts_nb[i] = 0;
+        }
+        ts_print(AV_LOG_INFO, "not_calc\n");
+    }
+
+    return 0;
 }
 
 #if 0
@@ -1751,58 +1859,58 @@ static int get_hevc_csd_packet(AVFormatContext *s, AVStream * st, const uint8_t 
     memcpy(dst, packet, 3); // 3 bytes
     dst += 3;
     *dst++ = 0x10; // adaptation_field_control == 1, continuity_counter == 0
-    for(i = 0;i < TS_PACKET_SIZE;i++){
-        if(p[0] == 0 && p[1] == 0 && p[2] == 0 && p[3] == 1) {
+    for (i = 0; i < TS_PACKET_SIZE; i++) {
+        if (p[0] == 0 && p[1] == 0 && p[2] == 0 && p[3] == 1) {
             p += 4;
             i += 4;
             break;
         }
-        if(p[0] == 0 && p[1] == 0 && p[2] == 1) {
+        if (p[0] == 0 && p[1] == 0 && p[2] == 1) {
             p += 3;
             i += 3;
             break;
         }
         p++;
     }
-    for(;i < TS_PACKET_SIZE;i++){
-        if(p[0] == 0 && p[1] == 0 && p[2] == 0 && p[3] == 1) {
-            if(!ps_start) {
+    for (; i < TS_PACKET_SIZE; i++) {
+        if (p[0] == 0 && p[1] == 0 && p[2] == 0 && p[3] == 1) {
+            if (!ps_start) {
                 b = p;
                 ps_start = 1;
             }
-            if(ps_count == 3) { // got vps/sps/pps
+            if (ps_count == 3) { // got vps/sps/pps
                 e = p - 1;
                 break;
             }
-            if(((p[4]>>1) & 0x3f) == 32) { // vps
+            if (((p[4] >> 1) & 0x3f) == 32) { // vps
                 ps_count++;
             }
-            if(((p[4]>>1) & 0x3f) == 33) { // sps
+            if (((p[4] >> 1) & 0x3f) == 33) { // sps
                 ps_count++;
             }
-            if(((p[4]>>1) & 0x3f) == 34) { // pps
+            if (((p[4] >> 1) & 0x3f) == 34) { // pps
                 ps_count++;
             }
             p += 4;
             i += 4;
             continue;
         }
-        if(p[0] == 0 && p[1] == 0 && p[2] == 1) {
-            if(!ps_start) {
+        if (p[0] == 0 && p[1] == 0 && p[2] == 1) {
+            if (!ps_start) {
                 b = p;
                 ps_start = 1;
             }
-            if(ps_count == 3) { // got vps/sps/pps
+            if (ps_count == 3) { // got vps/sps/pps
                 e = p - 1;
                 break;
             }
-            if(((p[3]>>1) & 0x3f) == 32) { // vps
+            if (((p[3] >> 1) & 0x3f) == 32) { // vps
                 ps_count++;
             }
-            if(((p[3]>>1) & 0x3f) == 33) { // sps
+            if (((p[3] >> 1) & 0x3f) == 33) { // sps
                 ps_count++;
             }
-            if(((p[3]>>1) & 0x3f) == 34) { // pps
+            if (((p[3] >> 1) & 0x3f) == 34) { // pps
                 ps_count++;
             }
             p += 3;
@@ -1812,17 +1920,17 @@ static int get_hevc_csd_packet(AVFormatContext *s, AVStream * st, const uint8_t 
         p++;
     }
 
-    if(ps_count != 3) {
+    if (ps_count != 3) {
         s->ts_hevc_csd_valid = 0;
-        av_log(NULL,AV_LOG_ERROR,"Could not get hevc csd data from ts packet!\n");
+        av_log(NULL, AV_LOG_ERROR, "Could not get hevc csd data from ts packet!\n");
         return -1;
     }
 
-    len = e-b+1;
+    len = e - b + 1;
     memcpy(dst, b, len);
     dst += len;
     len += 4;
-    for(i=0;i < TS_PACKET_SIZE-len;i++){
+    for (i = 0; i < TS_PACKET_SIZE - len; i++) {
         *dst++ = 0xFF;
     }
     s->ts_hevc_csd_valid = 1;
@@ -1836,9 +1944,9 @@ static int  check_avs_version(AVFormatContext *s, const uint8_t *packet)
     uint8_t * p = packet;
     int avs_version = -1;
     int i;
-    for (i = 0;i < TS_PACKET_SIZE -5; i++) {
-        if (p[i] == 0 && p[i+1] == 0 && p[i+2] == 1 && p[i+3] == 0xb0) {
-            if (p[i+4] == 0x48) {
+    for (i = 0; i < TS_PACKET_SIZE - 5; i++) {
+        if (p[i] == 0 && p[i + 1] == 0 && p[i + 2] == 1 && p[i + 3] == 0xb0) {
+            if (p[i + 4] == 0x48) {
                 avs_version = 1;
             } else {
                 avs_version = 0;
@@ -1852,54 +1960,62 @@ static int  check_avs_version(AVFormatContext *s, const uint8_t *packet)
 
 static int   get_mpeg_seq_packet(AVFormatContext *s, const uint8_t *packet)
 {
-    uint32_t  i,j;
+    uint32_t  i, j;
     uint8_t * p = packet;
     uint8_t * dst = s->ts_video_header_packet;
-      s->ts_video_header_valid = 0;		
-       memset(dst,0,TS_PACKET_SIZE);	  
-	for(i = 0;i < TS_PACKET_SIZE -4; i++){
-		if(p[i] == 0 && p[i+1] == 0 && p[i+2] == 1 && p[i+3] == 0xb3)
-		 break;  
-	 }	 
-	if(i == (TS_PACKET_SIZE-4)) 
-	return -1;	  //not found seq start code 
-   	 
-	 for(j=i;j < TS_PACKET_SIZE -4; j++){
-		 if(p[j] == 0 && p[j+1] == 0 && p[j+2] == 1 && p[j+3] == 0xb8)   
-		  break;  
-	  }   
-	     if(j == (TS_PACKET_SIZE-4)) 
-	   	 return -1;    //not found GOP start code 
-      av_log(NULL,AV_LOG_INFO,"get mpeg seq data , size %d \n",j-i);	   	
-     memcpy(dst, p, j); 
-     s->ts_video_header_valid = 1;	 
-  return 0;
-}	
+    s->ts_video_header_valid = 0;
+    memset(dst, 0, TS_PACKET_SIZE);
+    for (i = 0; i < TS_PACKET_SIZE - 4; i++) {
+        if (p[i] == 0 && p[i + 1] == 0 && p[i + 2] == 1 && p[i + 3] == 0xb3) {
+            break;
+        }
+    }
+    if (i == (TS_PACKET_SIZE - 4)) {
+        return -1;    //not found seq start code
+    }
+
+    for (j = i; j < TS_PACKET_SIZE - 4; j++) {
+        if (p[j] == 0 && p[j + 1] == 0 && p[j + 2] == 1 && p[j + 3] == 0xb8) {
+            break;
+        }
+    }
+    if (j == (TS_PACKET_SIZE - 4)) {
+        return -1;    //not found GOP start code
+    }
+    av_log(NULL, AV_LOG_INFO, "get mpeg seq data , size %d \n", j - i);
+    memcpy(dst, p, j);
+    s->ts_video_header_valid = 1;
+    return 0;
+}
 static int   Get_H264_Header_Packet(AVFormatContext *s, const uint8_t *packet)
 {
-    uint32_t  i,j;
+    uint32_t  i, j;
     uint8_t * p = packet;
     uint8_t * dst = s->ts_video_header_packet;
-      s->ts_video_header_valid = 0;		
-       memset(dst,0,TS_PACKET_SIZE);	  
-	for(i = 0;i < TS_PACKET_SIZE -5; i++){
-		if(p[i] == 0 && p[i+1] == 0 && p[i+2] == 0 && p[i+3] == 1&& p[i+4] == 0x67)
-		 break;  
-	 }	 
-	if(i == (TS_PACKET_SIZE-5)) 
-	return -1;	  //not found sps 
-   	 
-	 for(j=i;j < TS_PACKET_SIZE -5; j++){
-		 if(p[j] == 0 && p[j+1] == 0 && p[j+2] == 0 && p[j+3] == 1&& p[j+4] == 0x68)   
-		  break;  
-	  }   
-	     if(j == (TS_PACKET_SIZE-5)) 
-	   	 return -1;    //not found pps 
-      av_log(NULL,AV_LOG_INFO,"get h264 header data , size %d \n",j-i);	   	
-     memcpy(dst, p,TS_PACKET_SIZE); 
-     s->ts_video_header_valid = 1;	 
-  return 0;
-}	
+    s->ts_video_header_valid = 0;
+    memset(dst, 0, TS_PACKET_SIZE);
+    for (i = 0; i < TS_PACKET_SIZE - 5; i++) {
+        if (p[i] == 0 && p[i + 1] == 0 && p[i + 2] == 0 && p[i + 3] == 1 && p[i + 4] == 0x67) {
+            break;
+        }
+    }
+    if (i == (TS_PACKET_SIZE - 5)) {
+        return -1;    //not found sps
+    }
+
+    for (j = i; j < TS_PACKET_SIZE - 5; j++) {
+        if (p[j] == 0 && p[j + 1] == 0 && p[j + 2] == 0 && p[j + 3] == 1 && p[j + 4] == 0x68) {
+            break;
+        }
+    }
+    if (j == (TS_PACKET_SIZE - 5)) {
+        return -1;    //not found pps
+    }
+    av_log(NULL, AV_LOG_INFO, "get h264 header data , size %d \n", j - i);
+    memcpy(dst, p, TS_PACKET_SIZE);
+    s->ts_video_header_valid = 1;
+    return 0;
+}
 
 
 static int get_hevc_csd_packet(AVFormatContext *s, AVStream * st, AVPacket *packet)
@@ -1928,17 +2044,17 @@ static int get_hevc_csd_packet(AVFormatContext *s, AVStream * st, AVPacket *pack
                 end = 1;
                 break;
             }
-            if (((p[4]>>1) & 0x3f) == 32) { // vps
+            if (((p[4] >> 1) & 0x3f) == 32) { // vps
                 if (!ps_start) {
                     b = p;
                     ps_start = 1;
                 }
                 ps_count++;
             }
-            if (((p[4]>>1) & 0x3f) == 33) { // sps
+            if (((p[4] >> 1) & 0x3f) == 33) { // sps
                 ps_count++;
             }
-            if (((p[4]>>1) & 0x3f) == 34) { // pps
+            if (((p[4] >> 1) & 0x3f) == 34) { // pps
                 ps_count++;
             }
             p += 4;
@@ -1951,17 +2067,17 @@ static int get_hevc_csd_packet(AVFormatContext *s, AVStream * st, AVPacket *pack
                 end = 1;
                 break;
             }
-            if (((p[3]>>1) & 0x3f) == 32) { // vps
+            if (((p[3] >> 1) & 0x3f) == 32) { // vps
                 if (!ps_start) {
                     b = p;
                     ps_start = 1;
                 }
                 ps_count++;
             }
-            if (((p[3]>>1) & 0x3f) == 33) { // sps
+            if (((p[3] >> 1) & 0x3f) == 33) { // sps
                 ps_count++;
             }
-            if (((p[3]>>1) & 0x3f) == 34) { // pps
+            if (((p[3] >> 1) & 0x3f) == 34) { // pps
                 ps_count++;
             }
             p += 3;
@@ -1972,15 +2088,16 @@ static int get_hevc_csd_packet(AVFormatContext *s, AVStream * st, AVPacket *pack
     }
 
     if (!end) {
-        av_log(NULL,AV_LOG_ERROR,"Could not get hevc csd data from ts packet!\n");
+        av_log(NULL, AV_LOG_ERROR, "Could not get hevc csd data from ts packet!\n");
         return -1;
     }
 
-    len = e-b+1;
+    len = e - b + 1;
     av_free(st->codec->extradata);
     st->codec->extradata = av_mallocz(len + FF_INPUT_BUFFER_PADDING_SIZE);
-    if (!st->codec->extradata)
+    if (!st->codec->extradata) {
         return AVERROR(ENOMEM);
+    }
     memcpy(st->codec->extradata, b, len);
     st->codec->extradata_size = len;
     return 0;
@@ -1996,39 +2113,42 @@ static int handle_packet(MpegTSContext *ts, const uint8_t *packet)
     const uint8_t *p, *p_end;
     int64_t pos;
 
-	int ret=-1 ;
-	ret=recalcpts_checkheadergetinfo(ts,packet);
-	if(ret == 0x02){
-		return 0;
-	}
-    pid = AV_RB16(packet + 1) & 0x1fff;
-    if(pid && discard_pid(ts, pid))
+    int ret = -1 ;
+    ret = recalcpts_checkheadergetinfo(ts, packet);
+    if (ret == 0x02) {
         return 0;
+    }
+    pid = AV_RB16(packet + 1) & 0x1fff;
+    if (pid && discard_pid(ts, pid)) {
+        return 0;
+    }
     is_start = packet[1] & 0x40;
     tss = ts->pids[pid];
     if (ts->auto_guess && tss == NULL && is_start) {
         add_pes_stream(ts, pid, -1);
         tss = ts->pids[pid];
     }
-    if (!tss)
+    if (!tss) {
         return 0;
+    }
     ts->current_pid = pid;
-    tss->encrypt=0;
+    //tss->encrypt=0;
     /* continuity check (currently not used) */
-    if(packet[3] & 0xC0){		
-	     tss->encrypt=1;
-	     av_log(NULL, AV_LOG_WARNING, "encrypt pid=0x%x\n",tss->pid);
+    if ((packet[3] & 0xC0) && tss->encrypt == 0) {
+        tss->encrypt = 1;
+        //av_log(NULL, AV_LOG_WARNING, "encrypt pid=0x%x\n",tss->pid);
     }
 
     /* skip adaptation field */
     afc = (packet[3] >> 4) & 3;
-    if (afc == 0) /* reserved value */
+    if (afc == 0) { /* reserved value */
         return 0;
+    }
     has_adaptation = afc & 2;
     has_payload = afc & 1;
     is_discontinuity = has_adaptation
-                && packet[4] != 0 /* with length > 0 */
-                && (packet[5] & 0x80); /* and discontinuity indicated */
+                       && packet[4] != 0 /* with length > 0 */
+                       && (packet[5] & 0x80); /* and discontinuity indicated */
 
     cc = (packet[3] & 0xf);
     expected_cc = has_payload ? (tss->last_cc + 1) & 0x0f : tss->last_cc;
@@ -2041,14 +2161,15 @@ static int handle_packet(MpegTSContext *ts, const uint8_t *packet)
         av_log(ts->stream, AV_LOG_DEBUG,
                "Continuity check failed for pid %d expected %d got %d\n",
                pid, expected_cc, cc);
-        if(tss->type == MPEGTS_PES) {
+        if (tss->type == MPEGTS_PES) {
             PESContext *pc = tss->u.pes_filter.opaque;
             pc->flags |= AV_PKT_FLAG_CORRUPT;
         }
     }
 
-    if (!has_payload)
+    if (!has_payload) {
         return 0;
+    }
     p = packet + 4;
     if (has_adaptation) {
         /* skip adapation field */
@@ -2056,27 +2177,30 @@ static int handle_packet(MpegTSContext *ts, const uint8_t *packet)
     }
     /* if past the end of packet, ignore */
     p_end = packet + TS_PACKET_SIZE;
-    if (p >= p_end)
+    if (p >= p_end) {
         return 0;
+    }
 
     pos = avio_tell(ts->stream->pb);
     if (pos < s->file_size) {
-        ts->pos47= pos % ts->raw_packet_size;
+        ts->pos47 = pos % ts->raw_packet_size;
     }
 
     if (tss->type == MPEGTS_SECTION) {
         if (is_start) {
             /* pointer field present */
             len = *p++;
-            if (p + len > p_end)
+            if (p + len > p_end) {
                 return 0;
+            }
             if (len && cc_ok) {
                 /* write remaining section bytes */
                 write_section_data(s, tss,
                                    p, len, 0);
                 /* check whether filter has been closed */
-                if (!ts->pids[pid])
+                if (!ts->pids[pid]) {
                     return 0;
+                }
             }
             p += len;
             if (p < p_end) {
@@ -2103,7 +2227,7 @@ static int handle_packet(MpegTSContext *ts, const uint8_t *packet)
                     st->codec->profile = 1;
                     st->need_check_avs_version = 0;
                     return 0;
-                } else if(avs_version == 0) {
+                } else if (avs_version == 0) {
                     st->codec->profile = 0;
                     st->need_check_avs_version = 0;
                 }
@@ -2113,8 +2237,9 @@ static int handle_packet(MpegTSContext *ts, const uint8_t *packet)
 
         // Note: The position here points actually behind the current packet.
         if ((ret = tss->u.pes_filter.pes_cb(tss, p, p_end - p, is_start,
-                                            pos - ts->raw_packet_size)) < 0)
+                                            pos - ts->raw_packet_size)) < 0) {
             return ret;
+        }
     }
 
     if (tss->type == MPEGTS_PES) {
@@ -2122,12 +2247,12 @@ static int handle_packet(MpegTSContext *ts, const uint8_t *packet)
         if (pc) {
             AVStream * st = pc->st;
             if (st) {
-                if (ts->first_packet == 1 && (st->codec->codec_id == CODEC_ID_MPEG2VIDEO || st->codec->codec_id == CODEC_ID_H264 || st->codec->codec_id == CODEC_ID_HEVC )) {
+                if (ts->first_packet == 1 && (st->codec->codec_id == CODEC_ID_MPEG2VIDEO || st->codec->codec_id == CODEC_ID_H264 || st->codec->codec_id == CODEC_ID_HEVC)) {
                     if (st->codec->codec_id == CODEC_ID_MPEG2VIDEO) {
                         if (get_mpeg_seq_packet(s, packet) < 0) {
                             //av_log(s, AV_LOG_INFO, "get  mpeg seq packet fail ! \n");
                             return 0;
-                      	}	  
+                        }
                     } else if (st->codec->codec_id == CODEC_ID_H264) {
                         if (Get_H264_Header_Packet(s, packet) < 0) {
                             ///av_log(s, AV_LOG_INFO, "get  h264 header packet fail ! \n");
@@ -2136,7 +2261,7 @@ static int handle_packet(MpegTSContext *ts, const uint8_t *packet)
                     } else {
                         ts->is_hevc = 1;
                         ts->hevc_stream_index = st->index;
-                 	}			  
+                    }
                     ts->first_packet = 0;
                 }
             }
@@ -2153,59 +2278,75 @@ static int mpegts_resync(AVFormatContext *s)
     AVIOContext *pb = s->pb;
     int c, i;
 
-    for(i = 0;i < MAX_RESYNC_SIZE; i++) {
+    for (i = 0; i < MAX_RESYNC_SIZE; i++) {
         c = avio_r8(pb);
-		if(pb->pos > s->valid_offset && s->valid_offset > 0){
-			av_log(s, AV_LOG_ERROR, "exceed valid offset\n");
-			return AVERROR_EOF;
-		}
-        if (c < 0)
-            return -1;
+        if (pb->pos > s->valid_offset && s->valid_offset > 0) {
+            av_log(s, AV_LOG_ERROR, "exceed valid offset\n");
+            return AVERROR_EOF;
+        }
+        // c == 0 means lpbuf empty, do some sleep
+        if ((c == -1) && 1 != pb->local_playback) {
+            if (i % 500 == 0) {
+                av_log(s, AV_LOG_ERROR, "mpegts_resync sleep 1ms,could not find sync byte\n");
+            }
+            amthreadpool_thread_usleep(1000);
+        }
         if (c == 0x47) {
             avio_seek(pb, -1, SEEK_CUR);
             return 0;
         }
-        if(i%100==1 && url_interrupt_cb())
+        if (i % 100 == 1 && url_interrupt_cb()) {
             return -1;
+        }
     }
     av_log(s, AV_LOG_ERROR, "max resync size reached, could not find sync byte\n");
     /* no sync found */
     return -1;
 }
-
 /* return -1 if error or EOF. Return 0 if OK. */
 #define RETRY_MAX 10000 //retry 10s
 static int read_packet(AVFormatContext *s, uint8_t *buf, int raw_packet_size)
 {
     AVIOContext *pb = s->pb;
     int skip, len;
-	int ret;
+    int ret;
     int pkt_size;
     int total;
     int retry_count = 0;
-    uint8_t * buf_read = buf;
+    char errbuf[128];
 
-    for(;;) {
+
+    for (;;) {
         pkt_size = TS_PACKET_SIZE;
         total = 0;
 RETRY:
-        len = avio_read(pb, buf_read, pkt_size);
+        if (url_interrupt_cb()) {
+            return AVERROR(EAGAIN);
+        }
+        len = avio_read(pb, buf + total, pkt_size);
         if (len <= 0 && ((len == AVERROR_EOF)
-            || (len == AVERROR_EXIT)
-            || (len == AVERROR(EIO))
-            || (len == AVERROR(EINTR))
-            || (len == AVERROR(EAGAIN))
-            || (len == HLS_STREAM_EOF)
-            || (retry_count >= RETRY_MAX))) {
+                         || (len == AVERROR_EXIT)
+                         || (len == AVERROR(EIO))
+                         || (len == AVERROR(EINTR))
+                         || (len == AVERROR(EAGAIN))
+                         || (len == HLS_STREAM_EOF)
+                         || (retry_count >= RETRY_MAX))) {
+
+            av_strerror(len, errbuf, sizeof(errbuf));
             if (len != AVERROR(EAGAIN)) {
-                av_log(s, AV_LOG_ERROR, "avio read error, retry_cout = %d!, len = %d", retry_count, len);
+                av_log(s, AV_LOG_ERROR, "avio read error, retry_cout = %d!, len = %d,seek:%d,%s\n", retry_count, len, total, errbuf);
+            } else {
+                amthreadpool_thread_usleep(1000);
+                avio_seek(pb, -total, SEEK_CUR);
+                total = 0;
+                goto RETRY;
             }
+
             return len < 0 ? len : AVERROR_EOF;
         } else if (len == AVERROR(ENOSR)) {
             av_log(s, AV_LOG_ERROR, "avio read %d, return ENOSR", len);
             return AVERROR(ENOSR);
-        }
-        else if (len < 0){
+        } else if (len < 0) {
             av_log(s, AV_LOG_ERROR, "avio read error, len = %d, retry_cout = %d", len, retry_count);
             len = 0;
         }
@@ -2214,7 +2355,6 @@ RETRY:
             retry_count++;
             amthreadpool_thread_usleep(1000);
             pkt_size = TS_PACKET_SIZE - total;
-            buf_read += len;
             if (retry_count % 100 == 1) {
                 av_log(s, AV_LOG_ERROR, "avio reading , retry_cout = %d, read total size = %d, pkt_size = %d, len = %d !", retry_count, total, pkt_size, len);
             }
@@ -2227,19 +2367,21 @@ RETRY:
         if (buf[0] != 0x47) {
             /* find a new packet start */
             avio_seek(pb, -TS_PACKET_SIZE, SEEK_CUR);
-			ret = mpegts_resync(s) ;
-            if (ret < 0){
-				if(ret == AVERROR_EOF)
-					return ret;
-				else
-					return AVERROR(EAGAIN);
-            }
-            else
+            ret = mpegts_resync(s) ;
+            if (ret < 0) {
+                if (ret == AVERROR_EOF) {
+                    return ret;
+                } else {
+                    return AVERROR(EAGAIN);
+                }
+            } else {
                 continue;
+            }
         } else {
             skip = raw_packet_size - TS_PACKET_SIZE;
-            if (skip > 0)
+            if (skip > 0) {
                 avio_skip(pb, skip);
+            }
             break;
         }
     }
@@ -2254,18 +2396,22 @@ static int handle_packets(MpegTSContext *ts, int nb_packets)
 
     ts->stop_parse = 0;
     packet_num = 0;
-    for(;;) {
-        if (ts->stop_parse>0)
+    for (;;) {
+        if (ts->stop_parse > 0) {
             break;
+        }
         packet_num++;
-        if (nb_packets != 0 && packet_num >= nb_packets)
+        if (nb_packets != 0 && packet_num >= nb_packets) {
             break;
+        }
         ret = read_packet(s, packet, ts->raw_packet_size);
-        if (ret != 0)
+        if (ret != 0) {
             return ret;
+        }
         ret = handle_packet(ts, packet);
-        if (ret != 0)
+        if (ret != 0) {
             return ret;
+        }
     }
     return 0;
 }
@@ -2273,39 +2419,50 @@ static int handle_packets(MpegTSContext *ts, int nb_packets)
 static int mpegts_probe(AVProbeData *p)
 {
 #if 1
-    const int size= p->buf_size;
+    const int size = p->buf_size;
     int score, fec_score, dvhs_score;
-    int check_count= size / TS_FEC_PACKET_SIZE;
+    int check_count = size / TS_FEC_PACKET_SIZE;
 #define CHECK_COUNT 10
 
-    if (check_count < 5)
+    if (check_count < 5) {
         return -1;
-    {
-      char *ppbuf=p->buf;
-      int scannum=188;
-      while(scannum-->0 && ppbuf[0]!=0x47) ppbuf++;
-      if(ppbuf[0] == 0x47 && ppbuf[188] == 0x47 && ppbuf[188*2] == 0x47)
-          return AVPROBE_SCORE_MAX;
     }
-	if (check_count < CHECK_COUNT)
-			return -1;
+    {
+        char *ppbuf = p->buf;
+        int scannum = 188;
+        while (scannum-- > 0 && ppbuf[0] != 0x47) {
+            ppbuf++;
+        }
+        if (ppbuf[0] == 0x47 && ppbuf[188] == 0x47 && ppbuf[188 * 2] == 0x47) {
+            return AVPROBE_SCORE_MAX;
+        }
+    }
+    if (check_count < CHECK_COUNT) {
+        return -1;
+    }
 
-    score     = analyze(p->buf, TS_PACKET_SIZE     *check_count, TS_PACKET_SIZE     , NULL)*CHECK_COUNT/check_count;
-    dvhs_score= analyze(p->buf, TS_DVHS_PACKET_SIZE*check_count, TS_DVHS_PACKET_SIZE, NULL)*CHECK_COUNT/check_count;
-    fec_score = analyze(p->buf, TS_FEC_PACKET_SIZE *check_count, TS_FEC_PACKET_SIZE , NULL)*CHECK_COUNT/check_count;
-//    av_log(NULL, AV_LOG_DEBUG, "score: %d, dvhs_score: %d, fec_score: %d \n", score, dvhs_score, fec_score);
+    score     = analyze(p->buf, TS_PACKET_SIZE     * check_count, TS_PACKET_SIZE     , NULL) * CHECK_COUNT / check_count;
+    dvhs_score = analyze(p->buf, TS_DVHS_PACKET_SIZE * check_count, TS_DVHS_PACKET_SIZE, NULL) * CHECK_COUNT / check_count;
+    fec_score = analyze(p->buf, TS_FEC_PACKET_SIZE * check_count, TS_FEC_PACKET_SIZE , NULL) * CHECK_COUNT / check_count;
+    //    av_log(NULL, AV_LOG_DEBUG, "score: %d, dvhs_score: %d, fec_score: %d \n", score, dvhs_score, fec_score);
 
-// we need a clear definition for the returned score otherwise things will become messy sooner or later
-    if     (score > fec_score && score > dvhs_score && score > 6) return AVPROBE_SCORE_MAX + score     - CHECK_COUNT;
-    else if(dvhs_score > score && dvhs_score > fec_score && dvhs_score > 6) return AVPROBE_SCORE_MAX + dvhs_score  - CHECK_COUNT;
-    else if(                 fec_score > 6) return AVPROBE_SCORE_MAX + fec_score - CHECK_COUNT;
-    else                                    return -1;
+    // we need a clear definition for the returned score otherwise things will become messy sooner or later
+    if (score > fec_score && score > dvhs_score && score > 6) {
+        return AVPROBE_SCORE_MAX + score     - CHECK_COUNT;
+    } else if (dvhs_score > score && dvhs_score > fec_score && dvhs_score > 6) {
+        return AVPROBE_SCORE_MAX + dvhs_score  - CHECK_COUNT;
+    } else if (fec_score > 6) {
+        return AVPROBE_SCORE_MAX + fec_score - CHECK_COUNT;
+    } else {
+        return -1;
+    }
 #else
     /* only use the extension for safer guess */
-    if (av_match_ext(p->filename, "ts"))
+    if (av_match_ext(p->filename, "ts")) {
         return AVPROBE_SCORE_MAX;
-    else
+    } else {
         return 0;
+    }
 #endif
 }
 
@@ -2319,19 +2476,23 @@ static int parse_pcr(int64_t *ppcr_high, int *ppcr_low,
     unsigned int v;
 
     afc = (packet[3] >> 4) & 3;
-    if (afc <= 1)
+    if (afc <= 1) {
         return -1;
+    }
     p = packet + 4;
     len = p[0];
     p++;
-    if (len == 0)
+    if (len == 0) {
         return -1;
+    }
     flags = *p++;
     len--;
-    if (!(flags & 0x10))
+    if (!(flags & 0x10)) {
         return -1;
-    if (len < 6)
+    }
+    if (len < 6) {
         return -1;
+    }
     v = AV_RB32(p);
     *ppcr_high = ((int64_t)v << 1) | (p[4] >> 7);
     *ppcr_low = ((p[4] & 1) << 8) | p[5];
@@ -2341,51 +2502,57 @@ static int parse_pcr(int64_t *ppcr_high, int *ppcr_low,
 static void check_ac3_dts(AVFormatContext * s)
 {
 
-        MpegTSContext *ts = s->priv_data;
-        int s_index;
-        uint8_t packet[TS_PACKET_SIZE];
-        for(s_index=0;s_index<s->nb_streams;s_index++)
-        {
-                int codec_id=s->streams[s_index]->codec->codec_id;
-                int c_pid=s->streams[s_index]->id;
-                if(codec_id==CODEC_ID_AC3)
-                {
-                        int packet_num, ret;
-                        int pes_header_pos,es_header_pos;
-                        packet_num = 0;
-                        for(;;) {
-                                packet_num++;
-                                if (packet_num >=180000)
-					break;
-                                ret = read_packet(s, packet, ts->raw_packet_size);
-                                if (ret != 0)
-                                        return;
-                                if(   (c_pid != (AV_RB16(packet + 1) & 0x1fff)) && (1 != (packet[1] & 0x40)) ) //pid equal and must have pes/es header 
-                                        continue;
-                                //seek to the pes header
-                                for(pes_header_pos=0;pes_header_pos<ts->raw_packet_size-3;pes_header_pos++)
-                                {
-                                        if(packet[pes_header_pos]==0x00&&packet[pes_header_pos+1]==0x00&&packet[pes_header_pos+2]==0x01)
-                				break;
-                                }
-                                if(pes_header_pos==ts->raw_packet_size-3)
-                                        continue;
-                                //we found the pes header and parse
-                                es_header_pos= packet[pes_header_pos+8] + 9 + pes_header_pos;//pes header size
-                                if(packet[es_header_pos]==0x1F&&packet[es_header_pos+1]==0xFF&&packet[es_header_pos+2]==0xE8&&packet[es_header_pos]==0x00)
-                                        s->streams[s_index]->codec->codec_id=CODEC_ID_DTS;
-                                if(packet[es_header_pos]==0xFF&&packet[es_header_pos+1]==0x1F&&packet[es_header_pos+2]==0x00&&packet[es_header_pos+3]==0xE8)
-                                        s->streams[s_index]->codec->codec_id=CODEC_ID_DTS;
-                                if(packet[es_header_pos]==0x7F&&packet[es_header_pos+1]==0xFE&&packet[es_header_pos+2]==0x80&&packet[es_header_pos+3]==0x01)
-                                        s->streams[s_index]->codec->codec_id=CODEC_ID_DTS;
-                                if(packet[es_header_pos]==0xFE&&packet[es_header_pos+1]==0x7F&&packet[es_header_pos+2]==0x01&&packet[es_header_pos+3]==0x80)
-                                        s->streams[s_index]->codec->codec_id=CODEC_ID_DTS;
-
-                                break;
-                        }
-
+    MpegTSContext *ts = s->priv_data;
+    int s_index;
+    uint8_t packet[TS_PACKET_SIZE];
+    for (s_index = 0; s_index < s->nb_streams; s_index++) {
+        int codec_id = s->streams[s_index]->codec->codec_id;
+        int c_pid = s->streams[s_index]->id;
+        if (codec_id == CODEC_ID_AC3) {
+            int packet_num, ret;
+            int pes_header_pos, es_header_pos;
+            packet_num = 0;
+            for (;;) {
+                packet_num++;
+                if (packet_num >= 180000) {
+                    break;
                 }
+                ret = read_packet(s, packet, ts->raw_packet_size);
+                if (ret != 0) {
+                    return;
+                }
+                if ((c_pid != (AV_RB16(packet + 1) & 0x1fff)) && (1 != (packet[1] & 0x40))) {  //pid equal and must have pes/es header
+                    continue;
+                }
+                //seek to the pes header
+                for (pes_header_pos = 0; pes_header_pos < ts->raw_packet_size - 3; pes_header_pos++) {
+                    if (packet[pes_header_pos] == 0x00 && packet[pes_header_pos + 1] == 0x00 && packet[pes_header_pos + 2] == 0x01) {
+                        break;
+                    }
+                }
+                if (pes_header_pos == ts->raw_packet_size - 3) {
+                    continue;
+                }
+                //we found the pes header and parse
+                es_header_pos = packet[pes_header_pos + 8] + 9 + pes_header_pos; //pes header size
+                if (packet[es_header_pos] == 0x1F && packet[es_header_pos + 1] == 0xFF && packet[es_header_pos + 2] == 0xE8 && packet[es_header_pos] == 0x00) {
+                    s->streams[s_index]->codec->codec_id = CODEC_ID_DTS;
+                }
+                if (packet[es_header_pos] == 0xFF && packet[es_header_pos + 1] == 0x1F && packet[es_header_pos + 2] == 0x00 && packet[es_header_pos + 3] == 0xE8) {
+                    s->streams[s_index]->codec->codec_id = CODEC_ID_DTS;
+                }
+                if (packet[es_header_pos] == 0x7F && packet[es_header_pos + 1] == 0xFE && packet[es_header_pos + 2] == 0x80 && packet[es_header_pos + 3] == 0x01) {
+                    s->streams[s_index]->codec->codec_id = CODEC_ID_DTS;
+                }
+                if (packet[es_header_pos] == 0xFE && packet[es_header_pos + 1] == 0x7F && packet[es_header_pos + 2] == 0x01 && packet[es_header_pos + 3] == 0x80) {
+                    s->streams[s_index]->codec->codec_id = CODEC_ID_DTS;
+                }
+
+                break;
+            }
+
         }
+    }
 }
 
 
@@ -2395,47 +2562,47 @@ static int mpegts_read_header(AVFormatContext *s,
 {
     MpegTSContext *ts = s->priv_data;
     AVIOContext *pb = s->pb;
-    uint8_t buf[8*1024];
+    uint8_t buf[8 * 1024];
     int len;
     int64_t pos;
+    int probesize = 0;
 
- 	
     recalcpts_resetinfo(ts);
-	ts->first_pcrscr=AV_NOPTS_VALUE;
-
-	if(am_getconfig_bool("libplayer.netts.recalcpts")){
-		ts->pownon_recalcpts=1;
-	}
-
-	av_log(NULL,AV_LOG_ERROR,"livingstream ts->pownon_recalcpts[%d]\n",ts->pownon_recalcpts);
+    ts->first_pcrscr = AV_NOPTS_VALUE;
+    if (am_getconfig_bool("libplayer.netts.recalcpts")) {
+        ts->pownon_recalcpts = 1;
+    }
+    probesize = am_getconfig_int_def("libplayer.netts.probesize", 0);
+    av_log(NULL, AV_LOG_ERROR, "livingstream ts->pownon_recalcpts[%d]\n", ts->pownon_recalcpts);
 #if FF_API_FORMAT_PARAMETERS
     if (ap) {
-        if (ap->mpeg2ts_compute_pcr)
+        if (ap->mpeg2ts_compute_pcr) {
             ts->mpeg2ts_compute_pcr = ap->mpeg2ts_compute_pcr;
-        if(ap->mpeg2ts_raw){
+        }
+        if (ap->mpeg2ts_raw) {
             av_log(s, AV_LOG_ERROR, "use mpegtsraw_demuxer!\n");
             return -1;
         }
     }
 #endif
 
-	int reget_size_cnt = 0;
+    int reget_size_cnt = 0;
 reget_packet_size:
     /* read the first 1024 bytes to get packet size */
     pos = avio_tell(pb);
     do {
         len = avio_read(pb, buf, sizeof(buf));
-    } while((len < sizeof(buf) || len == AVERROR(EAGAIN)) && !url_interrupt_cb());
-    if (len != sizeof(buf))
+    } while ((len < sizeof(buf) || len == AVERROR(EAGAIN)) && !url_interrupt_cb());
+    if (len != sizeof(buf)) {
         goto fail;
+    }
     ts->raw_packet_size = get_packet_size(buf, sizeof(buf));
     if (ts->raw_packet_size <= 0) {
         av_log(s, AV_LOG_WARNING, "Could not detect TS packet size, defaulting to non-FEC/DVHS\n");
-		if(reget_size_cnt++ < 100)
-		{
-			reget_size_cnt++;
-			goto reget_packet_size;
-		}
+        if (reget_size_cnt++ < 100) {
+            reget_size_cnt++;
+            goto reget_packet_size;
+        }
         ts->raw_packet_size = TS_PACKET_SIZE;
     }
     ts->stream = s;
@@ -2446,17 +2613,21 @@ reget_packet_size:
         /* normal demux */
 
         /* first do a scaning to get all the services */
-        if (avio_seek(pb, pos, SEEK_SET) < 0)
+        if (avio_seek(pb, pos, SEEK_SET) < 0) {
             av_log(s, AV_LOG_ERROR, "Unable to seek back to the start\n");
+        }
 
         mpegts_open_section_filter(ts, SDT_PID, sdt_cb, ts, 1);
 
         mpegts_open_section_filter(ts, PAT_PID, pat_cb, ts, 1);
-
-        if(pb->fastdetectedinfo||pb->is_slowmedia)
-		handle_packets(ts, 256*1024 / ts->raw_packet_size);
-	else
-        	handle_packets(ts, s->probesize / ts->raw_packet_size);
+        if (probesize && 1 != pb->local_playback) {
+            av_log(NULL, AV_LOG_INFO, "mpegts net stream use probesize:%d\n", probesize);
+            handle_packets(ts, probesize / ts->raw_packet_size);
+        } else if (pb->fastdetectedinfo || pb->is_slowmedia) {
+            handle_packets(ts, 1024 * 1024 / ts->raw_packet_size);
+        } else {
+            handle_packets(ts, s->probesize / ts->raw_packet_size);
+        }
         /* if could not find service, enable auto_guess */
 
         ts->auto_guess = 1;
@@ -2474,8 +2645,9 @@ reget_packet_size:
         /* only read packets */
 
         st = av_new_stream(s, 0);
-        if (!st)
+        if (!st) {
             goto fail;
+        }
         av_set_pts_info(st, 60, 1, 27000000);
         st->codec->codec_type = AVMEDIA_TYPE_DATA;
         st->codec->codec_id = CODEC_ID_MPEG2TS;
@@ -2484,10 +2656,11 @@ reget_packet_size:
         pcr_pid = -1;
         nb_pcrs = 0;
         nb_packets = 0;
-        for(;;) {
+        for (;;) {
             ret = read_packet(s, packet, ts->raw_packet_size);
-            if (ret < 0)
+            if (ret < 0) {
                 return -1;
+            }
             pid = AV_RB16(packet + 1) & 0x1fff;
             if ((pcr_pid == -1 || pcr_pid == pid) &&
                 parse_pcr(&pcr_h, &pcr_l, packet) == 0) {
@@ -2495,8 +2668,9 @@ reget_packet_size:
                 packet_count[nb_pcrs] = nb_packets;
                 pcrs[nb_pcrs] = pcr_h * 300 + pcr_l;
                 nb_pcrs++;
-                if (nb_pcrs >= 2)
+                if (nb_pcrs >= 2) {
                     break;
+                }
             }
             nb_packets++;
         }
@@ -2515,11 +2689,10 @@ reget_packet_size:
     ts->first_packet = 1;
     ts->hevc_first_packet = 1;
     ts->hevc_stream_index = -1;
-    ts->get_pcr_valid = 1;
     check_ac3_dts(s);
     avio_seek(pb, pos, SEEK_SET);
     return 0;
- fail:
+fail:
     return -1;
 }
 
@@ -2534,9 +2707,10 @@ static int mpegts_raw_read_packet(AVFormatContext *s,
     int pcr_l, next_pcr_l;
     uint8_t pcr_buf[12];
 
-    if (av_new_packet(pkt, TS_PACKET_SIZE) < 0)
+    if (av_new_packet(pkt, TS_PACKET_SIZE) < 0) {
         return AVERROR(ENOMEM);
-    pkt->pos= avio_tell(s->pb);
+    }
+    pkt->pos = avio_tell(s->pb);
     ret = read_packet(s, pkt->data, ts->raw_packet_size);
     if (ret < 0) {
         av_free_packet(pkt);
@@ -2547,13 +2721,13 @@ static int mpegts_raw_read_packet(AVFormatContext *s,
         if (parse_pcr(&pcr_h, &pcr_l, pkt->data) == 0) {
             /* we read the next PCR (XXX: optimize it by using a bigger buffer */
             pos = avio_tell(s->pb);
-            for(i = 0; i < MAX_PACKET_READAHEAD; i++) {
+            for (i = 0; i < MAX_PACKET_READAHEAD; i++) {
                 avio_seek(s->pb, pos + i * ts->raw_packet_size, SEEK_SET);
                 avio_read(s->pb, pcr_buf, 12);
                 if (parse_pcr(&next_pcr_h, &next_pcr_l, pcr_buf) == 0) {
                     /* XXX: not precise enough */
                     ts->pcr_incr = ((next_pcr_h - pcr_h) * 300 + (next_pcr_l - pcr_l)) /
-                        (i + 1);
+                                   (i + 1);
                     break;
                 }
             }
@@ -2570,10 +2744,10 @@ static int mpegts_raw_read_packet(AVFormatContext *s,
 }
 
 static int mpegts_read_packet_inside(AVFormatContext *s,
-                              AVPacket *pkt)
+                                     AVPacket *pkt)
 {
     MpegTSContext *ts = s->priv_data;
-    int ret, i,j;
+    int ret, i, j;
 
     if (avio_tell(s->pb) != ts->last_pos) {
         /* seek detected, flush pes buffer */
@@ -2585,19 +2759,20 @@ static int mpegts_read_packet_inside(AVFormatContext *s,
                 pes->state = MPEGTS_SKIP; /* skip until pes header */
             }
         }
+        av_log(NULL, AV_LOG_ERROR, "free %d pes packet buffer\n", i);
     }
 
     ts->pkt = pkt;
     ret = handle_packets(ts, 0);
     if (ret < 0) {
         /* flush pes data left */
-        for (i = 0; i < NB_PID_MAX; i++) {		
-	    for (j=0;j<s->nb_streams;j++){
-	 	 if(ts->pids[i] &&s->streams[j]->id==ts->pids[i]->pid&&ts->pids[i]->encrypt==1){
-		      s->streams[j]->encrypt=1;
-		      av_log(NULL, AV_LOG_ERROR, "mpegts find encrypt stream pid %d\n",s->streams[j]->id);
-		  }
-	     }
+        for (i = 0; i < NB_PID_MAX; i++) {
+            for (j = 0; j < s->nb_streams; j++) {
+                if (ts->pids[i] && s->streams[j]->id == ts->pids[i]->pid && ts->pids[i]->encrypt == 1) {
+                    s->streams[j]->encrypt = 1;
+                    av_log(NULL, AV_LOG_ERROR, "mpegts find encrypt stream pid %d\n", s->streams[j]->id);
+                }
+            }
             if (ts->pids[i] && ts->pids[i]->type == MPEGTS_PES) {
                 PESContext *pes = ts->pids[i]->u.pes_filter.opaque;
                 if (pes->state == MPEGTS_PAYLOAD && pes->data_index > 0) {
@@ -2623,16 +2798,21 @@ static int mpegts_read_packet(AVFormatContext *s,
     ret = mpegts_read_packet_inside(s, pkt);
     if (ret == 0) {
         recalcpts_startwhetherornot(s, pkt);
-        recalcpts_pts(s,pkt);
+        recalcpts_pts(s, pkt);
     }
 
     // parse hevc csd from first frame.
     // maybe a lot data among a few ts packets.
     MpegTSContext *ts = s->priv_data;
     if (ts->is_hevc == 1 && ts->hevc_first_packet == 1 && pkt->stream_index == ts->hevc_stream_index) {
+        int ret;
         AVStream * st = s->streams[ts->hevc_stream_index];
-        get_hevc_csd_packet(s, st, pkt);
+        ret = get_hevc_csd_packet(s, st, pkt);
         ts->hevc_first_packet = 0;
+
+        if (ret == -1) {
+            ts->stream->hevc_no_csd_data = 1;
+        }
     }
 
     return ret;
@@ -2644,51 +2824,97 @@ static int mpegts_read_close(AVFormatContext *s)
     recalcpts_resetinfo(ts);
     clear_programs(ts);
 
-    for(i=0;i<NB_PID_MAX;i++)
-        if (ts->pids[i]) mpegts_close_filter(ts, ts->pids[i]);
+    for (i = 0; i < NB_PID_MAX; i++)
+        if (ts->pids[i]) {
+            mpegts_close_filter(ts, ts->pids[i]);
+        }
     HDCP_decrypt = NULL;
-#ifdef HDCP_LOCAL_PLAY_DEBUG
-    if (hdcp_local_play) {
-        HDCP_destroy_module(HDCP_module);
-        hdcp_local_play = 0;
-    }
-#endif
     return 0;
 }
 
 #define GET_PCR_POS 5*1024*1024
-#define PCR_HIGH_MAX (0x200000000L)
-#define PCR_NEAR_WRAP_CHECK (0x200000000L-0x20000000)//about 1.5h
 
 static int64_t mpegts_get_pcr(AVFormatContext *s, int stream_index,
-                              int64_t *ppos, int64_t pos_limit);
+                              int64_t *ppos, int64_t pos_limit)
+{
+    MpegTSContext *ts = s->priv_data;
+    int64_t pos, timestamp, t_pos = 0;
+    uint8_t buf[TS_PACKET_SIZE];
+    int pcr_l, pcr_pid = ((PESContext*)s->streams[stream_index]->priv_data)->pcr_pid;
+    const int find_next = 1;
+    pos = ((*ppos  + ts->raw_packet_size - 1 - ts->pos47) / ts->raw_packet_size) * ts->raw_packet_size + ts->pos47;
+    if (find_next) {
+        while (pos < pos_limit) {
+            if (avio_seek(s->pb, pos, SEEK_SET) < 0) {
+                return AV_NOPTS_VALUE;
+            }
+            if (avio_read(s->pb, buf, TS_PACKET_SIZE) != TS_PACKET_SIZE) {
+                return AV_NOPTS_VALUE;
+            }
+            if (buf[0] != 0x47) {
+                avio_seek(s->pb, -TS_PACKET_SIZE, SEEK_CUR);
+                if (mpegts_resync(s) < 0) {
+                    return AV_NOPTS_VALUE;
+                }
+                pos = avio_tell(s->pb);
+                continue;
+            }
+            if ((pcr_pid < 0 || (AV_RB16(buf + 1) & 0x1fff) == pcr_pid) &&
+                parse_pcr(&timestamp, &pcr_l, buf) == 0) {
+                *ppos = pos;
+                return timestamp;
+            }
+            if (t_pos > GET_PCR_POS) {
+                return AV_NOPTS_VALUE;
+            }
+            pos += ts->raw_packet_size;
+            t_pos += ts->raw_packet_size;
+        }
+    } else {
+        for (;;) {
+            pos -= ts->raw_packet_size;
+            if (pos < 0) {
+                return AV_NOPTS_VALUE;
+            }
+            if (avio_seek(s->pb, pos, SEEK_SET) < 0) {
+                return AV_NOPTS_VALUE;
+            }
+            if (mpegts_resync(s) < 0) {
+                return AV_NOPTS_VALUE;
+            }
+            if (avio_read(s->pb, buf, TS_PACKET_SIZE) != TS_PACKET_SIZE) {
+                return AV_NOPTS_VALUE;
+            }
+            if ((pcr_pid < 0 || (AV_RB16(buf + 1) & 0x1fff) == pcr_pid) &&
+                parse_pcr(&timestamp, &pcr_l, buf) == 0) {
+                *ppos = pos;
+                return timestamp;
+            }
+        }
+    }
+    return AV_NOPTS_VALUE;
+}
 
 static int64_t mpegts_get_dts(AVFormatContext *s, int stream_index,
-        int64_t *ppos, int64_t pos_limit)
+                              int64_t *ppos, int64_t pos_limit)
 {
     MpegTSContext *ts = s->priv_data;
     int64_t pos;
     int try_count = 0;
     int pos47 = ts->pos47;
     int64_t timestamp = AV_NOPTS_VALUE;
-
-    if (av_bluray_supported(s)) {
-        av_log(NULL, AV_LOG_INFO, "[mpegts_get_dts:]bluary use get pcr\n");
-        timestamp = mpegts_get_pcr(s, stream_index, ppos, pos_limit);
-        return timestamp;
-    }
-
     pos = ((*ppos  + ts->raw_packet_size - 1 - pos47) / ts->raw_packet_size) * ts->raw_packet_size + pos47;
     ff_read_frame_flush(s);
-    if (avio_seek(s->pb, pos, SEEK_SET) < 0)
+    if (avio_seek(s->pb, pos, SEEK_SET) < 0) {
         return AV_NOPTS_VALUE;
+    }
     while (pos < pos_limit) {
         int ret;
         AVPacket pkt;
         av_init_packet(&pkt);
         ret = av_read_frame(s, &pkt);
-        if (ret < 0 ||try_count >5) {
-            av_log(NULL, AV_LOG_ERROR, "mpegts_get_dts av_read_frame error try_count:%d\n",try_count);
+        if (ret < 0 || try_count > 5) {
+            av_log(NULL, AV_LOG_ERROR, "mpegts_get_dts av_read_frame error try_count:%d\n", try_count);
             break;
         }
         if (pkt.dts != AV_NOPTS_VALUE && pkt.pos >= 0) {
@@ -2706,85 +2932,19 @@ static int64_t mpegts_get_dts(AVFormatContext *s, int stream_index,
         }
         av_free_packet(&pkt);
     }
-    ff_read_frame_flush(s);
 
+    ff_read_frame_flush(s);
     //used for get pcr,if not get dts when seek,use get pcr instead
     timestamp = mpegts_get_pcr(s, stream_index, ppos, pos_limit);
     return timestamp;
 }
 
-static int64_t mpegts_get_pcr(AVFormatContext *s, int stream_index,
-                              int64_t *ppos, int64_t pos_limit)
-{
-    MpegTSContext *ts = s->priv_data;
-    int64_t pos, timestamp, t_pos = 0;
-    uint8_t buf[TS_PACKET_SIZE];
-    int pcr_l, pcr_pid = ((PESContext*)s->streams[stream_index]->priv_data)->pcr_pid;
-    const int find_next= 1;
-    pos = ((*ppos  + ts->raw_packet_size - 1 - ts->pos47) / ts->raw_packet_size) * ts->raw_packet_size + ts->pos47;
-    if (find_next) {
-        for(;;) {
-            if (avio_seek(s->pb, pos, SEEK_SET) < 0)
-    			return AV_NOPTS_VALUE;
-            if (mpegts_resync(s) < 0)
-                return AV_NOPTS_VALUE;
-            if (avio_read(s->pb, buf, TS_PACKET_SIZE) != TS_PACKET_SIZE)
-                return AV_NOPTS_VALUE;
-            if ((pcr_pid <= 0 || (AV_RB16(buf + 1) & 0x1fff) == pcr_pid) &&
-                parse_pcr(&timestamp, &pcr_l, buf) == 0) {
-                if (av_bluray_supported(s)) {
-                    int64_t start_time;
-                    avio_getinfo(s->pb, AVCMD_GET_CLIP_BASE_PCR, 0, &start_time);
-                    av_log(NULL, AV_LOG_INFO, "mpegts_get_pcr: start_time = 0x%llx\n", start_time);
-                    timestamp += start_time;
-                }
-                break;
-            }
-            if (t_pos > GET_PCR_POS || !ts->get_pcr_valid) {
-                ts->get_pcr_valid = 0;
-                int64_t timestamp = mpegts_get_dts(s, stream_index, ppos, pos_limit);
-                return timestamp;
-            }
-            pos += ts->raw_packet_size;
-            t_pos += ts->raw_packet_size;
-        }
-    } else {
-        for(;;) {
-            pos -= ts->raw_packet_size;
-            if (pos < 0)
-                return AV_NOPTS_VALUE;
-            if (avio_seek(s->pb, pos, SEEK_SET) < 0)
-    			return AV_NOPTS_VALUE;
-            if (mpegts_resync(s) < 0)
-                return AV_NOPTS_VALUE;
-            if (avio_read(s->pb, buf, TS_PACKET_SIZE) != TS_PACKET_SIZE)
-                return AV_NOPTS_VALUE;
-            if ((pcr_pid <= 0 || (AV_RB16(buf + 1) & 0x1fff) == pcr_pid) &&
-                parse_pcr(&timestamp, &pcr_l, buf) == 0) {
-                break;
-            }
-        }
-    }
-    *ppos = pos;
-    if (ts->first_pcrscr != AV_NOPTS_VALUE &&
-                ts->first_pcrscr > PCR_NEAR_WRAP_CHECK) {
-        if (timestamp < ts->first_pcrscr) {
-            av_log(NULL, AV_LOG_INFO, "mpegts_get_pcr: start PCR Near Wrap"
-                    "timestamp = 0x%llx, ts->first_pcrscr = 0x%llx\n",
-                    timestamp, ts->first_pcrscr);
-            timestamp += PCR_HIGH_MAX;
-        }
-    }
-
-    return timestamp;
-}
-
 static int read_seek2sync(AVFormatContext *s,
-                      int stream_index,
-                      int64_t min_ts,
-                      int64_t target_ts,
-                      int64_t max_ts,
-                      int flags)
+                          int stream_index,
+                          int64_t min_ts,
+                          int64_t target_ts,
+                          int64_t max_ts,
+                          int flags)
 {
     int64_t pos;
 
@@ -2831,7 +2991,7 @@ static int read_seek2sync(AVFormatContext *s,
             return -1;
         }
     }
-    av_log(NULL,AV_LOG_INFO,"%s:%d cost time:%d ms\n", __FUNCTION__, __LINE__, ((int)(av_gettime() - starttime))/1000 );
+    av_log(NULL, AV_LOG_INFO, "%s:%d cost time:%d ms\n", __FUNCTION__, __LINE__, ((int)(av_gettime() - starttime)) / 1000);
     // search for actual matching keyframe/starting position for all streams
     if (ff_gen_syncpoint_search(s, stream_index, pos,
                                 min_ts, target_ts, max_ts,
@@ -2841,7 +3001,7 @@ static int read_seek2sync(AVFormatContext *s,
     }
 
     ff_free_parser_state(s, backup);
-    av_log(NULL,AV_LOG_INFO,"%s:%d cost time:%d ms\n", __FUNCTION__, __LINE__, ((int)(av_gettime() - starttime))/1000 );
+    av_log(NULL, AV_LOG_INFO, "%s:%d cost time:%d ms\n", __FUNCTION__, __LINE__, ((int)(av_gettime() - starttime)) / 1000);
     return 0;
 }
 
@@ -2853,65 +3013,73 @@ static int read_seek2(AVFormatContext *s, int stream_index, int64_t target_ts, i
     if (flags & AVSEEK_FLAG_BACKWARD) {
         flags &= ~AVSEEK_FLAG_BACKWARD;
         ret = read_seek2sync(s, stream_index, INT64_MIN, target_ts, target_ts, flags);
-        av_log(NULL,AV_LOG_INFO,"%s:%d cost time:%d ms\n", __FUNCTION__, __LINE__, ((int)(av_gettime() - starttime))/1000 );
+        av_log(NULL, AV_LOG_INFO, "%s:%d cost time:%d ms\n", __FUNCTION__, __LINE__, ((int)(av_gettime() - starttime)) / 1000);
         if (ret < 0)
             // for compatibility reasons, seek to the best-fitting timestamp
-             ret = read_seek2sync(s, stream_index, INT64_MIN, target_ts, INT64_MAX, flags);
+        {
+            ret = read_seek2sync(s, stream_index, INT64_MIN, target_ts, INT64_MAX, flags);
+        }
     } else {
         ret = read_seek2sync(s, stream_index, target_ts, target_ts, INT64_MAX, flags);
-        av_log(NULL,AV_LOG_INFO,"%s:%d cost time:%d ms\n", __FUNCTION__, __LINE__, ((int)(av_gettime() - starttime))/1000 );
+        av_log(NULL, AV_LOG_INFO, "%s:%d cost time:%d ms\n", __FUNCTION__, __LINE__, ((int)(av_gettime() - starttime)) / 1000);
         if (ret < 0)
             // for compatibility reasons, seek to the best-fitting timestamp
+        {
             ret = read_seek2sync(s, stream_index, INT64_MIN, target_ts, INT64_MAX, flags);
+        }
     }
-    av_log(NULL,AV_LOG_INFO,"%s:%d cost time:%d ms\n", __FUNCTION__, __LINE__, ((int)(av_gettime() - starttime))/1000 );
+    av_log(NULL, AV_LOG_INFO, "%s:%d cost time:%d ms\n", __FUNCTION__, __LINE__, ((int)(av_gettime() - starttime)) / 1000);
     return ret;
 }
 
-static int read_seek(AVFormatContext *s, int stream_index, int64_t target_ts, int flags){
+static int read_seek(AVFormatContext *s, int stream_index, int64_t target_ts, int flags)
+{
     MpegTSContext *ts = s->priv_data;
     uint8_t buf[TS_PACKET_SIZE];
     int64_t pos;
-	int ret;
-
+    int ret;
+    /*use dts seek, don't need del pts and pcr diffs */
     if (0) {
-        // some stream pcrscr start time is not same as ptso
-        // we need del the diffs, otherwise, we don't seek to the need time
-        if (ts->first_pcrscr == AV_NOPTS_VALUE) {/*get the first pcrscr*/
+        /*some stream pcrscr start time is not same as pts
+         we need del the diffs;otherwise,we don't seek to the need time;
+        */
+        if (ts->first_pcrscr == AV_NOPTS_VALUE) { /*get the first pcrscr*/
             int64_t pos1 = 0;
             int64_t temp_pcr1, temp_pcr2, temp_pcr3;
             pos = avio_tell(s->pb);
-            temp_pcr1 = mpegts_get_pcr(s,stream_index,&pos1,INT64_MAX);
+            temp_pcr1 = mpegts_get_dts(s, stream_index, &pos1, INT64_MAX);
             av_log(NULL, AV_LOG_INFO, "[%s:%d]pcr1 %lld, pos1 %lld\n", __FUNCTION__, __LINE__, temp_pcr1, pos1);
             pos1 += ts->raw_packet_size;
-            temp_pcr2 = mpegts_get_pcr(s,stream_index,&pos1,INT64_MAX);
+            temp_pcr2 = mpegts_get_dts(s, stream_index, &pos1, INT64_MAX);
             av_log(NULL, AV_LOG_INFO, "[%s:%d]pcr2 %lld, pos1 %lld\n", __FUNCTION__, __LINE__, temp_pcr2, pos1);
             if (temp_pcr2 - temp_pcr1 > 90000) {
                 pos1 += ts->raw_packet_size;
-                temp_pcr3 = mpegts_get_pcr(s,stream_index,&pos1,INT64_MAX);
+                temp_pcr3 = mpegts_get_dts(s, stream_index, &pos1, INT64_MAX);
                 av_log(NULL, AV_LOG_INFO, "[%s:%d]pcr3 %lld\n", __FUNCTION__, __LINE__, temp_pcr3);
                 if (temp_pcr3 - temp_pcr2 < 90000) {
-                    ts->first_pcrscr=temp_pcr2;
+                    ts->first_pcrscr = temp_pcr2;
                 } else {
-                    ts->first_pcrscr=temp_pcr3;
+                    ts->first_pcrscr = temp_pcr3;
                 }
             } else {
-                ts->first_pcrscr=temp_pcr1;
+                ts->first_pcrscr = temp_pcr1;
             }
             avio_seek(s->pb, pos, SEEK_SET);
         }
         if (ts->first_pcrscr != AV_NOPTS_VALUE) {
             int64_t pcr_starttimediff;
-            int64_t firsPTS=av_rescale_q(s->start_time, AV_TIME_BASE_Q,s->streams[stream_index]->time_base);
-            pcr_starttimediff=(ts->first_pcrscr - firsPTS);
-            av_log(NULL,AV_LOG_INFO,"ts->first_pcrscr=%lld firsPTS=%lld\n",ts->first_pcrscr,firsPTS);
-            if (abs(pcr_starttimediff) < 90000) {/*<1s.we think is the same start time.*/
-                pcr_starttimediff=0;
+            int64_t firsPTS = av_rescale_q(s->start_time, AV_TIME_BASE_Q, s->streams[stream_index]->time_base);
+            pcr_starttimediff = (ts->first_pcrscr - firsPTS);
+            av_log(NULL, AV_LOG_INFO, "ts->first_pcrscr=%lld firsPTS=%lld\n", ts->first_pcrscr, firsPTS);
+            if (abs(pcr_starttimediff) < 90000) { /*<1s.we think is the same start time.*/
+                pcr_starttimediff = 0;
             }
-            av_log(NULL,AV_LOG_INFO,"pcr_starttimediff=%lld target_ts=%lld\n",pcr_starttimediff,target_ts);
-            target_ts+=pcr_starttimediff;
-            av_log(NULL,AV_LOG_INFO,"pcr_starttimediff=%lld target_ts=%lld\n",pcr_starttimediff,target_ts);
+            av_log(NULL, AV_LOG_INFO, "pcr_starttimediff=%lld target_ts=%lld\n", pcr_starttimediff, target_ts);
+            target_ts += pcr_starttimediff;
+            av_log(NULL, AV_LOG_INFO, "pcr_starttimediff=%lld target_ts=%lld\n", pcr_starttimediff, target_ts);
+
         }
+
     }
 
 
@@ -2920,14 +3088,17 @@ static int read_seek(AVFormatContext *s, int stream_index, int64_t target_ts, in
         return ret;
     }
 
-    pos= avio_tell(s->pb);
+    pos = avio_tell(s->pb);
 
-    for(;;) {
+    for (;;) {
         avio_seek(s->pb, pos, SEEK_SET);
-        if (avio_read(s->pb, buf, TS_PACKET_SIZE) != TS_PACKET_SIZE)
+        if (avio_read(s->pb, buf, TS_PACKET_SIZE) != TS_PACKET_SIZE) {
             return -1;
-//        pid = AV_RB16(buf + 1) & 0x1fff;
-        if(buf[1] & 0x40) break;
+        }
+        //        pid = AV_RB16(buf + 1) & 0x1fff;
+        if (buf[1] & 0x40) {
+            break;
+        }
         pos += ts->raw_packet_size;
     }
     avio_seek(s->pb, pos, SEEK_SET);
@@ -2935,18 +3106,17 @@ static int read_seek(AVFormatContext *s, int stream_index, int64_t target_ts, in
     return 0;
 }
 
-static int mpegts_read_seek(AVFormatContext *s, int stream_index, int64_t target_ts, int flags){
+static int mpegts_read_seek(AVFormatContext *s, int stream_index, int64_t target_ts, int flags)
+{
     MpegTSContext *ts = s->priv_data;
-    if(!flags) {
+    if (!flags) {
         flags = AVSEEK_FLAG_BACKWARD;
     }
     // comment this because of find keyframe too slow.
-    // we would read seek to keyframe.
-#if 0
-    if(!s->pb->is_slowmedia && ts->is_hevc == 1){ // only local h625 playback
+    // we would adopt read_seek to keyframe.
+    /* if(!s->pb->is_slowmedia && ts->is_hevc == 1){ // only local h625 playback
         return read_seek2(s, stream_index, target_ts, flags);
-    }
-#endif
+    }*/
     return read_seek(s, stream_index, target_ts, flags);
 }
 
@@ -2958,8 +3128,9 @@ MpegTSContext *ff_mpegts_parse_open(AVFormatContext *s)
     MpegTSContext *ts;
 
     ts = av_mallocz(sizeof(MpegTSContext));
-    if (!ts)
+    if (!ts) {
         return NULL;
+    }
     /* no stream case, currently used by RTP */
     ts->raw_packet_size = TS_PACKET_SIZE;
     ts->stream = s;
@@ -2970,18 +3141,20 @@ MpegTSContext *ff_mpegts_parse_open(AVFormatContext *s)
 /* return the consumed length if a packet was output, or -1 if no
    packet is output */
 int ff_mpegts_parse_packet(MpegTSContext *ts, AVPacket *pkt,
-                        const uint8_t *buf, int len)
+                           const uint8_t *buf, int len)
 {
     int len1;
 
     len1 = len;
     ts->pkt = pkt;
     ts->stop_parse = 0;
-    for(;;) {
-        if (ts->stop_parse>0)
+    for (;;) {
+        if (ts->stop_parse > 0) {
             break;
-        if (len < TS_PACKET_SIZE)
+        }
+        if (len < TS_PACKET_SIZE) {
             return -1;
+        }
         if (buf[0] != 0x47) {
             buf++;
             len--;
@@ -2998,8 +3171,9 @@ void ff_mpegts_parse_close(MpegTSContext *ts)
 {
     int i;
 
-    for(i=0;i<NB_PID_MAX;i++)
+    for (i = 0; i < NB_PID_MAX; i++) {
         av_free(ts->pids[i]);
+    }
     av_free(ts);
 }
 
@@ -3016,10 +3190,10 @@ AVInputFormat ff_mpegts_demuxer = {
     mpegts_read_close,
     .read_seek = mpegts_read_seek,
     .read_timestamp = mpegts_get_dts,
-    .flags = AVFMT_SHOW_IDS|AVFMT_TS_DISCONT| AVFMT_GENERIC_INDEX,
-//#ifdef USE_SYNCPOINT_SEARCH
-//    .read_seek2 = read_seek2,
-//#endif
+    .flags = AVFMT_SHOW_IDS | AVFMT_TS_DISCONT | AVFMT_GENERIC_INDEX,
+    //#ifdef USE_SYNCPOINT_SEARCH
+    //    .read_seek2 = read_seek2,
+    //#endif
 };
 
 AVInputFormat ff_mpegtsraw_demuxer = {
@@ -3032,9 +3206,9 @@ AVInputFormat ff_mpegtsraw_demuxer = {
     mpegts_read_close,
     .read_seek =  mpegts_read_seek,
     .read_timestamp = mpegts_get_dts,
-    .flags = AVFMT_SHOW_IDS|AVFMT_TS_DISCONT| AVFMT_GENERIC_INDEX,
-//#ifdef USE_SYNCPOINT_SEARCH
-//    .read_seek2 = read_seek2,
-//#endif
+    .flags = AVFMT_SHOW_IDS | AVFMT_TS_DISCONT | AVFMT_GENERIC_INDEX,
+    //#ifdef USE_SYNCPOINT_SEARCH
+    //    .read_seek2 = read_seek2,
+    //#endif
     .priv_class = &mpegtsraw_class,
 };

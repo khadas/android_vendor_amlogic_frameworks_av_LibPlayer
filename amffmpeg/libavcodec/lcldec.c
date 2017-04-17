@@ -103,7 +103,9 @@ static unsigned int mszh_decomp(const unsigned char * srcptr, int srclen, unsign
         if (!maskbit) {
             mask = *srcptr++;
             while (!mask) {
-                if (destptr_end - destptr < 32 || srcptr_end - srcptr < 32) break;
+                if (destptr_end - destptr < 32 || srcptr_end - srcptr < 32) {
+                    break;
+                }
                 memcpy(destptr, srcptr, 32);
                 destptr += 32;
                 srcptr += 32;
@@ -175,12 +177,13 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size, AVPac
     unsigned int mthread_inlen, mthread_outlen;
     unsigned int len = buf_size;
 
-    if(c->pic.data[0])
+    if (c->pic.data[0]) {
         avctx->release_buffer(avctx, &c->pic);
+    }
 
     c->pic.reference = 0;
     c->pic.buffer_hints = FF_BUFFER_HINTS_VALID;
-    if(avctx->get_buffer(avctx, &c->pic) < 0){
+    if (avctx->get_buffer(avctx, &c->pic) < 0) {
         av_log(avctx, AV_LOG_ERROR, "get_buffer() failed\n");
         return -1;
     }
@@ -195,7 +198,7 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size, AVPac
             if (c->flags & FLAG_MULTITHREAD) {
                 mthread_inlen = AV_RL32(encoded);
                 mthread_inlen = FFMIN(mthread_inlen, len - 8);
-                mthread_outlen = AV_RL32(encoded+4);
+                mthread_outlen = AV_RL32(encoded + 4);
                 mthread_outlen = FFMIN(mthread_outlen, c->decomp_size);
                 mszh_dlen = mszh_decomp(encoded + 8, mthread_inlen, c->decomp_buf, c->decomp_size);
                 if (mthread_outlen != mszh_dlen) {
@@ -236,22 +239,29 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size, AVPac
          * gives a file with ZLIB fourcc, but frame is really uncompressed.
          * To be sure that's true check also frame size */
         if (c->compression == COMP_ZLIB_NORMAL && c->imgtype == IMGTYPE_RGB24 &&
-            len == width * height * 3)
+            len == width * height * 3) {
             break;
+        }
         if (c->flags & FLAG_MULTITHREAD) {
             int ret;
             mthread_inlen = AV_RL32(encoded);
             mthread_inlen = FFMIN(mthread_inlen, len - 8);
-            mthread_outlen = AV_RL32(encoded+4);
+            mthread_outlen = AV_RL32(encoded + 4);
             mthread_outlen = FFMIN(mthread_outlen, c->decomp_size);
             ret = zlib_decomp(avctx, encoded + 8, mthread_inlen, 0, mthread_outlen);
-            if (ret < 0) return ret;
+            if (ret < 0) {
+                return ret;
+            }
             ret = zlib_decomp(avctx, encoded + 8 + mthread_inlen, len - 8 - mthread_inlen,
                               mthread_outlen, mthread_outlen);
-            if (ret < 0) return ret;
+            if (ret < 0) {
+                return ret;
+            }
         } else {
             int ret = zlib_decomp(avctx, encoded, len, 0, c->decomp_size);
-            if (ret < 0) return ret;
+            if (ret < 0) {
+                return ret;
+            }
         }
         encoded = c->decomp_buf;
         len = c->decomp_size;
@@ -271,12 +281,12 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size, AVPac
             for (row = 0; row < height; row++) {
                 pixel_ptr = row * width * 3;
                 yq = encoded[pixel_ptr++];
-                uqvq = AV_RL16(encoded+pixel_ptr);
+                uqvq = AV_RL16(encoded + pixel_ptr);
                 pixel_ptr += 2;
                 for (col = 1; col < width; col++) {
                     encoded[pixel_ptr] = yq -= encoded[pixel_ptr];
-                    uqvq -= AV_RL16(encoded+pixel_ptr+1);
-                    AV_WL16(encoded+pixel_ptr+1, uqvq);
+                    uqvq -= AV_RL16(encoded + pixel_ptr + 1);
+                    AV_WL16(encoded + pixel_ptr + 1, uqvq);
                     pixel_ptr += 3;
                 }
             }
@@ -284,16 +294,16 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size, AVPac
         case IMGTYPE_YUV422:
             for (row = 0; row < height; row++) {
                 pixel_ptr = row * width * 2;
-                yq = uq = vq =0;
-                for (col = 0; col < width/4; col++) {
+                yq = uq = vq = 0;
+                for (col = 0; col < width / 4; col++) {
                     encoded[pixel_ptr] = yq -= encoded[pixel_ptr];
-                    encoded[pixel_ptr+1] = yq -= encoded[pixel_ptr+1];
-                    encoded[pixel_ptr+2] = yq -= encoded[pixel_ptr+2];
-                    encoded[pixel_ptr+3] = yq -= encoded[pixel_ptr+3];
-                    encoded[pixel_ptr+4] = uq -= encoded[pixel_ptr+4];
-                    encoded[pixel_ptr+5] = uq -= encoded[pixel_ptr+5];
-                    encoded[pixel_ptr+6] = vq -= encoded[pixel_ptr+6];
-                    encoded[pixel_ptr+7] = vq -= encoded[pixel_ptr+7];
+                    encoded[pixel_ptr + 1] = yq -= encoded[pixel_ptr + 1];
+                    encoded[pixel_ptr + 2] = yq -= encoded[pixel_ptr + 2];
+                    encoded[pixel_ptr + 3] = yq -= encoded[pixel_ptr + 3];
+                    encoded[pixel_ptr + 4] = uq -= encoded[pixel_ptr + 4];
+                    encoded[pixel_ptr + 5] = uq -= encoded[pixel_ptr + 5];
+                    encoded[pixel_ptr + 6] = vq -= encoded[pixel_ptr + 6];
+                    encoded[pixel_ptr + 7] = vq -= encoded[pixel_ptr + 7];
                     pixel_ptr += 8;
                 }
             }
@@ -301,14 +311,14 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size, AVPac
         case IMGTYPE_YUV411:
             for (row = 0; row < height; row++) {
                 pixel_ptr = row * width / 2 * 3;
-                yq = uq = vq =0;
-                for (col = 0; col < width/4; col++) {
+                yq = uq = vq = 0;
+                for (col = 0; col < width / 4; col++) {
                     encoded[pixel_ptr] = yq -= encoded[pixel_ptr];
-                    encoded[pixel_ptr+1] = yq -= encoded[pixel_ptr+1];
-                    encoded[pixel_ptr+2] = yq -= encoded[pixel_ptr+2];
-                    encoded[pixel_ptr+3] = yq -= encoded[pixel_ptr+3];
-                    encoded[pixel_ptr+4] = uq -= encoded[pixel_ptr+4];
-                    encoded[pixel_ptr+5] = vq -= encoded[pixel_ptr+5];
+                    encoded[pixel_ptr + 1] = yq -= encoded[pixel_ptr + 1];
+                    encoded[pixel_ptr + 2] = yq -= encoded[pixel_ptr + 2];
+                    encoded[pixel_ptr + 3] = yq -= encoded[pixel_ptr + 3];
+                    encoded[pixel_ptr + 4] = uq -= encoded[pixel_ptr + 4];
+                    encoded[pixel_ptr + 5] = vq -= encoded[pixel_ptr + 5];
                     pixel_ptr += 6;
                 }
             }
@@ -316,27 +326,27 @@ static int decode_frame(AVCodecContext *avctx, void *data, int *data_size, AVPac
         case IMGTYPE_YUV211:
             for (row = 0; row < height; row++) {
                 pixel_ptr = row * width * 2;
-                yq = uq = vq =0;
-                for (col = 0; col < width/2; col++) {
+                yq = uq = vq = 0;
+                for (col = 0; col < width / 2; col++) {
                     encoded[pixel_ptr] = yq -= encoded[pixel_ptr];
-                    encoded[pixel_ptr+1] = yq -= encoded[pixel_ptr+1];
-                    encoded[pixel_ptr+2] = uq -= encoded[pixel_ptr+2];
-                    encoded[pixel_ptr+3] = vq -= encoded[pixel_ptr+3];
+                    encoded[pixel_ptr + 1] = yq -= encoded[pixel_ptr + 1];
+                    encoded[pixel_ptr + 2] = uq -= encoded[pixel_ptr + 2];
+                    encoded[pixel_ptr + 3] = vq -= encoded[pixel_ptr + 3];
                     pixel_ptr += 4;
                 }
             }
             break;
         case IMGTYPE_YUV420:
-            for (row = 0; row < height/2; row++) {
+            for (row = 0; row < height / 2; row++) {
                 pixel_ptr = row * width * 3;
-                yq = y1q = uq = vq =0;
-                for (col = 0; col < width/2; col++) {
+                yq = y1q = uq = vq = 0;
+                for (col = 0; col < width / 2; col++) {
                     encoded[pixel_ptr] = yq -= encoded[pixel_ptr];
-                    encoded[pixel_ptr+1] = yq -= encoded[pixel_ptr+1];
-                    encoded[pixel_ptr+2] = y1q -= encoded[pixel_ptr+2];
-                    encoded[pixel_ptr+3] = y1q -= encoded[pixel_ptr+3];
-                    encoded[pixel_ptr+4] = uq -= encoded[pixel_ptr+4];
-                    encoded[pixel_ptr+5] = vq -= encoded[pixel_ptr+5];
+                    encoded[pixel_ptr + 1] = yq -= encoded[pixel_ptr + 1];
+                    encoded[pixel_ptr + 2] = y1q -= encoded[pixel_ptr + 2];
+                    encoded[pixel_ptr + 3] = y1q -= encoded[pixel_ptr + 3];
+                    encoded[pixel_ptr + 4] = uq -= encoded[pixel_ptr + 4];
+                    encoded[pixel_ptr + 5] = vq -= encoded[pixel_ptr + 5];
                     pixel_ptr += 6;
                 }
             }
@@ -561,14 +571,18 @@ static av_cold int decode_init(AVCodecContext *avctx)
 
     /* Detect flags */
     c->flags = avctx->extradata[6];
-    if (c->flags & FLAG_MULTITHREAD)
+    if (c->flags & FLAG_MULTITHREAD) {
         av_log(avctx, AV_LOG_DEBUG, "Multithread encoder flag set.\n");
-    if (c->flags & FLAG_NULLFRAME)
+    }
+    if (c->flags & FLAG_NULLFRAME) {
         av_log(avctx, AV_LOG_DEBUG, "Nullframe insertion flag set.\n");
-    if (avctx->codec_id == CODEC_ID_ZLIB && (c->flags & FLAG_PNGFILTER))
+    }
+    if (avctx->codec_id == CODEC_ID_ZLIB && (c->flags & FLAG_PNGFILTER)) {
         av_log(avctx, AV_LOG_DEBUG, "PNG filter flag set.\n");
-    if (c->flags & FLAGMASK_UNUSED)
+    }
+    if (c->flags & FLAGMASK_UNUSED) {
         av_log(avctx, AV_LOG_ERROR, "Unknown flag set (%d).\n", c->flags);
+    }
 
     /* If needed init zlib */
 #if CONFIG_ZLIB_DECODER
@@ -599,11 +613,13 @@ static av_cold int decode_end(AVCodecContext *avctx)
     LclDecContext * const c = avctx->priv_data;
 
     av_freep(&c->decomp_buf);
-    if (c->pic.data[0])
+    if (c->pic.data[0]) {
         avctx->release_buffer(avctx, &c->pic);
+    }
 #if CONFIG_ZLIB_DECODER
-    if (avctx->codec_id == CODEC_ID_ZLIB)
+    if (avctx->codec_id == CODEC_ID_ZLIB) {
         inflateEnd(&c->zstream);
+    }
 #endif
 
     return 0;

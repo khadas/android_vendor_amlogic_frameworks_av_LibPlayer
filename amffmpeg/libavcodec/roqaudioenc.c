@@ -32,8 +32,7 @@
 #define MAX_DPCM (127*127)
 
 
-typedef struct
-{
+typedef struct {
     short lastSample[2];
 } ROQDPCMContext;
 
@@ -58,8 +57,8 @@ static av_cold int roq_dpcm_encode_init(AVCodecContext *avctx)
 
     context->lastSample[0] = context->lastSample[1] = 0;
 
-    avctx->coded_frame= avcodec_alloc_frame();
-    avctx->coded_frame->key_frame= 1;
+    avctx->coded_frame = avcodec_alloc_frame();
+    avctx->coded_frame->key_frame = 1;
 
     return 0;
 }
@@ -73,21 +72,22 @@ static unsigned char dpcm_predict(short *previous, short current)
 
     diff = current - *previous;
 
-    negative = diff<0;
+    negative = diff < 0;
     diff = FFABS(diff);
 
-    if (diff >= MAX_DPCM)
+    if (diff >= MAX_DPCM) {
         result = 127;
-    else {
+    } else {
         result = ff_sqrt(diff);
-        result += diff > result*result+result;
+        result += diff > result * result + result;
     }
 
     /* See if this overflows */
- retry:
-    diff = result*result;
-    if (negative)
+retry:
+    diff = result * result;
+    if (negative) {
         diff = -diff;
+    }
     predicted = *previous + diff;
 
     /* If it overflows, back off a step */
@@ -105,7 +105,7 @@ static unsigned char dpcm_predict(short *previous, short current)
 }
 
 static int roq_dpcm_encode_frame(AVCodecContext *avctx,
-                unsigned char *frame, int buf_size, void *data)
+                                 unsigned char *frame, int buf_size, void *data)
 {
     int i, samples, stereo, ch;
     const short *in;
@@ -125,19 +125,21 @@ static int roq_dpcm_encode_frame(AVCodecContext *avctx,
 
     bytestream_put_byte(&out, stereo ? 0x21 : 0x20);
     bytestream_put_byte(&out, 0x10);
-    bytestream_put_le32(&out, avctx->frame_size*avctx->channels);
+    bytestream_put_le32(&out, avctx->frame_size * avctx->channels);
 
     if (stereo) {
-        bytestream_put_byte(&out, (context->lastSample[1])>>8);
-        bytestream_put_byte(&out, (context->lastSample[0])>>8);
-    } else
+        bytestream_put_byte(&out, (context->lastSample[1]) >> 8);
+        bytestream_put_byte(&out, (context->lastSample[0]) >> 8);
+    } else {
         bytestream_put_le16(&out, context->lastSample[0]);
+    }
 
     /* Write the actual samples */
     samples = avctx->frame_size;
-    for (i=0; i<samples; i++)
-        for (ch=0; ch<avctx->channels; ch++)
+    for (i = 0; i < samples; i++)
+        for (ch = 0; ch < avctx->channels; ch++) {
             *out++ = dpcm_predict(&context->lastSample[ch], *in++);
+        }
 
     /* Use smaller frames from now on */
     avctx->frame_size = ROQ_FRAME_SIZE;
@@ -162,6 +164,6 @@ AVCodec ff_roq_dpcm_encoder = {
     roq_dpcm_encode_frame,
     roq_dpcm_encode_close,
     NULL,
-    .sample_fmts = (const enum AVSampleFormat[]){AV_SAMPLE_FMT_S16,AV_SAMPLE_FMT_NONE},
+    .sample_fmts = (const enum AVSampleFormat[]){AV_SAMPLE_FMT_S16, AV_SAMPLE_FMT_NONE},
     .long_name = NULL_IF_CONFIG_SMALL("id RoQ DPCM"),
 };

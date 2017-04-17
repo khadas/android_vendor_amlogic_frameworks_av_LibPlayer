@@ -80,16 +80,18 @@ avs_decode_frame(AVCodecContext * avctx,
         first = AV_RL16(buf);
         last = first + AV_RL16(buf + 2);
         buf += 4;
-        for (i=first; i<last; i++, buf+=3)
+        for (i = first; i < last; i++, buf += 3) {
             pal[i] = (buf[0] << 18) | (buf[1] << 10) | (buf[2] << 2);
+        }
 
         sub_type = buf[0];
         type = buf[1];
         buf += 4;
     }
 
-    if (type != AVS_VIDEO)
+    if (type != AVS_VIDEO) {
         return -1;
+    }
 
     switch (sub_type) {
     case AVS_I_FRAME:
@@ -111,7 +113,7 @@ avs_decode_frame(AVCodecContext * avctx,
         break;
 
     default:
-      return -1;
+        return -1;
     }
 
     table = buf + (256 * vect_w * vect_h);
@@ -121,11 +123,11 @@ avs_decode_frame(AVCodecContext * avctx,
         table += map_size;
     }
 
-    for (y=0; y<198; y+=vect_h) {
-        for (x=0; x<318; x+=vect_w) {
+    for (y = 0; y < 198; y += vect_h) {
+        for (x = 0; x < 318; x += vect_w) {
             if (sub_type == AVS_I_FRAME || get_bits1(&change_map)) {
                 vect = &buf[*table++ * (vect_w * vect_h)];
-                for (j=0; j<vect_w; j++) {
+                for (j = 0; j < vect_w; j++) {
                     out[(y + 0) * stride + x + j] = vect[(0 * vect_w) + j];
                     out[(y + 1) * stride + x + j] = vect[(1 * vect_w) + j];
                     if (vect_h == 3)
@@ -134,8 +136,9 @@ avs_decode_frame(AVCodecContext * avctx,
                 }
             }
         }
-        if (sub_type != AVS_I_FRAME)
+        if (sub_type != AVS_I_FRAME) {
             align_get_bits(&change_map);
+        }
     }
 
     *picture = *(AVFrame *) & avs->picture;

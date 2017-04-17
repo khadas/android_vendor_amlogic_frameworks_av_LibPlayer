@@ -62,8 +62,8 @@ typedef struct DNXHDEncContext {
 
     DECLARE_ALIGNED(16, DCTELEM, blocks)[8][64];
 
-    int      (*qmatrix_c)     [64];
-    int      (*qmatrix_l)     [64];
+    int (*qmatrix_c)     [64];
+    int (*qmatrix_l)     [64];
     uint16_t (*qmatrix_l16)[2][64];
     uint16_t (*qmatrix_c16)[2][64];
 
@@ -86,7 +86,7 @@ typedef struct DNXHDEncContext {
     uint8_t  *mb_qscale;
 
     RCCMPEntry *mb_cmp;
-    RCEntry   (*mb_rc)[8160];
+    RCEntry(*mb_rc)[8160];
 
     void (*get_pixels_8x4_sym)(DCTELEM */*align 16*/, const uint8_t *, int);
 } DNXHDEncContext;

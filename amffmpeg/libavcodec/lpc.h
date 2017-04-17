@@ -121,18 +121,21 @@ static inline int compute_lpc_coefs(const LPC_TYPE *autoc, int max_order,
     LPC_TYPE err;
     LPC_TYPE *lpc_last = lpc;
 
-    if (normalize)
+    if (normalize) {
         err = *autoc++;
+    }
 
-    if (fail && (autoc[max_order - 1] == 0 || err <= 0))
+    if (fail && (autoc[max_order - 1] == 0 || err <= 0)) {
         return -1;
+    }
 
-    for(i=0; i<max_order; i++) {
+    for (i = 0; i < max_order; i++) {
         LPC_TYPE r = -autoc[i];
 
         if (normalize) {
-            for(j=0; j<i; j++)
-                r -= lpc_last[j] * autoc[i-j-1];
+            for (j = 0; j < i; j++) {
+                r -= lpc_last[j] * autoc[i - j - 1];
+            }
 
             r /= err;
             err *= 1.0 - (r * r);
@@ -140,15 +143,16 @@ static inline int compute_lpc_coefs(const LPC_TYPE *autoc, int max_order,
 
         lpc[i] = r;
 
-        for(j=0; j < (i+1)>>1; j++) {
+        for (j = 0; j < (i + 1) >> 1; j++) {
             LPC_TYPE f = lpc_last[    j];
-            LPC_TYPE b = lpc_last[i-1-j];
+            LPC_TYPE b = lpc_last[i - 1 - j];
             lpc[    j] = f + r * b;
-            lpc[i-1-j] = b + r * f;
+            lpc[i - 1 - j] = b + r * f;
         }
 
-        if (fail && err < 0)
+        if (fail && err < 0) {
             return -1;
+        }
 
         lpc_last = lpc;
         lpc += lpc_stride;

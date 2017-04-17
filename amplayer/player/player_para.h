@@ -85,6 +85,7 @@ typedef  struct {
     unsigned int audio_end_flag;
     unsigned int audio_low_buffer;
     unsigned int end_flag;
+    unsigned int hls_fffb_endflag;
     unsigned int request_end_flag;//stop request by user.
     unsigned int pts_valid;
     unsigned int sync_flag;
@@ -100,6 +101,8 @@ typedef  struct {
     unsigned int pause_flag;
     unsigned int fast_forward;
     unsigned int fast_backward;
+    unsigned int hls_forward;
+    unsigned int hls_backward;
     unsigned int init_ff_fr;
     unsigned int seek_base_audio;
     unsigned int audio_mute;
@@ -110,6 +113,7 @@ typedef  struct {
     unsigned int audio_switch_vmatch;
     unsigned int audio_switch_smatch;
     unsigned int switch_audio_id;
+    unsigned int switch_audio_idx;
     unsigned int switch_sub_id;
     unsigned int switch_ts_video_pid;
     unsigned int switch_ts_audio_pid;
@@ -121,9 +125,9 @@ typedef  struct {
     int f_step;
     int read_max_retry_cnt;
     int audio_ready;
-    long check_lowlevel_eagain_time;
-    int check_audio_ready_ms;
     int last_seek_time_point;
+    long check_lowlevel_eagain_time;
+    int64_t check_audio_ready_ms;
     int64_t last_seek_offset;
     int seek_offset_same;
     int seek_frame_fail;
@@ -145,17 +149,28 @@ typedef  struct {
 
     int write_end_header_flag;
     int seek_keyframe;
+    int seek_keyframe_dropaudio; //0/1:disbale/enable drop audio pkt after seek keyframe
+    int64_t seek_keyframe_firvpts;//first key frame vpts after seek
     int64_t trick_start_sysus;
     int64_t trick_wait_time;
     int64_t trick_start_us;
     int last_f_step;
     int trick_wait_flag;
     int duration_url;         //duration parsed from url, ms
-    int dolby_vision_enable;/*dolby_vision enabed*/
+    int64_t pause_start_time;
+    int v_dts_valid;
+    int cache_enable;                       //enable cache frames function
+    int amstream_highlevel; //last call codec_write  highlevel
+    int cache_kick;
+    int cache_buffering;//use this flag to go new buffering mechanism
+    int no_need_more_data;
+    int pause_cache;
+    int dolby_vision_enable;/* dolby_vision enabed*/
 } p_ctrl_info_t;
 
 int player_dec_init(struct play_para *p_para);
 int player_decoder_init(struct play_para *p_para);
+int player_frames_in_ff_fb(int factor);
 void player_para_reset(struct play_para *para);
 int player_dec_reset(struct play_para *p_para);
 void player_clear_ctrl_flags(p_ctrl_info_t *cflag);

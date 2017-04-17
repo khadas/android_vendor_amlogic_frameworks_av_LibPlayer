@@ -38,15 +38,16 @@ struct PayloadContext {
 };
 
 /** return 0 on packet, <0 on partial packet or error... */
-static int svq3_parse_packet (AVFormatContext *s, PayloadContext *sv,
-                              AVStream *st, AVPacket *pkt,
-                              uint32_t *timestamp,
-                              const uint8_t *buf, int len, int flags)
+static int svq3_parse_packet(AVFormatContext *s, PayloadContext *sv,
+                             AVStream *st, AVPacket *pkt,
+                             uint32_t *timestamp,
+                             const uint8_t *buf, int len, int flags)
 {
     int config_packet, start_packet, end_packet;
 
-    if (len < 2)
+    if (len < 2) {
         return AVERROR_INVALIDDATA;
+    }
 
     config_packet = buf[0] & 0x40;
     start_packet  = buf[0] & 0x20;
@@ -60,8 +61,9 @@ static int svq3_parse_packet (AVFormatContext *s, PayloadContext *sv,
         st->codec->extradata_size = 0;
 
         if (len < 2 || !(st->codec->extradata =
-                         av_malloc(len + 8 + FF_INPUT_BUFFER_PADDING_SIZE)))
+                             av_malloc(len + 8 + FF_INPUT_BUFFER_PADDING_SIZE))) {
             return AVERROR_INVALIDDATA;
+        }
 
         st->codec->extradata_size = len + 8;
         memcpy(st->codec->extradata, "SEQH", 4);
@@ -86,13 +88,15 @@ static int svq3_parse_packet (AVFormatContext *s, PayloadContext *sv,
             avio_close_dyn_buf(sv->pktbuf, &tmp);
             av_free(tmp);
         }
-        if ((res = avio_open_dyn_buf(&sv->pktbuf)) < 0)
+        if ((res = avio_open_dyn_buf(&sv->pktbuf)) < 0) {
             return res;
+        }
         sv->timestamp   = *timestamp;
     }
 
-    if (!sv->pktbuf)
+    if (!sv->pktbuf) {
         return AVERROR_INVALIDDATA;
+    }
 
     avio_write(sv->pktbuf, buf, len);
 

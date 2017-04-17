@@ -66,8 +66,9 @@ static int concatenate_packet(unsigned int* offset,
         message = "extradata_size would overflow";
     } else {
         newdata = av_realloc(avc_context->extradata, newsize);
-        if (!newdata)
+        if (!newdata) {
             message = "av_realloc failed";
+        }
     }
     if (message) {
         av_log(avc_context, AV_LOG_ERROR, "concatenate_packet failed: %s\n", message);
@@ -126,7 +127,7 @@ static int submit_stats(AVCodecContext *avctx)
             av_log(avctx, AV_LOG_ERROR, "No statsfile for second pass\n");
             return -1;
         }
-        h->stats_size = strlen(avctx->stats_in) * 3/4;
+        h->stats_size = strlen(avctx->stats_in) * 3 / 4;
         h->stats      = av_malloc(h->stats_size);
         h->stats_size = av_base64_decode(h->stats, avctx->stats_in, h->stats_size);
     }
@@ -138,8 +139,9 @@ static int submit_stats(AVCodecContext *avctx)
             av_log(avctx, AV_LOG_ERROR, "Error submitting stats\n");
             return -1;
         }
-        if (!bytes)
+        if (!bytes) {
             return 0;
+        }
         h->stats_offset += bytes;
     }
     return 0;
@@ -178,20 +180,21 @@ static av_cold int encode_init(AVCodecContext* avc_context)
         t_info.aspect_denominator = 1;
     }
 
-    if (avc_context->color_primaries == AVCOL_PRI_BT470M)
+    if (avc_context->color_primaries == AVCOL_PRI_BT470M) {
         t_info.colorspace = TH_CS_ITU_REC_470M;
-    else if (avc_context->color_primaries == AVCOL_PRI_BT470BG)
+    } else if (avc_context->color_primaries == AVCOL_PRI_BT470BG) {
         t_info.colorspace = TH_CS_ITU_REC_470BG;
-    else
+    } else {
         t_info.colorspace = TH_CS_UNSPECIFIED;
+    }
 
-    if (avc_context->pix_fmt == PIX_FMT_YUV420P)
+    if (avc_context->pix_fmt == PIX_FMT_YUV420P) {
         t_info.pixel_fmt = TH_PF_420;
-    else if (avc_context->pix_fmt == PIX_FMT_YUV422P)
+    } else if (avc_context->pix_fmt == PIX_FMT_YUV422P) {
         t_info.pixel_fmt = TH_PF_422;
-    else if (avc_context->pix_fmt == PIX_FMT_YUV444P)
+    } else if (avc_context->pix_fmt == PIX_FMT_YUV444P) {
         t_info.pixel_fmt = TH_PF_444;
-    else {
+    } else {
         av_log(avc_context, AV_LOG_ERROR, "Unsupported pix_fmt\n");
         return -1;
     }
@@ -229,11 +232,13 @@ static av_cold int encode_init(AVCodecContext* avc_context)
 
     // need to enable 2 pass (via TH_ENCCTL_2PASS_) before encoding headers
     if (avc_context->flags & CODEC_FLAG_PASS1) {
-        if (get_stats(avc_context, 0))
+        if (get_stats(avc_context, 0)) {
             return -1;
+        }
     } else if (avc_context->flags & CODEC_FLAG_PASS2) {
-        if (submit_stats(avc_context))
+        if (submit_stats(avc_context)) {
             return -1;
+        }
     }
 
     /*
@@ -249,13 +254,14 @@ static av_cold int encode_init(AVCodecContext* avc_context)
     th_comment_init(&t_comment);
 
     while (th_encode_flushheader(h->t_state, &t_comment, &o_packet))
-        if (concatenate_packet(&offset, avc_context, &o_packet))
+        if (concatenate_packet(&offset, avc_context, &o_packet)) {
             return -1;
+        }
 
     th_comment_clear(&t_comment);
 
     /* Set up the output AVFrame */
-    avc_context->coded_frame= avcodec_alloc_frame();
+    avc_context->coded_frame = avcodec_alloc_frame();
 
     return 0;
 }
@@ -273,8 +279,9 @@ static int encode_frame(AVCodecContext* avc_context, uint8_t *outbuf,
     if (!frame) {
         th_encode_packetout(h->t_state, 1, &o_packet);
         if (avc_context->flags & CODEC_FLAG_PASS1)
-            if (get_stats(avc_context, 1))
+            if (get_stats(avc_context, 1)) {
                 return -1;
+            }
         return 0;
     }
 
@@ -287,8 +294,9 @@ static int encode_frame(AVCodecContext* avc_context, uint8_t *outbuf,
     }
 
     if (avc_context->flags & CODEC_FLAG_PASS2)
-        if (submit_stats(avc_context))
+        if (submit_stats(avc_context)) {
             return -1;
+        }
 
     /* Now call into theora_encode_YUVin */
     result = th_encode_ycbcr_in(h->t_state, t_yuv_buffer);
@@ -310,8 +318,9 @@ static int encode_frame(AVCodecContext* avc_context, uint8_t *outbuf,
     }
 
     if (avc_context->flags & CODEC_FLAG_PASS1)
-        if (get_stats(avc_context, 0))
+        if (get_stats(avc_context, 0)) {
             return -1;
+        }
 
     /* Pick up returned ogg_packet */
     result = th_encode_packetout(h->t_state, 0, &o_packet);
@@ -366,6 +375,6 @@ AVCodec ff_libtheora_encoder = {
     .close = encode_close,
     .encode = encode_frame,
     .capabilities = CODEC_CAP_DELAY, // needed to get the statsfile summary
-    .pix_fmts= (const enum PixelFormat[]){PIX_FMT_YUV420P, PIX_FMT_YUV422P, PIX_FMT_YUV444P, PIX_FMT_NONE},
+    .pix_fmts = (const enum PixelFormat[]){PIX_FMT_YUV420P, PIX_FMT_YUV422P, PIX_FMT_YUV444P, PIX_FMT_NONE},
     .long_name = NULL_IF_CONFIG_SMALL("libtheora Theora"),
 };

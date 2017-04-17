@@ -24,14 +24,15 @@
 static int probe(AVProbeData *p)
 {
     // the single file i have starts with that, i dont know if others do too
-    if(   p->buf[0] == 1
-       && p->buf[1] == 1
-       && p->buf[2] == 3
-       && p->buf[3] == 0xB8
-       && p->buf[4] == 0x80
-       && p->buf[5] == 0x60
-      )
-        return AVPROBE_SCORE_MAX-2;
+    if (p->buf[0] == 1
+        && p->buf[1] == 1
+        && p->buf[2] == 3
+        && p->buf[3] == 0xB8
+        && p->buf[4] == 0x80
+        && p->buf[5] == 0x60
+       ) {
+        return AVPROBE_SCORE_MAX - 2;
+    }
 
     return 0;
 }
@@ -41,8 +42,9 @@ static int read_header(AVFormatContext *s, AVFormatParameters *ap)
     AVStream *st;
 
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
 
     st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
     st->codec->codec_id = CODEC_ID_MPEG4;
@@ -57,27 +59,28 @@ static int read_packet(AVFormatContext *s, AVPacket *pkt)
 {
     int ret, size, pts, type;
 retry:
-    type= avio_rb16(s->pb); // 257 or 258
-    size= avio_rb16(s->pb);
+    type = avio_rb16(s->pb); // 257 or 258
+    size = avio_rb16(s->pb);
 
     avio_rb16(s->pb); //some flags, 0x80 indicates end of frame
     avio_rb16(s->pb); //packet number
-    pts=avio_rb32(s->pb);
+    pts = avio_rb32(s->pb);
     avio_rb32(s->pb); //6A 13 E3 88
 
     size -= 12;
-    if(size<1)
+    if (size < 1) {
         return -1;
+    }
 
-    if(type==258){
+    if (type == 258) {
         avio_skip(s->pb, size);
         goto retry;
     }
 
-    ret= av_get_packet(s->pb, pkt, size);
+    ret = av_get_packet(s->pb, pkt, size);
 
-    pkt->pts= pts;
-    pkt->pos-=16;
+    pkt->pts = pts;
+    pkt->pos -= 16;
 
     pkt->stream_index = 0;
 
@@ -91,6 +94,6 @@ AVInputFormat ff_iv8_demuxer = {
     probe,
     read_header,
     read_packet,
-    .flags= AVFMT_GENERIC_INDEX,
+    .flags = AVFMT_GENERIC_INDEX,
     .value = CODEC_ID_MPEG4,
 };

@@ -8,8 +8,8 @@
 #include "player_priv.h"
 #include "player_hwdec.h"
 #include "amconfigutils.h"
-
 #include <cutils/properties.h>
+
 
 static int check_size_in_buffer(unsigned char *p, int len)
 {
@@ -530,6 +530,73 @@ static int hevc_write_header(play_para_t *para)
     return ret;
 }
 
+static int hevc_add_sei_nal(AVCodecContext *avcodec,  am_packet_t *pkt)
+{
+    int j;
+    char sei_nal_start_code[] = {0x0, 0x0, 0x0, 0x1, 0x4e, 0x01, 0x89, 0x18};
+    AVhevc_display_info *p = (struct AVhevc_display_info *)&avcodec->mastering_display_info;
+    int header_len = 0;
+    char* buffer = pkt->hdr->data;
+    MEMCPY(&(buffer[header_len]), sei_nal_start_code, 8);
+    header_len += 8;
+    for (j = 0; j < 3; j ++) {
+        buffer[header_len] = *((char *)&p->display_primaries[j][0] + 1);
+        buffer[header_len + 1] = *(char *)&p->display_primaries[j][0];
+        buffer[header_len + 2] = *((char *)&p->display_primaries[j][1] + 1);
+        buffer[header_len + 3] = *(char *)&p->display_primaries[j][1];
+        header_len += 4;
+    }
+    for (j = 0; j < 2; j ++) {
+        buffer[header_len] = *((char *)&p->white_point[j] + 1);
+        buffer[header_len + 1] = *(char *)&p->white_point[j];
+        header_len += 2;
+    }
+    for (j = 0; j < 2; j ++) {
+        buffer[header_len] = *((char *)&p->luminance[j] + 3);
+        buffer[header_len + 1] = *((char *)&p->luminance[j] + 2);
+        buffer[header_len + 2] = *((char *)&p->luminance[j] + 1);
+        buffer[header_len + 3] = *(char *)&p->luminance[j];
+        header_len += 4;
+    }
+    pkt->hdr->size = header_len;
+    pkt->type = CODEC_VIDEO;
+    log_print("hevc, nal sei header_len=%d \n", header_len);
+    return PLAYER_SUCCESS;
+}
+
+
+static int hevc_write_sei_nal(play_para_t *para)
+{
+    AVStream *pStream = NULL;
+    AVCodecContext *avcodec;
+    am_packet_t *pkt = para->p_pkt;
+    int ret = -1;
+    int index = para->vstream_info.video_index;
+
+    if (-1 == index) {
+        return PLAYER_ERROR_PARAM;
+    }
+
+    pStream = para->pFormatCtx->streams[index];
+    avcodec = pStream->codec;
+    if (avcodec->sei_mastering_display_info_present) {
+        ret = hevc_add_sei_nal(avcodec, pkt);
+    }
+    if (ret == PLAYER_SUCCESS) {
+        if (para->vcodec) {
+            pkt->codec = para->vcodec;
+        } else {
+            log_print("[hevc_add_header]invalid video codec!\n");
+            return PLAYER_EMPTY_P;
+        }
+
+        pkt->avpkt_newflag = 1;
+        ret = write_av_packet(para);
+    }
+    return ret;
+}
+
+
 static int write_stream_header(play_para_t *para)
 {
     AVStream *pStream = NULL;
@@ -1002,7 +1069,7 @@ static void vorbis_insert_syncheader(char **hdrdata, int *size, char**vorbis_hea
     if (pdata == NULL) {
         log_print("malloc %d mem failed,at func %s,line %d\n", \
                   (vorbis_header_sizes[0] + vorbis_header_sizes[1] + vorbis_header_sizes[2]), __FUNCTION__, __LINE__);
-        return;//PLAYER_NOMEM;
+        return;// PLAYER_NOMEM;
     }
     *hdrdata = pdata;
     *size = vorbis_header_sizes[0] + vorbis_header_sizes[1] + vorbis_header_sizes[2] + 24;
@@ -1240,6 +1307,10 @@ int pre_header_feeding(play_para_t *para)
                 if (ret != PLAYER_SUCCESS) {
                     return ret;
                 }
+                ret = hevc_write_sei_nal(para);
+                if (ret != PLAYER_SUCCESS) {
+                    return ret;
+                }
             }
         } else if ((CODEC_TAG_M4S2 == avcodec->codec_tag) ||
                    (CODEC_TAG_DX50 == avcodec->codec_tag) ||
@@ -1343,7 +1414,7 @@ int hevc_update_frame_header(am_packet_t * pkt)
 {
     unsigned char *p = pkt->data;
     // NAL has been formatted already, no need to update
-    if (p[0] == 0 && p[1] == 0 && p[2] == 0 && p[3] == 1) {
+    if (p != NULL && p[0] == 0 && p[1] == 0 && p[2] == 0 && p[3] == 1) {
         return PLAYER_SUCCESS;
     }
     // process like h264 for now.
@@ -1408,6 +1479,7 @@ int h264_update_frame_header(am_packet_t *pkt)
     }
     return PLAYER_SUCCESS;
 }
+
 int vp9_update_frame_header(am_packet_t *pkt)
 {
     int dsize = pkt->data_size;
@@ -1420,7 +1492,9 @@ int vp9_update_frame_header(am_packet_t *pkt)
     unsigned char *old_header = NULL;
     int total_datasize = 0;
 
-    if (buf == NULL) return PLAYER_SUCCESS; /*something error. skip add header*/
+    if (buf == NULL) {
+        return PLAYER_SUCCESS;    /*something error. skip add header*/
+    }
     marker = buf[dsize - 1];
     if ((marker & 0xe0) == 0xc0) {
         frame_number = (marker & 0x7) + 1;
@@ -1437,14 +1511,15 @@ int vp9_update_frame_header(am_packet_t *pkt)
         for (cur_frame = 0; cur_frame < frame_number; cur_frame++) {
             size[cur_frame] = 0; // or size[0] = bytes_in_buffer - 1; both OK
             for (cur_mag = 0; cur_mag < mag; cur_mag++) {
-                size[cur_frame] = size[cur_frame]  | (buf[mag_ptr] << (cur_mag*8) );
+                size[cur_frame] = size[cur_frame]  | (buf[mag_ptr] << (cur_mag * 8));
                 mag_ptr++;
             }
-            offset[cur_frame+1] = offset[cur_frame] + size[cur_frame];
-            if (cur_frame == 0)
+            offset[cur_frame + 1] = offset[cur_frame] + size[cur_frame];
+            if (cur_frame == 0) {
                 tframesize[cur_frame] = size[cur_frame];
-            else
+            } else {
                 tframesize[cur_frame] = tframesize[cur_frame - 1] + size[cur_frame];
+            }
             total_datasize += size[cur_frame];
         }
     } else {
@@ -1486,10 +1561,10 @@ int vp9_update_frame_header(am_packet_t *pkt)
         fdata[1] = (framesize >> 16) & 0xff;
         fdata[2] = (framesize >> 8) & 0xff;
         fdata[3] = (framesize >> 0) & 0xff;
-        fdata[4] = ((framesize >> 24) & 0xff) ^0xff;
-        fdata[5] = ((framesize >> 16) & 0xff) ^0xff;
-        fdata[6] = ((framesize >> 8) & 0xff) ^0xff;
-        fdata[7] = ((framesize >> 0) & 0xff) ^0xff;
+        fdata[4] = ((framesize >> 24) & 0xff) ^ 0xff;
+        fdata[5] = ((framesize >> 16) & 0xff) ^ 0xff;
+        fdata[6] = ((framesize >> 8) & 0xff) ^ 0xff;
+        fdata[7] = ((framesize >> 0) & 0xff) ^ 0xff;
         fdata[8] = 0;
         fdata[9] = 0;
         fdata[10] = 0;
@@ -1499,15 +1574,15 @@ int vp9_update_frame_header(am_packet_t *pkt)
         fdata[14] = 'L';
         fdata[15] = 'V';
         framesize -= 4;/*del 4 to real framesize for check.....*/
-       if (!old_header) {
-           ///nothing
-       } else if (old_header > fdata + 16 + framesize) {
-           log_info("data has gaps,set to 0\n");
-           memset(fdata + 16 + framesize, 0, (old_header - fdata + 16 + framesize));
-       } else if (old_header < fdata + 16 + framesize) {
-           log_info("ERROR!!! data over writed!!!! over write %d\n", fdata + 16 + framesize - old_header);
-       }
-       old_header = fdata;
+        if (!old_header) {
+            ///nothing
+        } else if (old_header > fdata + 16 + framesize) {
+            log_info("data has gaps,set to 0\n");
+            memset(fdata + 16 + framesize, 0, (old_header - fdata + 16 + framesize));
+        } else if (old_header < fdata + 16 + framesize) {
+            log_info("ERROR!!! data over writed!!!! over write %d\n", fdata + 16 + framesize - old_header);
+        }
+        old_header = fdata;
     }
     return PLAYER_SUCCESS;
 }
@@ -1658,7 +1733,7 @@ int h264_write_end_header(play_para_t *para)
     MEMSET(tmp_data, 0, 1024);
     MEMCPY(tmp_data, &end_header, header_size);
     ret = codec_write(para->vcodec, (void *)tmp_data, 1024);
-    log_print("[%s:%d]ret %d\n", __FUNCTION__, __LINE__, ret);
+    log_debug("[%s:%d]ret %d\n", __FUNCTION__, __LINE__, ret);
     para->playctrl_info.write_end_header_flag = 1;
     FREE(tmp_data);
 

@@ -36,8 +36,9 @@ static int md5_open(URLContext *h, const char *filename, int flags)
         return -1;
     }
 
-    if (!flags & AVIO_FLAG_WRITE)
+    if (!flags & AVIO_FLAG_WRITE) {
         return AVERROR(EINVAL);
+    }
 
     av_md5_init(h->priv_data);
 
@@ -58,21 +59,24 @@ static int md5_close(URLContext *h)
     int i, err = 0;
 
     av_md5_final(h->priv_data, md5);
-    for (i = 0; i < sizeof(md5); i++)
-        snprintf(buf + i*2, 3, "%02x", md5[i]);
-    buf[i*2] = '\n';
+    for (i = 0; i < sizeof(md5); i++) {
+        snprintf(buf + i * 2, 3, "%02x", md5[i]);
+    }
+    buf[i * 2] = '\n';
 
     av_strstart(filename, "md5:", &filename);
 
     if (*filename) {
         err = ffurl_open(&out, filename, AVIO_FLAG_WRITE);
-        if (err)
+        if (err) {
             return err;
-        err = ffurl_write(out, buf, i*2+1);
+        }
+        err = ffurl_write(out, buf, i * 2 + 1);
         ffurl_close(out);
     } else {
-        if (fwrite(buf, 1, i*2+1, stdout) < i*2+1)
+        if (fwrite(buf, 1, i * 2 + 1, stdout) < i * 2 + 1) {
             err = AVERROR(errno);
+        }
     }
 
     return err;

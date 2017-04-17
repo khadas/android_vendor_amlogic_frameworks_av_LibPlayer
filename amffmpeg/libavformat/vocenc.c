@@ -34,8 +34,9 @@ static int voc_write_header(AVFormatContext *s)
     const int version = 0x0114;
 
     if (s->nb_streams != 1
-        || s->streams[0]->codec->codec_type != AVMEDIA_TYPE_AUDIO)
+        || s->streams[0]->codec->codec_type != AVMEDIA_TYPE_AUDIO) {
         return AVERROR_PATCHWELCOME;
+    }
 
     avio_write(pb, ff_voc_magic, sizeof(ff_voc_magic) - 1);
     avio_wl16(pb, header_size);
@@ -64,7 +65,7 @@ static int voc_write_packet(AVFormatContext *s, AVPacket *pkt)
             if (s->streams[0]->codec->channels > 1) {
                 avio_w8(pb, VOC_TYPE_EXTENDED);
                 avio_wl24(pb, 4);
-                avio_wl16(pb, 65536-256000000/(enc->sample_rate*enc->channels));
+                avio_wl16(pb, 65536 - 256000000 / (enc->sample_rate * enc->channels));
                 avio_w8(pb, enc->codec_tag);
                 avio_w8(pb, enc->channels - 1);
             }
@@ -100,5 +101,5 @@ AVOutputFormat ff_voc_muxer = {
     voc_write_header,
     voc_write_packet,
     voc_write_trailer,
-    .codec_tag=(const AVCodecTag* const []){ff_voc_codec_tags, 0},
+    .codec_tag = (const AVCodecTag* const []){ff_voc_codec_tags, 0},
 };

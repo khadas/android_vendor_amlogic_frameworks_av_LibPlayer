@@ -31,7 +31,7 @@
 #include "avutil.h"
 #include "dict.h"
 
-enum AVOptionType{
+enum AVOptionType {
     FF_OPT_TYPE_FLAGS,
     FF_OPT_TYPE_INT,
     FF_OPT_TYPE_INT64,
@@ -40,7 +40,7 @@ enum AVOptionType{
     FF_OPT_TYPE_STRING,
     FF_OPT_TYPE_RATIONAL,
     FF_OPT_TYPE_BINARY,  ///< offset must point to a pointer immediately followed by an int for the length
-    FF_OPT_TYPE_CONST=128,
+    FF_OPT_TYPE_CONST = 128,
 };
 
 /**
@@ -82,7 +82,7 @@ typedef struct AVOption {
 #define AV_OPT_FLAG_AUDIO_PARAM     8
 #define AV_OPT_FLAG_VIDEO_PARAM     16
 #define AV_OPT_FLAG_SUBTITLE_PARAM  32
-//FIXME think about enc-audio, ... style flags
+    //FIXME think about enc-audio, ... style flags
 
     /**
      * The logical unit to which the option belongs. Non-constant
@@ -297,6 +297,6 @@ const AVOption *av_opt_next(void *obj, const AVOption *prev);
 /**
  * @note the returned string will be av_malloc()ed and must be av_free()ed by the caller
  */
-int av_opt_get         (void *obj, const char *name, int search_flags, uint8_t   **out_val);
+int av_opt_get(void *obj, const char *name, int search_flags, uint8_t   **out_val);
 
 #endif /* AVUTIL_OPT_H */

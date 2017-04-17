@@ -86,8 +86,9 @@ typedef struct {
 
 static int ape_probe(AVProbeData * p)
 {
-    if (p->buf[0] == 'M' && p->buf[1] == 'A' && p->buf[2] == 'C' && p->buf[3] == ' ')
+    if (p->buf[0] == 'M' && p->buf[1] == 'A' && p->buf[2] == 'C' && p->buf[3] == ' ') {
         return AVPROBE_SCORE_MAX;
+    }
 
     return 0;
 }
@@ -108,8 +109,9 @@ static void ape_dumpinfo(AVFormatContext * s, APEContext * ape_ctx)
     av_log(s, AV_LOG_DEBUG, "audiodatalength_high = %"PRIu32"\n", ape_ctx->audiodatalength_high);
     av_log(s, AV_LOG_DEBUG, "wavtaillength        = %"PRIu32"\n", ape_ctx->wavtaillength);
     av_log(s, AV_LOG_DEBUG, "md5                  = ");
-    for (i = 0; i < 16; i++)
-         av_log(s, AV_LOG_DEBUG, "%02x", ape_ctx->md5[i]);
+    for (i = 0; i < 16; i++) {
+        av_log(s, AV_LOG_DEBUG, "%02x", ape_ctx->md5[i]);
+    }
     av_log(s, AV_LOG_DEBUG, "\n");
 
     av_log(s, AV_LOG_DEBUG, "\nHeader Block:\n\n");
@@ -163,8 +165,9 @@ static int ape_read_header(AVFormatContext * s, AVFormatParameters * ap)
     ape->junklength = avio_tell(pb);
 
     tag = avio_rl32(pb);
-    if (tag != MKTAG('M', 'A', 'C', ' '))
+    if (tag != MKTAG('M', 'A', 'C', ' ')) {
         return -1;
+    }
 
     ape->fileversion = avio_rl16(pb);
 
@@ -187,8 +190,9 @@ static int ape_read_header(AVFormatContext * s, AVFormatParameters * ap)
 
         /* Skip any unknown bytes at the end of the descriptor.
            This is for future compatibility */
-        if (ape->descriptorlength > 52)
+        if (ape->descriptorlength > 52) {
             avio_skip(pb, ape->descriptorlength - 52);
+        }
 
         /* Read header data */
         ape->compressiontype      = avio_rl16(pb);
@@ -221,33 +225,37 @@ static int ape_read_header(AVFormatContext * s, AVFormatParameters * ap)
             ape->seektablelength = avio_rl32(pb);
             ape->headerlength += 4;
             ape->seektablelength *= sizeof(int32_t);
-        } else
+        } else {
             ape->seektablelength = ape->totalframes * sizeof(int32_t);
+        }
 
-        if (ape->formatflags & MAC_FORMAT_FLAG_8_BIT)
+        if (ape->formatflags & MAC_FORMAT_FLAG_8_BIT) {
             ape->bps = 8;
-        else if (ape->formatflags & MAC_FORMAT_FLAG_24_BIT)
+        } else if (ape->formatflags & MAC_FORMAT_FLAG_24_BIT) {
             ape->bps = 24;
-        else
+        } else {
             ape->bps = 16;
+        }
 
-        if (ape->fileversion >= 3950)
+        if (ape->fileversion >= 3950) {
             ape->blocksperframe = 73728 * 4;
-        else if (ape->fileversion >= 3900 || (ape->fileversion >= 3800  && ape->compressiontype >= 4000))
+        } else if (ape->fileversion >= 3900 || (ape->fileversion >= 3800  && ape->compressiontype >= 4000)) {
             ape->blocksperframe = 73728;
-        else
+        } else {
             ape->blocksperframe = 9216;
+        }
 
         /* Skip any stored wav header */
-        if (!(ape->formatflags & MAC_FORMAT_FLAG_CREATE_WAV_HEADER))
+        if (!(ape->formatflags & MAC_FORMAT_FLAG_CREATE_WAV_HEADER)) {
             avio_skip(pb, ape->wavheaderlength);
+        }
     }
 
-    if(!ape->totalframes){
+    if (!ape->totalframes) {
         av_log(s, AV_LOG_ERROR, "No frames in the file!\n");
         return AVERROR(EINVAL);
     }
-    if(ape->totalframes > UINT_MAX / sizeof(APEFrame)){
+    if (ape->totalframes > UINT_MAX / sizeof(APEFrame)) {
         av_log(s, AV_LOG_ERROR, "Too many frames: %"PRIu32"\n",
                ape->totalframes);
         return -1;
@@ -258,20 +266,23 @@ static int ape_read_header(AVFormatContext * s, AVFormatParameters * ap)
         return AVERROR_INVALIDDATA;
     }
     ape->frames       = av_malloc(ape->totalframes * sizeof(APEFrame));
-    if(!ape->frames)
+    if (!ape->frames) {
         return AVERROR(ENOMEM);
+    }
     ape->firstframe   = ape->junklength + ape->descriptorlength + ape->headerlength + ape->seektablelength + ape->wavheaderlength;
     ape->currentframe = 0;
 
 
     ape->totalsamples = ape->finalframeblocks;
-    if (ape->totalframes > 1)
+    if (ape->totalframes > 1) {
         ape->totalsamples += ape->blocksperframe * (ape->totalframes - 1);
+    }
 
     if (ape->seektablelength > 0) {
         ape->seektable = av_malloc(ape->seektablelength);
-        for (i = 0; i < ape->seektablelength / sizeof(uint32_t); i++)
+        for (i = 0; i < ape->seektablelength / sizeof(uint32_t); i++) {
             ape->seektable[i] = avio_rl32(pb);
+        }
     }
 
     ape->frames[0].pos     = ape->firstframe;
@@ -291,11 +302,12 @@ static int ape_read_header(AVFormatContext * s, AVFormatParameters * ap)
                      ape->wavtaillength;
         final_size -= final_size & 3;
     }
-    if (file_size <= 0 || final_size <= 0)
+    if (file_size <= 0 || final_size <= 0) {
         final_size = ape->finalframeblocks * 8;
+    }
     ape->frames[ape->totalframes - 1].size = final_size;
     for (i = 0; i < ape->totalframes; i++) {
-        if(ape->frames[i].skip){
+        if (ape->frames[i].skip) {
             ape->frames[i].pos  -= ape->frames[i].skip;
             ape->frames[i].size += ape->frames[i].skip;
         }
@@ -317,8 +329,9 @@ static int ape_read_header(AVFormatContext * s, AVFormatParameters * ap)
 
     /* now we are ready: build format streams */
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return -1;
+    }
 
     total_blocks = (ape->totalframes == 0) ? 0 : ((ape->totalframes - 1) * ape->blocksperframe) + ape->finalframeblocks;
 
@@ -358,43 +371,49 @@ static int ape_read_packet(AVFormatContext * s, AVPacket * pkt)
     APEContext *ape = s->priv_data;
     uint32_t extra_size = 8;
 
-    if (url_feof(s->pb))
-	return AVERROR_EOF;
-        //return AVERROR(EIO);
-    if (ape->currentframe >= ape->totalframes)
-	return AVERROR_EOF;
-        //return AVERROR(EIO);
-    //find the correct currentframe when seeking
-    while(0)
-    {
-        if(ape->frames[ape->currentframe].pos==s->pb->pos)
-            break;
-        if(ape->currentframe==0&&ape->frames[ape->currentframe].pos>s->pb->pos)
-            break;
-        if(ape->currentframe==ape->totalframes-1)
-            break;
-        if(ape->frames[ape->currentframe].pos<s->pb->pos&&ape->frames[ape->currentframe+1].pos>s->pb->pos)
-	{
-	    int len=ape->frames[ape->currentframe+1].pos-ape->frames[ape->currentframe].pos;
-            if(s->pb->pos>ape->frames[ape->currentframe].pos+len/2)
-                ape->currentframe+=1;
-            break;
-	}
-        else if(ape->frames[ape->currentframe+1].pos<s->pb->pos)
-            ape->currentframe+=1;
-        else
-            ape->currentframe-=1;
+    if (url_feof(s->pb)) {
+        return AVERROR_EOF;
     }
-    avio_seek (s->pb, ape->frames[ape->currentframe].pos, SEEK_SET);
+    //return AVERROR(EIO);
+    if (ape->currentframe >= ape->totalframes) {
+        return AVERROR_EOF;
+    }
+    //return AVERROR(EIO);
+    //find the correct currentframe when seeking
+    while (0) {
+        if (ape->frames[ape->currentframe].pos == s->pb->pos) {
+            break;
+        }
+        if (ape->currentframe == 0 && ape->frames[ape->currentframe].pos > s->pb->pos) {
+            break;
+        }
+        if (ape->currentframe == ape->totalframes - 1) {
+            break;
+        }
+        if (ape->frames[ape->currentframe].pos < s->pb->pos && ape->frames[ape->currentframe + 1].pos > s->pb->pos) {
+            int len = ape->frames[ape->currentframe + 1].pos - ape->frames[ape->currentframe].pos;
+            if (s->pb->pos > ape->frames[ape->currentframe].pos + len / 2) {
+                ape->currentframe += 1;
+            }
+            break;
+        } else if (ape->frames[ape->currentframe + 1].pos < s->pb->pos) {
+            ape->currentframe += 1;
+        } else {
+            ape->currentframe -= 1;
+        }
+    }
+    avio_seek(s->pb, ape->frames[ape->currentframe].pos, SEEK_SET);
 
     /* Calculate how many blocks there are in this frame */
-    if (ape->currentframe == (ape->totalframes - 1))
+    if (ape->currentframe == (ape->totalframes - 1)) {
         nblocks = ape->finalframeblocks;
-    else
+    } else {
         nblocks = ape->blocksperframe;
+    }
 
-    if (av_new_packet(pkt,  ape->frames[ape->currentframe].size + extra_size) < 0)
+    if (av_new_packet(pkt,  ape->frames[ape->currentframe].size + extra_size) < 0) {
         return AVERROR(ENOMEM);
+    }
 
     AV_WL32(pkt->data    , nblocks);
     AV_WL32(pkt->data + 4, ape->frames[ape->currentframe].skip);
@@ -405,12 +424,12 @@ static int ape_read_packet(AVFormatContext * s, AVPacket * pkt)
 
     /* note: we need to modify the packet size here to handle the last
        packet */
-    if(ret < 0 ){	
-	 av_log(s, AV_LOG_INFO,"ape read frame fail,skip this frame.frame size %d,ret %d \n",ape->frames[ape->currentframe].size,ret);
-	 pkt->size = 0;
+    if (ret < 0) {
+        av_log(s, AV_LOG_INFO, "ape read frame fail,skip this frame.frame size %d,ret %d \n", ape->frames[ape->currentframe].size, ret);
+        pkt->size = 0;
+    } else {
+        pkt->size = ret + extra_size;
     }
-    else
-    	pkt->size = ret + extra_size;
 
     ape->currentframe++;
 
@@ -432,8 +451,9 @@ static int ape_read_seek(AVFormatContext *s, int stream_index, int64_t timestamp
     APEContext *ape = s->priv_data;
     int index = av_index_search_timestamp(st, timestamp, flags);
 
-    if (index < 0)
+    if (index < 0) {
         return -1;
+    }
 
     ape->currentframe = index;
     return 0;

@@ -29,7 +29,7 @@
 #include "libavutil/common.h"
 
 
-typedef struct WNV1Context{
+typedef struct WNV1Context {
     AVCodecContext *avctx;
     AVFrame pic;
 
@@ -37,10 +37,10 @@ typedef struct WNV1Context{
     GetBitContext gb;
 } WNV1Context;
 
-static const uint16_t code_tab[16][2]={
-{0x1FD,9}, {0xFD,8}, {0x7D,7}, {0x3D,6}, {0x1D,5}, {0x0D,4}, {0x005,3},
-{0x000,1},
-{0x004,3}, {0x0C,4}, {0x1C,5}, {0x3C,6}, {0x7C,7}, {0xFC,8}, {0x1FC,9}, {0xFF,8}
+static const uint16_t code_tab[16][2] = {
+    {0x1FD, 9}, {0xFD, 8}, {0x7D, 7}, {0x3D, 6}, {0x1D, 5}, {0x0D, 4}, {0x005, 3},
+    {0x000, 1},
+    {0x004, 3}, {0x0C, 4}, {0x1C, 5}, {0x3C, 6}, {0x7C, 7}, {0xFC, 8}, {0x1FC, 9}, {0xFF, 8}
 };
 
 #define CODE_VLC_BITS 9
@@ -51,10 +51,11 @@ static inline int wnv1_get_code(WNV1Context *w, int base_value)
 {
     int v = get_vlc2(&w->gb, code_vlc.table, CODE_VLC_BITS, 1);
 
-    if(v==15)
+    if (v == 15) {
         return av_reverse[ get_bits(&w->gb, 8 - w->shift) ];
-    else
-        return base_value + ((v - 7)<<w->shift);
+    } else {
+        return base_value + ((v - 7) << w->shift);
+    }
 }
 
 static int decode_frame(AVCodecContext *avctx,
@@ -64,36 +65,38 @@ static int decode_frame(AVCodecContext *avctx,
     const uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;
     WNV1Context * const l = avctx->priv_data;
-    AVFrame * const p= (AVFrame*)&l->pic;
-    unsigned char *Y,*U,*V;
+    AVFrame * const p = (AVFrame*)&l->pic;
+    unsigned char *Y, *U, *V;
     int i, j;
     int prev_y = 0, prev_u = 0, prev_v = 0;
     uint8_t *rbuf;
 
     rbuf = av_malloc(buf_size + FF_INPUT_BUFFER_PADDING_SIZE);
-    if(!rbuf){
+    if (!rbuf) {
         av_log(avctx, AV_LOG_ERROR, "Cannot allocate temporary buffer\n");
         return -1;
     }
 
-    if(p->data[0])
+    if (p->data[0]) {
         avctx->release_buffer(avctx, p);
+    }
 
     p->reference = 0;
-    if(avctx->get_buffer(avctx, p) < 0){
+    if (avctx->get_buffer(avctx, p) < 0) {
         av_log(avctx, AV_LOG_ERROR, "get_buffer() failed\n");
         av_free(rbuf);
         return -1;
     }
     p->key_frame = 1;
 
-    for(i=8; i<buf_size; i++)
-        rbuf[i]= av_reverse[ buf[i] ];
-    init_get_bits(&l->gb, rbuf+8, (buf_size-8)*8);
+    for (i = 8; i < buf_size; i++) {
+        rbuf[i] = av_reverse[ buf[i] ];
+    }
+    init_get_bits(&l->gb, rbuf + 8, (buf_size - 8) * 8);
 
-    if (buf[2] >> 4 == 6)
+    if (buf[2] >> 4 == 6) {
         l->shift = 2;
-    else {
+    } else {
         l->shift = 8 - (buf[2] >> 4);
         if (l->shift > 4) {
             av_log_ask_for_sample(avctx, "Unknown WNV1 frame header value %i\n",
@@ -130,7 +133,8 @@ static int decode_frame(AVCodecContext *avctx,
     return buf_size;
 }
 
-static av_cold int decode_init(AVCodecContext *avctx){
+static av_cold int decode_init(AVCodecContext *avctx)
+{
     WNV1Context * const l = avctx->priv_data;
     static VLC_TYPE code_table[1 << CODE_VLC_BITS][2];
 
@@ -147,12 +151,14 @@ static av_cold int decode_init(AVCodecContext *avctx){
     return 0;
 }
 
-static av_cold int decode_end(AVCodecContext *avctx){
+static av_cold int decode_end(AVCodecContext *avctx)
+{
     WNV1Context * const l = avctx->priv_data;
     AVFrame *pic = &l->pic;
 
-    if (pic->data[0])
+    if (pic->data[0]) {
         avctx->release_buffer(avctx, pic);
+    }
 
     return 0;
 }

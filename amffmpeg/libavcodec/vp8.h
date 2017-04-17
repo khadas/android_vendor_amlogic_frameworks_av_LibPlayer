@@ -156,7 +156,7 @@ typedef struct {
          * [7]   - split mv
          *  i16x16 modes never have any adjustment
          */
-        int8_t mode[VP8_MVMODE_SPLIT+1];
+        int8_t mode[VP8_MVMODE_SPLIT + 1];
 
         /**
          * filter strength adjustment for macroblocks that reference:
@@ -172,7 +172,7 @@ typedef struct {
      * Cache of the top row needed for intra prediction
      * 16 for luma, 8 for each chroma plane
      */
-    uint8_t (*top_border)[16+8+8];
+    uint8_t (*top_border)[16 + 8 + 8];
 
     /**
      * For coeff decode, we need to know whether the above block had non-zero
@@ -210,7 +210,7 @@ typedef struct {
         uint8_t golden;
         uint8_t pred16x16[4];
         uint8_t pred8x8c[3];
-        uint8_t token[4][16][3][NUM_DCT_TOKENS-1];
+        uint8_t token[4][16][3][NUM_DCT_TOKENS - 1];
         uint8_t mvc[2][19];
     } prob[2];
 

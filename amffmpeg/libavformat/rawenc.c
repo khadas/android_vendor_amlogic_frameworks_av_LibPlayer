@@ -43,7 +43,7 @@ AVOutputFormat ff_ac3_muxer = {
     CODEC_ID_NONE,
     NULL,
     ff_raw_write_packet,
-    .flags= AVFMT_NOTIMESTAMPS,
+    .flags = AVFMT_NOTIMESTAMPS,
 };
 #endif
 
@@ -58,7 +58,7 @@ AVOutputFormat ff_dirac_muxer = {
     CODEC_ID_DIRAC,
     NULL,
     ff_raw_write_packet,
-    .flags= AVFMT_NOTIMESTAMPS,
+    .flags = AVFMT_NOTIMESTAMPS,
 };
 #endif
 
@@ -73,7 +73,7 @@ AVOutputFormat ff_dnxhd_muxer = {
     CODEC_ID_DNXHD,
     NULL,
     ff_raw_write_packet,
-    .flags= AVFMT_NOTIMESTAMPS,
+    .flags = AVFMT_NOTIMESTAMPS,
 };
 #endif
 
@@ -88,7 +88,7 @@ AVOutputFormat ff_dts_muxer = {
     CODEC_ID_NONE,
     NULL,
     ff_raw_write_packet,
-    .flags= AVFMT_NOTIMESTAMPS,
+    .flags = AVFMT_NOTIMESTAMPS,
 };
 #endif
 
@@ -103,7 +103,7 @@ AVOutputFormat ff_eac3_muxer = {
     CODEC_ID_NONE,
     NULL,
     ff_raw_write_packet,
-    .flags= AVFMT_NOTIMESTAMPS,
+    .flags = AVFMT_NOTIMESTAMPS,
 };
 #endif
 
@@ -118,7 +118,7 @@ AVOutputFormat ff_g722_muxer = {
     CODEC_ID_NONE,
     NULL,
     ff_raw_write_packet,
-    .flags= AVFMT_NOTIMESTAMPS,
+    .flags = AVFMT_NOTIMESTAMPS,
 };
 #endif
 
@@ -133,7 +133,7 @@ AVOutputFormat ff_h261_muxer = {
     CODEC_ID_H261,
     NULL,
     ff_raw_write_packet,
-    .flags= AVFMT_NOTIMESTAMPS,
+    .flags = AVFMT_NOTIMESTAMPS,
 };
 #endif
 
@@ -148,7 +148,7 @@ AVOutputFormat ff_h263_muxer = {
     CODEC_ID_H263,
     NULL,
     ff_raw_write_packet,
-    .flags= AVFMT_NOTIMESTAMPS,
+    .flags = AVFMT_NOTIMESTAMPS,
 };
 #endif
 
@@ -163,7 +163,7 @@ AVOutputFormat ff_h264_muxer = {
     CODEC_ID_H264,
     NULL,
     ff_raw_write_packet,
-    .flags= AVFMT_NOTIMESTAMPS,
+    .flags = AVFMT_NOTIMESTAMPS,
 };
 #endif
 
@@ -178,7 +178,7 @@ AVOutputFormat ff_cavsvideo_muxer = {
     CODEC_ID_CAVS,
     NULL,
     ff_raw_write_packet,
-    .flags= AVFMT_NOTIMESTAMPS,
+    .flags = AVFMT_NOTIMESTAMPS,
 };
 #endif
 
@@ -193,7 +193,7 @@ AVOutputFormat ff_m4v_muxer = {
     CODEC_ID_MPEG4,
     NULL,
     ff_raw_write_packet,
-    .flags= AVFMT_NOTIMESTAMPS,
+    .flags = AVFMT_NOTIMESTAMPS,
 };
 #endif
 
@@ -208,7 +208,7 @@ AVOutputFormat ff_mjpeg_muxer = {
     CODEC_ID_MJPEG,
     NULL,
     ff_raw_write_packet,
-    .flags= AVFMT_NOTIMESTAMPS,
+    .flags = AVFMT_NOTIMESTAMPS,
 };
 #endif
 
@@ -223,7 +223,7 @@ AVOutputFormat ff_mlp_muxer = {
     CODEC_ID_NONE,
     NULL,
     ff_raw_write_packet,
-    .flags= AVFMT_NOTIMESTAMPS,
+    .flags = AVFMT_NOTIMESTAMPS,
 };
 #endif
 
@@ -250,7 +250,7 @@ AVOutputFormat ff_truehd_muxer = {
     CODEC_ID_NONE,
     NULL,
     ff_raw_write_packet,
-    .flags= AVFMT_NOTIMESTAMPS,
+    .flags = AVFMT_NOTIMESTAMPS,
 };
 #endif
 
@@ -265,7 +265,7 @@ AVOutputFormat ff_mpeg1video_muxer = {
     CODEC_ID_MPEG1VIDEO,
     NULL,
     ff_raw_write_packet,
-    .flags= AVFMT_NOTIMESTAMPS,
+    .flags = AVFMT_NOTIMESTAMPS,
 };
 #endif
 
@@ -280,7 +280,7 @@ AVOutputFormat ff_mpeg2video_muxer = {
     CODEC_ID_MPEG2VIDEO,
     NULL,
     ff_raw_write_packet,
-    .flags= AVFMT_NOTIMESTAMPS,
+    .flags = AVFMT_NOTIMESTAMPS,
 };
 #endif
 
@@ -295,6 +295,6 @@ AVOutputFormat ff_rawvideo_muxer = {
     CODEC_ID_RAWVIDEO,
     NULL,
     ff_raw_write_packet,
-    .flags= AVFMT_NOTIMESTAMPS,
+    .flags = AVFMT_NOTIMESTAMPS,
 };
 #endif

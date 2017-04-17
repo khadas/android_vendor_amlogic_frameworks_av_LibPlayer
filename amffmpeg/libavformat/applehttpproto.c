@@ -70,16 +70,18 @@ typedef struct AppleHTTPContext {
 static int read_chomp_line(AVIOContext *s, char *buf, int maxlen)
 {
     int len = ff_get_line(s, buf, maxlen);
-    while (len > 0 && isspace(buf[len - 1]))
+    while (len > 0 && isspace(buf[len - 1])) {
         buf[--len] = '\0';
+    }
     return len;
 }
 
 static void free_segment_list(AppleHTTPContext *s)
 {
     int i;
-    for (i = 0; i < s->n_segments; i++)
+    for (i = 0; i < s->n_segments; i++) {
         av_free(s->segments[i]);
+    }
     av_freep(&s->segments);
     s->n_segments = 0;
 }
@@ -87,8 +89,9 @@ static void free_segment_list(AppleHTTPContext *s)
 static void free_variant_list(AppleHTTPContext *s)
 {
     int i;
-    for (i = 0; i < s->n_variants; i++)
+    for (i = 0; i < s->n_variants; i++) {
         av_free(s->variants[i]);
+    }
     av_freep(&s->variants);
     s->n_variants = 0;
 }
@@ -114,12 +117,14 @@ static int parse_playlist(URLContext *h, const char *url)
     char line[1024];
     const char *ptr;
 
-    if ((ret = avio_open(&in, url, AVIO_FLAG_READ)) < 0)
+    if ((ret = avio_open(&in, url, AVIO_FLAG_READ)) < 0) {
         return ret;
+    }
 
     read_chomp_line(in, line, sizeof(line));
-    if (strcmp(line, "#EXTM3U"))
+    if (strcmp(line, "#EXTM3U")) {
         return AVERROR_INVALIDDATA;
+    }
 
     free_segment_list(s);
     s->finished = 0;
@@ -179,12 +184,14 @@ static int applehttp_open(URLContext *h, const char *uri, int flags)
     int ret, i;
     const char *nested_url;
 
-    if (flags & AVIO_FLAG_WRITE)
+    if (flags & AVIO_FLAG_WRITE) {
         return AVERROR(ENOSYS);
+    }
 
     s = av_mallocz(sizeof(AppleHTTPContext));
-    if (!s)
+    if (!s) {
         return AVERROR(ENOMEM);
+    }
     h->priv_data = s;
     h->is_streamed = 1;
 
@@ -199,8 +206,9 @@ static int applehttp_open(URLContext *h, const char *uri, int flags)
         goto fail;
     }
 
-    if ((ret = parse_playlist(h, s->playlisturl)) < 0)
+    if ((ret = parse_playlist(h, s->playlisturl)) < 0) {
         goto fail;
+    }
 
     if (s->n_segments == 0 && s->n_variants > 0) {
         int max_bandwidth = 0, maxvar = -1;
@@ -212,8 +220,9 @@ static int applehttp_open(URLContext *h, const char *uri, int flags)
         }
         av_strlcpy(s->playlisturl, s->variants[maxvar]->url,
                    sizeof(s->playlisturl));
-        if ((ret = parse_playlist(h, s->playlisturl)) < 0)
+        if ((ret = parse_playlist(h, s->playlisturl)) < 0) {
             goto fail;
+        }
     }
 
     if (s->n_segments == 0) {
@@ -222,8 +231,9 @@ static int applehttp_open(URLContext *h, const char *uri, int flags)
         goto fail;
     }
     s->cur_seq_no = s->start_seq_no;
-    if (!s->finished && s->n_segments >= 3)
+    if (!s->finished && s->n_segments >= 3) {
         s->cur_seq_no = s->start_seq_no + s->n_segments - 3;
+    }
 
     return 0;
 
@@ -241,8 +251,9 @@ static int applehttp_read(URLContext *h, uint8_t *buf, int size)
 start:
     if (s->seg_hd) {
         ret = ffurl_read(s->seg_hd, buf, size);
-        if (ret > 0)
+        if (ret > 0) {
             return ret;
+        }
     }
     if (s->seg_hd) {
         ffurl_close(s->seg_hd);
@@ -252,9 +263,10 @@ start:
 retry:
     if (!s->finished) {
         int64_t now = av_gettime();
-        if (now - s->last_load_time >= s->target_duration*1000000)
-            if ((ret = parse_playlist(h, s->playlisturl)) < 0)
+        if (now - s->last_load_time >= s->target_duration * 1000000)
+            if ((ret = parse_playlist(h, s->playlisturl)) < 0) {
                 return ret;
+            }
     }
     if (s->cur_seq_no < s->start_seq_no) {
         av_log(h, AV_LOG_WARNING,
@@ -263,12 +275,14 @@ retry:
         s->cur_seq_no = s->start_seq_no;
     }
     if (s->cur_seq_no - s->start_seq_no >= s->n_segments) {
-        if (s->finished)
+        if (s->finished) {
             return AVERROR_EOF;
-        while (av_gettime() - s->last_load_time < s->target_duration*1000000) {
-            if (url_interrupt_cb())
+        }
+        while (av_gettime() - s->last_load_time < s->target_duration * 1000000) {
+            if (url_interrupt_cb()) {
                 return AVERROR_EXIT;
-            usleep(100*1000);
+            }
+            usleep(100 * 1000);
         }
         goto retry;
     }
@@ -276,8 +290,9 @@ retry:
     av_log(h, AV_LOG_DEBUG, "opening %s\n", url);
     ret = ffurl_open(&s->seg_hd, url, AVIO_FLAG_READ);
     if (ret < 0) {
-        if (url_interrupt_cb())
+        if (url_interrupt_cb()) {
             return AVERROR_EXIT;
+        }
         av_log(h, AV_LOG_WARNING, "Unable to open %s\n", url);
         s->cur_seq_no++;
         goto retry;

@@ -60,8 +60,9 @@ static inline void lag_rac_refill(lag_rac *l)
         l->low   <<= 8;
         l->range <<= 8;
         l->low |= 0xff & (AV_RB16(l->bytestream) >> 1);
-        if (l->bytestream < l->bytestream_end)
+        if (l->bytestream < l->bytestream_end) {
             l->bytestream++;
+        }
     }
 }
 
@@ -97,8 +98,9 @@ static inline uint8_t lag_get_rac(lag_rac *l)
             low_scaled = (low_scaled << shift) | (low_scaled >> (32 - shift));
             /* low_scaled is now a lower bound of low/range_scaled */
             val = l->range_hash[(uint8_t) low_scaled];
-            while (l->low >= range_scaled * l->prob[val + 1])
+            while (l->low >= range_scaled * l->prob[val + 1]) {
                 val++;
+            }
         }
 
         l->range = range_scaled * (l->prob[val + 1] - l->prob[val]);

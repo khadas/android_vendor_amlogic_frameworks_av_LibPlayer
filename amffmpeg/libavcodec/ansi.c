@@ -82,8 +82,9 @@ static av_cold int decode_init(AVCodecContext *avctx)
     s->bg          = DEFAULT_BG_COLOR;
 
     avcodec_get_frame_defaults(&s->frame);
-    if (!avctx->width || !avctx->height)
-        avcodec_set_dimensions(avctx, 80<<3, 25<<4);
+    if (!avctx->width || !avctx->height) {
+        avcodec_set_dimensions(avctx, 80 << 3, 25 << 4);
+    }
 
     return 0;
 }
@@ -105,7 +106,7 @@ static void hscroll(AVCodecContext *avctx)
                avctx->width);
     for (; i < avctx->height; i++)
         memset(s->frame.data[0] + i * s->frame.linesize[0],
-            DEFAULT_BG_COLOR, avctx->width);
+               DEFAULT_BG_COLOR, avctx->width);
 }
 
 static void erase_line(AVCodecContext * avctx, int xoffset, int xlength)
@@ -114,15 +115,16 @@ static void erase_line(AVCodecContext * avctx, int xoffset, int xlength)
     int i;
     for (i = 0; i < s->font_height; i++)
         memset(s->frame.data[0] + (s->y + i)*s->frame.linesize[0] + xoffset,
-            DEFAULT_BG_COLOR, xlength);
+               DEFAULT_BG_COLOR, xlength);
 }
 
 static void erase_screen(AVCodecContext *avctx)
 {
     AnsiContext *s = avctx->priv_data;
     int i;
-    for (i = 0; i < avctx->height; i++)
+    for (i = 0; i < avctx->height; i++) {
         memset(s->frame.data[0] + i * s->frame.linesize[0], DEFAULT_BG_COLOR, avctx->width);
+    }
     s->x = s->y = 0;
 }
 
@@ -135,14 +137,18 @@ static void draw_char(AVCodecContext *avctx, int c)
     int fg = s->fg;
     int bg = s->bg;
 
-    if ((s->attributes & ATTR_BOLD))
+    if ((s->attributes & ATTR_BOLD)) {
         fg += 8;
-    if ((s->attributes & ATTR_BLINK))
+    }
+    if ((s->attributes & ATTR_BLINK)) {
         bg += 8;
-    if ((s->attributes & ATTR_REVERSE))
+    }
+    if ((s->attributes & ATTR_REVERSE)) {
         FFSWAP(int, fg, bg);
-    if ((s->attributes & ATTR_CONCEALED))
+    }
+    if ((s->attributes & ATTR_CONCEALED)) {
         fg = bg;
+    }
     ff_draw_pc_font(s->frame.data[0] + s->y * s->frame.linesize[0] + s->x,
                     s->frame.linesize[0], s->font, s->font_height, c, fg, bg);
     s->x += FONT_WIDTH;
@@ -160,67 +166,78 @@ static int execute_code(AVCodecContext * avctx, int c)
 {
     AnsiContext *s = avctx->priv_data;
     int ret, i, width, height;
-    switch(c) {
+    switch (c) {
     case 'A': //Cursor Up
-        s->y = FFMAX(s->y - (s->nb_args > 0 ? s->args[0]*s->font_height : s->font_height), 0);
+        s->y = FFMAX(s->y - (s->nb_args > 0 ? s->args[0] * s->font_height : s->font_height), 0);
         break;
     case 'B': //Cursor Down
-        s->y = FFMIN(s->y + (s->nb_args > 0 ? s->args[0]*s->font_height : s->font_height), avctx->height - s->font_height);
+        s->y = FFMIN(s->y + (s->nb_args > 0 ? s->args[0] * s->font_height : s->font_height), avctx->height - s->font_height);
         break;
     case 'C': //Cursor Right
-        s->x = FFMIN(s->x + (s->nb_args > 0 ? s->args[0]*FONT_WIDTH : FONT_WIDTH), avctx->width  - FONT_WIDTH);
+        s->x = FFMIN(s->x + (s->nb_args > 0 ? s->args[0] * FONT_WIDTH : FONT_WIDTH), avctx->width  - FONT_WIDTH);
         break;
     case 'D': //Cursor Left
-        s->x = FFMAX(s->x - (s->nb_args > 0 ? s->args[0]*FONT_WIDTH : FONT_WIDTH), 0);
+        s->x = FFMAX(s->x - (s->nb_args > 0 ? s->args[0] * FONT_WIDTH : FONT_WIDTH), 0);
         break;
     case 'H': //Cursor Position
     case 'f': //Horizontal and Vertical Position
-        s->y = s->nb_args > 0 ? av_clip((s->args[0] - 1)*s->font_height, 0, avctx->height - s->font_height) : 0;
-        s->x = s->nb_args > 1 ? av_clip((s->args[1] - 1)*FONT_WIDTH,     0, avctx->width  - FONT_WIDTH) : 0;
+        s->y = s->nb_args > 0 ? av_clip((s->args[0] - 1) * s->font_height, 0, avctx->height - s->font_height) : 0;
+        s->x = s->nb_args > 1 ? av_clip((s->args[1] - 1) * FONT_WIDTH,     0, avctx->width  - FONT_WIDTH) : 0;
         break;
     case 'h': //set creen mode
     case 'l': //reset screen mode
-        if (s->nb_args < 2)
+        if (s->nb_args < 2) {
             s->args[0] = DEFAULT_SCREEN_MODE;
-        switch(s->args[0]) {
-        case 0: case 1: case 4: case 5: case 13: case 19: //320x200 (25 rows)
+        }
+        switch (s->args[0]) {
+        case 0:
+        case 1:
+        case 4:
+        case 5:
+        case 13:
+        case 19: //320x200 (25 rows)
             s->font = ff_cga_font;
             s->font_height = 8;
-            width  = 40<<3;
-            height = 25<<3;
+            width  = 40 << 3;
+            height = 25 << 3;
             break;
-        case 2: case 3: //640x400 (25 rows)
+        case 2:
+        case 3: //640x400 (25 rows)
             s->font = ff_vga16_font;
             s->font_height = 16;
-            width  = 80<<3;
-            height = 25<<4;
+            width  = 80 << 3;
+            height = 25 << 4;
             break;
-        case 6: case 14: //640x200 (25 rows)
+        case 6:
+        case 14: //640x200 (25 rows)
             s->font = ff_cga_font;
             s->font_height = 8;
-            width  = 80<<3;
-            height = 25<<3;
+            width  = 80 << 3;
+            height = 25 << 3;
             break;
         case 7: //set line wrapping
             break;
-        case 15: case 16: //640x350 (43 rows)
+        case 15:
+        case 16: //640x350 (43 rows)
             s->font = ff_cga_font;
             s->font_height = 8;
-            width  = 80<<3;
-            height = 43<<3;
+            width  = 80 << 3;
+            height = 43 << 3;
             break;
-        case 17: case 18: //640x480 (60 rows)
+        case 17:
+        case 18: //640x480 (60 rows)
             s->font = ff_cga_font;
             s->font_height = 8;
-            width  = 80<<3;
-            height = 60<<4;
+            width  = 80 << 3;
+            height = 60 << 4;
             break;
         default:
             av_log_ask_for_sample(avctx, "unsupported screen mode\n");
         }
         if (width != avctx->width || height != avctx->height) {
-            if (s->frame.data[0])
+            if (s->frame.data[0]) {
                 avctx->release_buffer(avctx, &s->frame);
+            }
             avcodec_set_dimensions(avctx, width, height);
             ret = avctx->get_buffer(avctx, &s->frame);
             if (ret < 0) {
@@ -241,19 +258,20 @@ static int execute_code(AVCodecContext * avctx, int c)
             erase_line(avctx, s->x, avctx->width - s->x);
             if (s->y < avctx->height - s->font_height)
                 memset(s->frame.data[0] + (s->y + s->font_height)*s->frame.linesize[0],
-                    DEFAULT_BG_COLOR, (avctx->height - s->y - s->font_height)*s->frame.linesize[0]);
+                       DEFAULT_BG_COLOR, (avctx->height - s->y - s->font_height)*s->frame.linesize[0]);
             break;
         case 1:
             erase_line(avctx, 0, s->x);
-            if (s->y > 0)
+            if (s->y > 0) {
                 memset(s->frame.data[0], DEFAULT_BG_COLOR, s->y * s->frame.linesize[0]);
+            }
             break;
         case 2:
             erase_screen(avctx);
         }
         break;
     case 'K': //Erase in Line
-        switch(s->args[0]) {
+        switch (s->args[0]) {
         case 0:
             erase_line(avctx, s->x, avctx->width - s->x);
             break;
@@ -310,17 +328,17 @@ static int execute_code(AVCodecContext * avctx, int c)
 }
 
 static int decode_frame(AVCodecContext *avctx,
-                            void *data, int *data_size,
-                            AVPacket *avpkt)
+                        void *data, int *data_size,
+                        AVPacket *avpkt)
 {
     AnsiContext *s = avctx->priv_data;
     uint8_t *buf = avpkt->data;
     int buf_size = avpkt->size;
-    const uint8_t *buf_end   = buf+buf_size;
+    const uint8_t *buf_end   = buf + buf_size;
     int ret, i, count;
 
     ret = avctx->reget_buffer(avctx, &s->frame);
-    if (ret < 0){
+    if (ret < 0) {
         av_log(avctx, AV_LOG_ERROR, "get_buffer() failed\n");
         return ret;
     }
@@ -328,8 +346,8 @@ static int decode_frame(AVCodecContext *avctx,
     s->frame.palette_has_changed = 1;
     memcpy(s->frame.data[1], ff_cga_palette, 16 * 4);
 
-    while(buf < buf_end) {
-        switch(s->state) {
+    while (buf < buf_end) {
+        switch (s->state) {
         case STATE_NORMAL:
             switch (buf[0]) {
             case 0x00: //NUL
@@ -343,8 +361,9 @@ static int decode_frame(AVCodecContext *avctx,
             case 0x09: //HT
                 i = s->x / FONT_WIDTH;
                 count = ((i + 8) & ~7) - i;
-                for (i = 0; i < count; i++)
+                for (i = 0; i < count; i++) {
                     draw_char(avctx, ' ');
+                }
                 break;
             case 0x0A: //LF
                 hscroll(avctx);
@@ -369,41 +388,56 @@ static int decode_frame(AVCodecContext *avctx,
             } else {
                 s->state = STATE_NORMAL;
                 draw_char(avctx, 0x1B);
-                    return -1;
+                return -1;
                 continue;
             }
             break;
         case STATE_CODE:
-            switch(buf[0]) {
-            case '0': case '1': case '2': case '3': case '4':
-            case '5': case '6': case '7': case '8': case '9':
-                if (s->nb_args < MAX_NB_ARGS)
+            switch (buf[0]) {
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9':
+                if (s->nb_args < MAX_NB_ARGS) {
                     s->args[s->nb_args] = s->args[s->nb_args] * 10 + buf[0] - '0';
+                }
                 break;
             case ';':
                 s->nb_args++;
-                if (s->nb_args < MAX_NB_ARGS)
+                if (s->nb_args < MAX_NB_ARGS) {
                     s->args[s->nb_args] = 0;
+                }
                 break;
             case 'M':
                 s->state = STATE_MUSIC_PREAMBLE;
                 break;
-            case '=': case '?':
+            case '=':
+            case '?':
                 /* ignore */
                 break;
             default:
-                if (s->nb_args > MAX_NB_ARGS)
+                if (s->nb_args > MAX_NB_ARGS) {
                     av_log(avctx, AV_LOG_WARNING, "args overflow (%i)\n", s->nb_args);
-                if (s->nb_args < MAX_NB_ARGS && s->args[s->nb_args])
+                }
+                if (s->nb_args < MAX_NB_ARGS && s->args[s->nb_args]) {
                     s->nb_args++;
-                if (execute_code(avctx, buf[0]) < 0)
+                }
+                if (execute_code(avctx, buf[0]) < 0) {
                     return -1;
+                }
                 s->state = STATE_NORMAL;
             }
             break;
         case STATE_MUSIC_PREAMBLE:
-            if (buf[0] == 0x0E || buf[0] == 0x1B)
+            if (buf[0] == 0x0E || buf[0] == 0x1B) {
                 s->state = STATE_NORMAL;
+            }
             /* ignore music data */
             break;
         }
@@ -418,8 +452,9 @@ static int decode_frame(AVCodecContext *avctx,
 static av_cold int decode_close(AVCodecContext *avctx)
 {
     AnsiContext *s = avctx->priv_data;
-    if (s->frame.data[0])
+    if (s->frame.data[0]) {
         avctx->release_buffer(avctx, &s->frame);
+    }
     return 0;
 }
 

@@ -42,7 +42,8 @@ int aviolp_register_cache_system(struct cache_client *cache)
     }
     return 0;
 }
-static inline struct cache_client   *get_default_cache_client(void) {
+static inline struct cache_client   *get_default_cache_client(void)
+{
     return default_cache_client;
 }
 

@@ -62,17 +62,20 @@ static int seq_probe(AVProbeData *p)
 {
     int i;
 
-    if (p->buf_size < 258)
+    if (p->buf_size < 258) {
         return 0;
+    }
 
     /* there's no real header in a .seq file, the only thing they have in common */
     /* is the first 256 bytes of the file which are always filled with 0 */
     for (i = 0; i < 256; i++)
-        if (p->buf[i])
+        if (p->buf[i]) {
             return 0;
+        }
 
-    if(p->buf[256]==0 && p->buf[257]==0)
+    if (p->buf[256] == 0 && p->buf[257] == 0) {
         return 0;
+    }
 
     /* only one fourth of the score since the previous check is too naive */
     return AVPROBE_SCORE_MAX / 4;
@@ -87,15 +90,16 @@ static int seq_init_frame_buffers(SeqDemuxContext *seq, AVIOContext *pb)
 
     for (i = 0; i < SEQ_NUM_FRAME_BUFFERS; i++) {
         sz = avio_rl16(pb);
-        if (sz == 0)
+        if (sz == 0) {
             break;
-        else {
+        } else {
             seq_buffer = &seq->frame_buffers[i];
             seq_buffer->fill_size = 0;
             seq_buffer->data_size = sz;
             seq_buffer->data = av_malloc(sz);
-            if (!seq_buffer->data)
+            if (!seq_buffer->data) {
                 return AVERROR(ENOMEM);
+            }
         }
     }
     seq->frame_buffers_count = i;
@@ -106,16 +110,19 @@ static int seq_fill_buffer(SeqDemuxContext *seq, AVIOContext *pb, int buffer_num
 {
     TiertexSeqFrameBuffer *seq_buffer;
 
-    if (buffer_num >= SEQ_NUM_FRAME_BUFFERS)
+    if (buffer_num >= SEQ_NUM_FRAME_BUFFERS) {
         return AVERROR_INVALIDDATA;
+    }
 
     seq_buffer = &seq->frame_buffers[buffer_num];
-    if (seq_buffer->fill_size + data_size > seq_buffer->data_size || data_size <= 0)
+    if (seq_buffer->fill_size + data_size > seq_buffer->data_size || data_size <= 0) {
         return AVERROR_INVALIDDATA;
+    }
 
     avio_seek(pb, seq->current_frame_offs + data_offs, SEEK_SET);
-    if (avio_read(pb, seq_buffer->data + seq_buffer->fill_size, data_size) != data_size)
+    if (avio_read(pb, seq_buffer->data + seq_buffer->fill_size, data_size) != data_size) {
         return AVERROR(EIO);
+    }
 
     seq_buffer->fill_size += data_size;
     return 0;
@@ -147,26 +154,30 @@ static int seq_parse_frame_data(SeqDemuxContext *seq, AVIOContext *pb)
     }
 
     /* video data */
-    for (i = 0; i < 4; i++)
+    for (i = 0; i < 4; i++) {
         buffer_num[i] = avio_r8(pb);
+    }
 
-    for (i = 0; i < 4; i++)
+    for (i = 0; i < 4; i++) {
         offset_table[i] = avio_rl16(pb);
+    }
 
     for (i = 0; i < 3; i++) {
         if (offset_table[i]) {
             for (e = i + 1; e < 3 && offset_table[e] == 0; e++);
             err = seq_fill_buffer(seq, pb, buffer_num[1 + i],
-              offset_table[i],
-              offset_table[e] - offset_table[i]);
-            if (err)
+                                  offset_table[i],
+                                  offset_table[e] - offset_table[i]);
+            if (err) {
                 return err;
+            }
         }
     }
 
     if (buffer_num[0] != 255) {
-        if (buffer_num[0] >= SEQ_NUM_FRAME_BUFFERS)
+        if (buffer_num[0] >= SEQ_NUM_FRAME_BUFFERS) {
             return AVERROR_INVALIDDATA;
+        }
 
         seq_buffer = &seq->frame_buffers[buffer_num[0]];
         seq->current_video_data_size = seq_buffer->fill_size;
@@ -189,16 +200,18 @@ static int seq_read_header(AVFormatContext *s, AVFormatParameters *ap)
 
     /* init internal buffers */
     rc = seq_init_frame_buffers(seq, pb);
-    if (rc)
+    if (rc) {
         return rc;
+    }
 
     seq->current_frame_offs = 0;
 
     /* preload (no audio data, just buffer operations related data) */
     for (i = 1; i <= 100; i++) {
         rc = seq_parse_frame_data(seq, pb);
-        if (rc)
+        if (rc) {
             return rc;
+        }
     }
 
     seq->current_frame_pts = 0;
@@ -207,8 +220,9 @@ static int seq_read_header(AVFormatContext *s, AVFormatParameters *ap)
 
     /* initialize the video decoder stream */
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
 
     av_set_pts_info(st, 32, 1, SEQ_FRAME_RATE);
     seq->video_stream_index = st->index;
@@ -220,8 +234,9 @@ static int seq_read_header(AVFormatContext *s, AVFormatParameters *ap)
 
     /* initialize the audio decoder stream */
     st = av_new_stream(s, 0);
-    if (!st)
+    if (!st) {
         return AVERROR(ENOMEM);
+    }
 
     av_set_pts_info(st, 32, 1, SEQ_SAMPLE_RATE);
     seq->audio_stream_index = st->index;
@@ -245,26 +260,29 @@ static int seq_read_packet(AVFormatContext *s, AVPacket *pkt)
 
     if (!seq->audio_buffer_full) {
         rc = seq_parse_frame_data(seq, pb);
-        if (rc)
+        if (rc) {
             return rc;
+        }
 
         /* video packet */
         if (seq->current_pal_data_size + seq->current_video_data_size != 0) {
-            if (av_new_packet(pkt, 1 + seq->current_pal_data_size + seq->current_video_data_size))
+            if (av_new_packet(pkt, 1 + seq->current_pal_data_size + seq->current_video_data_size)) {
                 return AVERROR(ENOMEM);
+            }
 
             pkt->data[0] = 0;
             if (seq->current_pal_data_size) {
                 pkt->data[0] |= 1;
                 avio_seek(pb, seq->current_frame_offs + seq->current_pal_data_offs, SEEK_SET);
-                if (avio_read(pb, &pkt->data[1], seq->current_pal_data_size) != seq->current_pal_data_size)
+                if (avio_read(pb, &pkt->data[1], seq->current_pal_data_size) != seq->current_pal_data_size) {
                     return AVERROR(EIO);
+                }
             }
             if (seq->current_video_data_size) {
                 pkt->data[0] |= 2;
                 memcpy(&pkt->data[1 + seq->current_pal_data_size],
-                  seq->current_video_data_ptr,
-                  seq->current_video_data_size);
+                       seq->current_video_data_ptr,
+                       seq->current_video_data_size);
             }
             pkt->stream_index = seq->video_stream_index;
             pkt->pts = seq->current_frame_pts;
@@ -272,17 +290,19 @@ static int seq_read_packet(AVFormatContext *s, AVPacket *pkt)
             /* sound buffer will be processed on next read_packet() call */
             seq->audio_buffer_full = 1;
             return 0;
-       }
+        }
     }
 
     /* audio packet */
-    if (seq->current_audio_data_offs == 0) /* end of data reached */
+    if (seq->current_audio_data_offs == 0) { /* end of data reached */
         return AVERROR(EIO);
+    }
 
     avio_seek(pb, seq->current_frame_offs + seq->current_audio_data_offs, SEEK_SET);
     rc = av_get_packet(pb, pkt, seq->current_audio_data_size);
-    if (rc < 0)
+    if (rc < 0) {
         return rc;
+    }
 
     pkt->stream_index = seq->audio_stream_index;
     seq->current_frame_pts++;
@@ -296,8 +316,9 @@ static int seq_read_close(AVFormatContext *s)
     int i;
     SeqDemuxContext *seq = s->priv_data;
 
-    for (i = 0; i < SEQ_NUM_FRAME_BUFFERS; i++)
+    for (i = 0; i < SEQ_NUM_FRAME_BUFFERS; i++) {
         av_free(seq->frame_buffers[i].data);
+    }
 
     return 0;
 }

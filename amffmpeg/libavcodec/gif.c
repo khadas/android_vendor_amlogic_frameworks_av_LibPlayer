@@ -74,7 +74,7 @@ static int gif_image_write_header(AVCodecContext *avctx,
     bytestream_put_byte(bytestream, 0); /* aspect ratio */
 
     /* the global palette */
-    for(i=0;i<256;i++) {
+    for (i = 0; i < 256; i++) {
         v = palette[i];
         bytestream_put_be24(bytestream, v);
     }
@@ -101,7 +101,7 @@ static int gif_image_write_image(AVCodecContext *avctx,
 
     bytestream_put_byte(bytestream, 0x08);
 
-    ff_lzw_encode_init(s->lzw, s->buf, avctx->width*avctx->height,
+    ff_lzw_encode_init(s->lzw, s->buf, avctx->width * avctx->height,
                        12, FF_LZW_GIF, put_bits);
 
     ptr = buf;
@@ -115,8 +115,9 @@ static int gif_image_write_image(AVCodecContext *avctx,
     while (len > 0) {
         int size = FFMIN(255, len);
         bytestream_put_byte(bytestream, size);
-        if (end - *bytestream < size)
+        if (end - *bytestream < size) {
             return -1;
+        }
         bytestream_put_buffer(bytestream, ptr, size);
         ptr += size;
         len -= size;
@@ -132,11 +133,13 @@ static av_cold int gif_encode_init(AVCodecContext *avctx)
 
     avctx->coded_frame = &s->picture;
     s->lzw = av_mallocz(ff_lzw_encode_state_size);
-    if (!s->lzw)
+    if (!s->lzw) {
         return AVERROR(ENOMEM);
-    s->buf = av_malloc(avctx->width*avctx->height*2);
-    if (!s->buf)
-         return AVERROR(ENOMEM);
+    }
+    s->buf = av_malloc(avctx->width * avctx->height * 2);
+    if (!s->buf) {
+        return AVERROR(ENOMEM);
+    }
     return 0;
 }
 
@@ -174,6 +177,6 @@ AVCodec ff_gif_encoder = {
     gif_encode_init,
     gif_encode_frame,
     gif_encode_close,
-    .pix_fmts= (const enum PixelFormat[]){PIX_FMT_RGB8, PIX_FMT_BGR8, PIX_FMT_RGB4_BYTE, PIX_FMT_BGR4_BYTE, PIX_FMT_GRAY8, PIX_FMT_PAL8, PIX_FMT_NONE},
-    .long_name= NULL_IF_CONFIG_SMALL("GIF (Graphics Interchange Format)"),
+    .pix_fmts = (const enum PixelFormat[]){PIX_FMT_RGB8, PIX_FMT_BGR8, PIX_FMT_RGB4_BYTE, PIX_FMT_BGR4_BYTE, PIX_FMT_GRAY8, PIX_FMT_PAL8, PIX_FMT_NONE},
+    .long_name = NULL_IF_CONFIG_SMALL("GIF (Graphics Interchange Format)"),
 };

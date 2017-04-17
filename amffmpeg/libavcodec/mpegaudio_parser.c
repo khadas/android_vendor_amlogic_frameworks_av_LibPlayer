@@ -44,39 +44,41 @@ static int mpegaudio_parse(AVCodecParserContext *s1,
 {
     MpegAudioParseContext *s = s1->priv_data;
     ParseContext *pc = &s->pc;
-    uint32_t state= pc->state;
+    uint32_t state = pc->state;
     int i;
-    int next= END_NOT_FOUND;
+    int next = END_NOT_FOUND;
 
-    for(i=0; i<buf_size; ){
-        if(s->frame_size){
-            int inc= FFMIN(buf_size - i, s->frame_size);
+    for (i = 0; i < buf_size;) {
+        if (s->frame_size) {
+            int inc = FFMIN(buf_size - i, s->frame_size);
             i += inc;
             s->frame_size -= inc;
 
-            if(!s->frame_size){
-                next= i;
+            if (!s->frame_size) {
+                next = i;
                 break;
             }
-        }else{
-            while(i<buf_size){
+        } else {
+            while (i < buf_size) {
                 int ret, sr, channels, bit_rate, frame_size;
 
-                state= (state<<8) + buf[i++];
+                state = (state << 8) + buf[i++];
 
                 ret = ff_mpa_decode_header(avctx, state, &sr, &channels, &frame_size, &bit_rate);
                 if (ret < 4) {
-                    if(i > 4)
-                        s->header_count= -2;
+                    if (i > 4) {
+                        s->header_count = -2;
+                    }
                 } else {
-                    if((state&SAME_HEADER_MASK) != (s->header&SAME_HEADER_MASK) && s->header)
-                        s->header_count= -3;
-                    s->header= state;
+                    if ((state & SAME_HEADER_MASK) != (s->header & SAME_HEADER_MASK) && s->header) {
+                        s->header_count = -3;
+                    }
+                    s->header = state;
                     s->header_count++;
-                    s->frame_size = ret-4;
+                    s->frame_size = ret - 4;
 
-                    if(s->header_count > 1){
-                        avctx->sample_rate= sr;
+                    if (s->header_count > 1) {
+                        avctx->sample_rate = sr;
                         avctx->channels   = channels;
                         avctx->frame_size = frame_size;
                         avctx->bit_rate   = bit_rate;
@@ -87,7 +89,7 @@ static int mpegaudio_parse(AVCodecParserContext *s1,
         }
     }
 
-    pc->state= state;
+    pc->state = state;
     if (ff_combine_frame(pc, next, &buf, &buf_size) < 0) {
         *poutbuf = NULL;
         *poutbuf_size = 0;

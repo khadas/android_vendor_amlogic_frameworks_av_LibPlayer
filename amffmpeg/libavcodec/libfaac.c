@@ -63,44 +63,44 @@ static av_cold int Faac_encode_init(AVCodecContext *avctx)
     }
 
     /* put the options in the configuration struct */
-    switch(avctx->profile) {
-        case FF_PROFILE_AAC_MAIN:
-            faac_cfg->aacObjectType = MAIN;
-            break;
-        case FF_PROFILE_UNKNOWN:
-        case FF_PROFILE_AAC_LOW:
-            faac_cfg->aacObjectType = LOW;
-            break;
-        case FF_PROFILE_AAC_SSR:
-            faac_cfg->aacObjectType = SSR;
-            break;
-        case FF_PROFILE_AAC_LTP:
-            faac_cfg->aacObjectType = LTP;
-            break;
-        default:
-            av_log(avctx, AV_LOG_ERROR, "invalid AAC profile\n");
-            faacEncClose(s->faac_handle);
-            return -1;
+    switch (avctx->profile) {
+    case FF_PROFILE_AAC_MAIN:
+        faac_cfg->aacObjectType = MAIN;
+        break;
+    case FF_PROFILE_UNKNOWN:
+    case FF_PROFILE_AAC_LOW:
+        faac_cfg->aacObjectType = LOW;
+        break;
+    case FF_PROFILE_AAC_SSR:
+        faac_cfg->aacObjectType = SSR;
+        break;
+    case FF_PROFILE_AAC_LTP:
+        faac_cfg->aacObjectType = LTP;
+        break;
+    default:
+        av_log(avctx, AV_LOG_ERROR, "invalid AAC profile\n");
+        faacEncClose(s->faac_handle);
+        return -1;
     }
     faac_cfg->mpegVersion = MPEG4;
     faac_cfg->useTns = 0;
     faac_cfg->allowMidside = 1;
     faac_cfg->bitRate = avctx->bit_rate / avctx->channels;
     faac_cfg->bandWidth = avctx->cutoff;
-    if(avctx->flags & CODEC_FLAG_QSCALE) {
+    if (avctx->flags & CODEC_FLAG_QSCALE) {
         faac_cfg->bitRate = 0;
         faac_cfg->quantqual = avctx->global_quality / FF_QP2LAMBDA;
     }
     faac_cfg->outputFormat = 1;
     faac_cfg->inputFormat = FAAC_INPUT_16BIT;
     if (avctx->channels > 2)
-        memcpy(faac_cfg->channel_map, channel_maps[avctx->channels-3],
+        memcpy(faac_cfg->channel_map, channel_maps[avctx->channels - 3],
                avctx->channels * sizeof(int));
 
     avctx->frame_size = samples_input / avctx->channels;
 
-    avctx->coded_frame= avcodec_alloc_frame();
-    avctx->coded_frame->key_frame= 1;
+    avctx->coded_frame = avcodec_alloc_frame();
+    avctx->coded_frame->key_frame = 1;
 
     /* Set decoder specific info */
     avctx->extradata_size = 0;
@@ -173,7 +173,7 @@ AVCodec ff_libfaac_encoder = {
     Faac_encode_frame,
     Faac_encode_close,
     .capabilities = CODEC_CAP_SMALL_LAST_FRAME | CODEC_CAP_DELAY,
-    .sample_fmts = (const enum AVSampleFormat[]){AV_SAMPLE_FMT_S16,AV_SAMPLE_FMT_NONE},
+    .sample_fmts = (const enum AVSampleFormat[]){AV_SAMPLE_FMT_S16, AV_SAMPLE_FMT_NONE},
     .long_name = NULL_IF_CONFIG_SMALL("libfaac AAC (Advanced Audio Codec)"),
     .profiles = NULL_IF_CONFIG_SMALL(profiles),
 };

@@ -55,15 +55,17 @@ int set_file_type(const char *name, pfile_type *ftype, pstream_type *stype);
 int read_av_packet(play_para_t *para);
 int write_av_packet(play_para_t *para);
 int check_in_pts(play_para_t *para);
+int cache_avpkt_enable(play_para_t *para);
 int set_header_info(play_para_t *para);
 void av_packet_release(am_packet_t *pkt);
 int poll_sub(am_packet_t *pkt);
 int get_sub_size(am_packet_t *pkt);
 int read_sub_data(am_packet_t *pkt, char *buf, unsigned int length);
-int write_sub_data(play_para_t *player, am_packet_t *pkt, char *buf, unsigned int length);
+int write_sub_data(am_packet_t *pkt, char *buf, unsigned int length);
 int process_es_subtitle(play_para_t *para);
 int poll_cntl(am_packet_t *pkt);
 int set_cntl_mode(play_para_t *para, unsigned int mode);
+int set_vdec_mode(play_para_t *para, unsigned int mode);
 int set_cntl_avthresh(play_para_t *para, unsigned int avthresh);
 int set_cntl_syncthresh(play_para_t *para);
 void player_switch_audio(play_para_t *para);
@@ -71,14 +73,14 @@ void player_switch_sub(play_para_t *para);
 int get_cntl_state(am_packet_t *pkt);
 int time_search(struct play_para *para, int flags);
 int player_reset(play_para_t *p_para);
-int check_avbuffer_enough(play_para_t *para, int type);
+int check_avbuffer_enough(play_para_t *para);
 int64_t gettime(void);
+int av_is_segment_media(AVFormatContext *ic);
 int check_avbuffer_enough_for_ape(play_para_t *para);
 int get_avbuf_min_size(play_para_t *p_para);
 int get_av_delay_ms(play_para_t *p_para);
 int get_cntl_vpts(am_packet_t *pkt);
-
-
+void  dump_file_close(void);
 
 #ifdef DEBUG_VARIABLE_DUR
 int update_variable_info(play_para_t *para);

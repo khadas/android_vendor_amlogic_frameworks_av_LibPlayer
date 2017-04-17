@@ -97,7 +97,7 @@ int main(int argc, char **argv)
         fmt = 2;
         byte_per_pix = 3;
     }
-    if (w*h == 0) {
+    if (w * h == 0) {
         bufsize = 1920 * 1088 * byte_per_pix;
         buf = malloc(1920 * 1088 * byte_per_pix);
         w = h = 0;

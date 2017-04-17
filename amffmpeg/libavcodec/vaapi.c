@@ -59,20 +59,24 @@ static int render_picture(struct vaapi_context *vactx, VASurfaceID surface)
     }
 
     if (vaBeginPicture(vactx->display, vactx->context_id,
-                       surface) != VA_STATUS_SUCCESS)
+                       surface) != VA_STATUS_SUCCESS) {
         return -1;
+    }
 
     if (vaRenderPicture(vactx->display, vactx->context_id,
-                        va_buffers, n_va_buffers) != VA_STATUS_SUCCESS)
+                        va_buffers, n_va_buffers) != VA_STATUS_SUCCESS) {
         return -1;
+    }
 
     if (vaRenderPicture(vactx->display, vactx->context_id,
                         vactx->slice_buf_ids,
-                        vactx->n_slice_buf_ids) != VA_STATUS_SUCCESS)
+                        vactx->n_slice_buf_ids) != VA_STATUS_SUCCESS) {
         return -1;
+    }
 
-    if (vaEndPicture(vactx->display, vactx->context_id) != VA_STATUS_SUCCESS)
+    if (vaEndPicture(vactx->display, vactx->context_id) != VA_STATUS_SUCCESS) {
         return -1;
+    }
 
     return 0;
 }
@@ -82,15 +86,17 @@ static int commit_slices(struct vaapi_context *vactx)
     VABufferID *slice_buf_ids;
     VABufferID slice_param_buf_id, slice_data_buf_id;
 
-    if (vactx->slice_count == 0)
+    if (vactx->slice_count == 0) {
         return 0;
+    }
 
     slice_buf_ids =
         av_fast_realloc(vactx->slice_buf_ids,
                         &vactx->slice_buf_ids_alloc,
                         (vactx->n_slice_buf_ids + 2) * sizeof(slice_buf_ids[0]));
-    if (!slice_buf_ids)
+    if (!slice_buf_ids) {
         return -1;
+    }
     vactx->slice_buf_ids = slice_buf_ids;
 
     slice_param_buf_id = 0;
@@ -98,8 +104,9 @@ static int commit_slices(struct vaapi_context *vactx)
                        VASliceParameterBufferType,
                        vactx->slice_param_size,
                        vactx->slice_count, vactx->slice_params,
-                       &slice_param_buf_id) != VA_STATUS_SUCCESS)
+                       &slice_param_buf_id) != VA_STATUS_SUCCESS) {
         return -1;
+    }
     vactx->slice_count = 0;
 
     slice_data_buf_id = 0;
@@ -107,8 +114,9 @@ static int commit_slices(struct vaapi_context *vactx)
                        VASliceDataBufferType,
                        vactx->slice_data_size,
                        1, (void *)vactx->slice_data,
-                       &slice_data_buf_id) != VA_STATUS_SUCCESS)
+                       &slice_data_buf_id) != VA_STATUS_SUCCESS) {
         return -1;
+    }
     vactx->slice_data = NULL;
     vactx->slice_data_size = 0;
 
@@ -123,8 +131,9 @@ static void *alloc_buffer(struct vaapi_context *vactx, int type, unsigned int si
 
     *buf_id = 0;
     if (vaCreateBuffer(vactx->display, vactx->context_id,
-                       type, size, 1, NULL, buf_id) == VA_STATUS_SUCCESS)
+                       type, size, 1, NULL, buf_id) == VA_STATUS_SUCCESS) {
         vaMapBuffer(vactx->display, *buf_id, &data);
+    }
 
     return data;
 }
@@ -149,11 +158,13 @@ VASliceParameterBufferBase *ff_vaapi_alloc_slice(struct vaapi_context *vactx, co
     uint8_t *slice_params;
     VASliceParameterBufferBase *slice_param;
 
-    if (!vactx->slice_data)
+    if (!vactx->slice_data) {
         vactx->slice_data = buffer;
+    }
     if (vactx->slice_data + vactx->slice_data_size != buffer) {
-        if (commit_slices(vactx) < 0)
+        if (commit_slices(vactx) < 0) {
             return NULL;
+        }
         vactx->slice_data = buffer;
     }
 
@@ -161,8 +172,9 @@ VASliceParameterBufferBase *ff_vaapi_alloc_slice(struct vaapi_context *vactx, co
         av_fast_realloc(vactx->slice_params,
                         &vactx->slice_params_alloc,
                         (vactx->slice_count + 1) * vactx->slice_param_size);
-    if (!slice_params)
+    if (!slice_params) {
         return NULL;
+    }
     vactx->slice_params = slice_params;
 
     slice_param = (VASliceParameterBufferBase *)(slice_params + vactx->slice_count * vactx->slice_param_size);
@@ -182,11 +194,13 @@ int ff_vaapi_common_end_frame(MpegEncContext *s)
 
     av_dlog(s->avctx, "ff_vaapi_common_end_frame()\n");
 
-    if (commit_slices(vactx) < 0)
+    if (commit_slices(vactx) < 0) {
         goto done;
+    }
     if (vactx->n_slice_buf_ids > 0) {
-        if (render_picture(vactx, ff_vaapi_get_surface_id(s->current_picture_ptr)) < 0)
+        if (render_picture(vactx, ff_vaapi_get_surface_id(s->current_picture_ptr)) < 0) {
             goto done;
+        }
         ff_draw_horiz_band(s, 0, s->avctx->height);
     }
     ret = 0;
