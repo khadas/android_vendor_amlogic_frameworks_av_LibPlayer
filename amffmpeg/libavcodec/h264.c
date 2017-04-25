@@ -4090,6 +4090,14 @@ again:
                 av_log(avctx, AV_LOG_ERROR, "NAL type: %d for MVC\n", h->nal_unit_type);
                 avctx->codec_id = CODEC_ID_H264MVC;
                 break;
+            case NAL_264_DV:
+                /*00 00 00 01 7c 01 19  08
+                 *nal type = 0x7c & 0x1f;
+                 *any conflict?
+                 */
+                avctx->has_dolby_vision_meta = 1;
+                av_log(h->s.avctx, AV_LOG_ERROR, "got dv meta.\n");
+                break;
             default:
                 av_log(avctx, AV_LOG_DEBUG, "Unknown NAL code: %d (%d bits)\n", hx->nal_unit_type, bit_length);
             }
