@@ -47,8 +47,7 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/include \
 	$(AMCODEC_NEED_INCLUDE)\
 	$(LOCAL_PATH)/../common\
 	$(LOCAL_PATH)/../../amffmpeg\
-	$(TOP)/vendor/amlogic/external/libiconv/include \
-	$(LOCAL_PATH)/../../third_parts/udrm
+	$(TOP)/vendor/amlogic/external/libiconv/include
 
 LOCAL_MODULE := libamplayer
 
@@ -83,8 +82,7 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/include \
 	$(LOCAL_PATH)/../common \
 	$(AMCODEC_NEED_INCLUDE) \
 	$(LOCAL_PATH)/../../amffmpeg \
-	$(TOP)/vendor/amlogic/external/libiconv/include \
-	$(LOCAL_PATH)/../../third_parts/udrm
+	$(TOP)/vendor/amlogic/external/libiconv/include
 
 LOCAL_CFLAGS+=-DHAVE_VERSION_INFO
 LOCAL_CFLAGS+=-DLIBPLAYER_GIT_VERSION=\"${LIBPLAYER_GIT_VERSION}${LIBPLAYER_GIT_DIRTY}\"
@@ -101,7 +99,7 @@ LOCAL_LDFLAGS := -Wl,--no-warn-shared-textrel
 endif
 LOCAL_STATIC_LIBRARIES := libavformat librtmp libswscale libavcodec libavutil
 LOCAL_SHARED_LIBRARIES := libamcodec  libamadec libiconv
-LOCAL_SHARED_LIBRARIES += libutils libmedia libz libbinder libdl libcutils libc libamavutils libssl libcrypto libudrm
+LOCAL_SHARED_LIBRARIES += libutils libmedia libz libbinder libdl libcutils libc libamavutils libssl libcrypto
 
 LOCAL_MODULE := libamplayer
 LOCAL_MODULE_TAGS := optional

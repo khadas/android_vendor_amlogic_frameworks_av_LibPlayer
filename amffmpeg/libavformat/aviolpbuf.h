@@ -3,7 +3,6 @@
 #include <libavformat/avio.h>
 
 #include <pthread.h>
-#include "stdio.h"
 
 #define lock_t          pthread_mutex_t
 #define lp_lock_init(x,v)   pthread_mutex_init(x,v)
@@ -30,18 +29,6 @@ typedef struct  url_lpbuf {
     float max_forword_level;
     int max_read_seek;
     int seekflags;
-
-    //for drm use.
-    int drm_handle;
-    int drm_ts_flags;
-    unsigned char *decrypt_data;
-    int decrypt_data_len;
-    int decrypt_read_len;
-    int ts_tail_len;
-    int ts_tail_pos;
-    int need_find_ts_start_pos;
-    FILE *fp1;
-    FILE *fp2;
 } url_lpbuf_t;
 #define IO_LP_BUFFER_SIZE (1024*1024*64)
 #define IO_LP_BUFFER_MINI_SIZE (1024*32)

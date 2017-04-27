@@ -15,7 +15,7 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/../amplayer/player/include \
     $(JNI_H_INCLUDE) \
 
 LOCAL_STATIC_LIBRARIES := libamplayer libamplayer libamcodec libavformat librtmp libavcodec libavutil libamadec libamavutils  libiconv
-LOCAL_SHARED_LIBRARIES += libutils libmedia libbinder libz libdl libcutils libssl libcrypto libudrm
+LOCAL_SHARED_LIBRARIES += libutils libmedia libbinder libz libdl libcutils libssl libcrypto
 
 LOCAL_SHARED_LIBRARIES += libbinder 
 
@@ -40,7 +40,7 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/../amplayer/player/include \
     $(JNI_H_INCLUDE) 
 
 LOCAL_STATIC_LIBRARIES := libamplayer libamplayer libamcodec libavformat librtmp libavcodec libavutil libamadec libamavutils libiconv
-LOCAL_SHARED_LIBRARIES += libutils libmedia libbinder libz libdl libcutils libssl libcrypto libudrm
+LOCAL_SHARED_LIBRARIES += libutils libmedia libbinder libz libdl libcutils libssl libcrypto
 
 ifneq (0, $(shell expr $(PLATFORM_VERSION) \>= 5.0))
 LOCAL_SHARED_LIBRARIES += libsystemcontrolservice
@@ -61,7 +61,7 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/../amplayer/player/include \
     $(JNI_H_INCLUDE)
 
 LOCAL_STATIC_LIBRARIES := libamplayer libamplayer libamcodec libavformat librtmp libavcodec libavutil libamadec libamavutils
-LOCAL_SHARED_LIBRARIES += libutils libmedia libbinder libz libdl libcutils libssl libcrypto libudrm
+LOCAL_SHARED_LIBRARIES += libutils libmedia libbinder libz libdl libcutils libssl libcrypto
 
 ifneq (0, $(shell expr $(PLATFORM_VERSION) \>= 5.0))
 LOCAL_SHARED_LIBRARIES += libsystemcontrolservice
@@ -82,7 +82,7 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/../amplayer/player/include \
     $(JNI_H_INCLUDE)
 
 LOCAL_STATIC_LIBRARIES := libavutil libamadec libamavutils
-LOCAL_SHARED_LIBRARIES += libutils libmedia libbinder libz libdl libcutils libssl libcrypto libudrm
+LOCAL_SHARED_LIBRARIES += libutils libmedia libbinder libz libdl libcutils libssl libcrypto
 
 ifneq (0, $(shell expr $(PLATFORM_VERSION) \>= 5.0))
 LOCAL_SHARED_LIBRARIES += libsystemcontrolservice

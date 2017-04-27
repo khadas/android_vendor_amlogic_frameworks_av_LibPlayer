@@ -32,7 +32,6 @@
 #include "aviolpcache.h"
 #include "aviolpbuf.h"
 #include "amconfigutils.h"
-#include "udrm.h"
 /*
                                         Pos
 buffer    rp                         wp                   buffer_end
@@ -83,7 +82,6 @@ Can seek back size:
 
 #define LP_ASSERT(x)     do{if(!(x)) av_log(NULL,AV_LOG_INFO,"****\t\tERROR at line file%s=%d\n\n\n",__FILE__,__LINE__);}while(0)
 #define DEF_MAX_READ_SEEK (1024*1024*3)
-#define MAX_DECRYPT_DATA_LEN (20*188)
 int url_lpopen(URLContext *s, int size)
 {
     url_lpbuf_t *lp;
@@ -172,16 +170,6 @@ int url_lpopen(URLContext *s, int size)
     } else {
         lp->max_read_seek = DEF_MAX_READ_SEEK;
     }
-    lp->drm_ts_flags = 0;
-    lp->decrypt_data = NULL;
-    lp->decrypt_data_len = 0;
-    lp->decrypt_read_len = 0;
-    lp->need_find_ts_start_pos = 1;
-    lp->ts_tail_len = 0;
-    lp->ts_tail_pos = 0;
-    lp->drm_handle = 0;
-    lp->fp1 = NULL;
-    lp->fp2 = NULL;
     return 0;
 }
 
@@ -211,24 +199,6 @@ int url_lpopen_ex(URLContext *s,
     return ret;
 }
 #endif
-
-static int url_ts_probe(unsigned char *data, int len)
-{
-    unsigned char *buf = data;
-    unsigned char scan_num = 188;
-
-    do {
-        if ((len - 188 + scan_num) > 188 * 3
-            && buf[0] == 0x47 && buf[188] == 0x47 && buf[188 * 2] == 0x47) {
-            return 188 - scan_num;    //ts format
-        }
-
-        scan_num--;
-        buf++;
-    } while (scan_num > 0);
-
-    return -1; //other format
-}
 
 int url_lpopen_ex(URLContext *s,
                   int size,
@@ -311,161 +281,15 @@ int url_lpfillbuffer(URLContext *s, int size)
         }
         tmprp = lp->pos;
         lp_unlock(&lp->mutex);/*release lock for long time read*/
-        if (lp->drm_ts_flags && lp->decrypt_data == NULL) {
-            lp_sprint(AV_LOG_INFO, "url_lpfillbuffer begin init drm-------\n");
-            lp->decrypt_data = av_malloc(MAX_DECRYPT_DATA_LEN);
-            if (lp->decrypt_data == NULL) {
-                lp_sprint(AV_LOG_INFO, "url_lpfillbuffer decrypt_data malloc failed!!\n");
-                lp->drm_ts_flags = 0;
-            } else {
-                //get decrypt handle
-                lp->drm_handle = udrm_decrypt_start(0);
-                if (lp->drm_handle == -1) {
-                    lp->drm_ts_flags = 0;
-                    lp->drm_handle = 0;
-                    lp_sprint(AV_LOG_ERROR, "url_lpfillbuffer udrm_decrypt_start  error!!\n");
-                } else {
-                    lp_sprint(AV_LOG_INFO, "url_lpfillbuffer drm_handle=0x%x-------\n", lp->drm_handle);
-                    //clear lpbuf
-                    lp->rp = lp->buffer;
-                    lp->wp = lp->buffer;
-                    lp->valid_data_size = 0;
-                    lp->pos = 0;
-                    if (am_getconfig_bool_def("libplayer.ts.udrm.dumpfile", 0)) {
-                        lp->fp1 = fopen("/data/lp_recv.ts", "w");
-                        if (lp->fp1 == NULL) {
-                            lp_sprint(AV_LOG_INFO, "url_lpfillbuffer open lp_recv.ts failed!\n");
-                        }
-
-                        lp->fp2 = fopen("/data/lp_descrypt.ts", "w");
-                        if (lp->fp2 == NULL) {
-                            lp_sprint(AV_LOG_INFO, "url_lpfillbuffer open lp_descrypt.ts failed!\n");
-                        }
-                    }
-                }
-            }
-        }
-
-        if (!lp->drm_ts_flags) {
-            rlen = s->prot->url_read(s, lp->wp, ssread);
-        } else {
-            if (lp->decrypt_read_len == 0 && lp->decrypt_data_len == 0) {
-                int read_len = 0;
-                if (lp->ts_tail_len > 0) {
-                    //add ts tail
-                    memcpy(lp->decrypt_data, lp->decrypt_data + lp->ts_tail_pos, lp->ts_tail_len);
-                    lp->decrypt_data_len = lp->ts_tail_len;
-                    lp->ts_tail_len = 0;
-                    lp->ts_tail_pos = 0;
-                    lp_sprint(AV_LOG_INFO, "url_lpfillbuffer add ts_tail %d, [0]=0x%x\n",
-                              lp->decrypt_data_len, lp->decrypt_data[0]);
-                }
-
-                //download ts data
-                read_len = (lp->decrypt_data_len > 0) ?
-                           (MAX_DECRYPT_DATA_LEN - lp->decrypt_data_len) : MAX_DECRYPT_DATA_LEN;
-                rlen = s->prot->url_read(s, lp->decrypt_data + lp->decrypt_data_len, read_len);
-                lp->decrypt_data_len += (rlen >= 0 ? rlen : 0);
-                lp->decrypt_read_len = 0;
-                //lp_sprint(AV_LOG_INFO, "url_lpfillbuffer url_read_len=%d, rlen=%d\n", read_len, rlen);
-            }
-        }
-
+        rlen = s->prot->url_read(s, lp->wp, ssread);
         lp_lock(&lp->mutex);
         if (tmprp != lp->pos) {
-            rlen = AVERROR(EAGAIN);    /*pos have changed,so I think we have a seek on read*/
-        }
+            rlen = AVERROR(EAGAIN);
+        };/*pos have changed,so I think we have a seek on read*/
         lp_bprint(AV_LOG_INFO, "filled buffer from remote=%d\n", rlen);
 
     }
-
-    if (lp->drm_ts_flags) {
-        if (lp->decrypt_read_len == 0 && lp->decrypt_data_len > 0) {
-            int decrypt_len = 0;
-
-            //check ts tail
-            if (lp->decrypt_data_len % 188 != 0 && lp->need_find_ts_start_pos == 0) {
-                lp->ts_tail_len = lp->decrypt_data_len % 188;
-                lp->ts_tail_pos = lp->decrypt_data_len - lp->ts_tail_len;
-                lp->decrypt_data_len -= lp->ts_tail_len;
-                lp_sprint(AV_LOG_INFO, "url_lpfillbuffer check tail_len=%d, [0]=0x%x\n",
-                          lp->ts_tail_len, lp->decrypt_data[lp->ts_tail_pos]);
-            }
-
-            if (lp->decrypt_data_len > 0 && lp->need_find_ts_start_pos == 1) {
-                //check ts start pos
-                int ts_start_pos = url_ts_probe(lp->decrypt_data, lp->decrypt_data_len);
-                if (ts_start_pos > 0) {
-                    lp_sprint(AV_LOG_INFO, "url_lpfillbuffer truncate_len=%d\n", ts_start_pos);
-                    lp->decrypt_data_len -= ts_start_pos;
-                    memcpy(lp->decrypt_data, lp->decrypt_data + ts_start_pos, lp->decrypt_data_len);
-                    //rlen = s->prot->url_read(s, lp->decrypt_data+lp->decrypt_data_len, ts_start_pos);
-                    //lp->decrypt_data_len += rlen;
-
-                    //check ts tail
-                    if (lp->decrypt_data_len % 188 != 0) {
-                        lp->ts_tail_len = lp->decrypt_data_len % 188;
-                        lp->decrypt_data_len -= lp->ts_tail_len;
-                        lp->ts_tail_pos = lp->decrypt_data_len;
-                        lp_sprint(AV_LOG_INFO, "url_lpfillbuffer truncate tail_len=%d(%d), [0]=0x%x\n",
-                                  lp->ts_tail_len, lp->decrypt_data_len + lp->ts_tail_len, lp->decrypt_data[lp->ts_tail_pos]);
-                    }
-                }
-                lp->need_find_ts_start_pos = 0;
-            }
-
-            if (lp->decrypt_data_len > 0) {
-                //udrm decrypt
-                if (lp->fp1) {
-                    fwrite(lp->decrypt_data, lp->decrypt_data_len, 1, lp->fp1);
-                }
-
-                decrypt_len = udrm_ts_decrypt(lp->drm_handle,
-                                              lp->decrypt_data, lp->decrypt_data_len,
-                                              lp->decrypt_data, lp->decrypt_data_len);
-                //lp_sprint(AV_LOG_INFO, "url_lpfillbuffer decrypt_len = %d, [0]=0x%x  %d\n",
-                //  decrypt_len, lp->decrypt_data[0], lp->save_flag);
-                if (decrypt_len >= 0) {
-                    lp->decrypt_data_len = decrypt_len;
-                    if (lp->fp2) {
-                        fwrite(lp->decrypt_data, decrypt_len, 1, lp->fp2);
-                    }
-                }
-                //else
-                //  lp_sprint(AV_LOG_ERROR, "url_lpfillbuffer udrm_ts_decrypt error!!\n");
-            }
-        } else {
-            rlen = 0;
-        }
-
-        if (lp->decrypt_data_len > 0) {
-            //fill decrypt_data to lpbuf
-            if (lp->wp >= lp->rp) {
-                ssread = FFMIN(lp->decrypt_data_len - lp->decrypt_read_len, lp->buffer_end - lp->wp);
-            } else {
-                ssread = FFMIN(lp->decrypt_data_len - lp->decrypt_read_len, lp->rp - lp->wp);
-            }
-
-            memcpy(lp->wp, lp->decrypt_data + lp->decrypt_read_len, ssread);
-            lp->decrypt_read_len += ssread;
-
-            if (lp->cache_enable && cache_read_len <= 0) { /*not read from cache itself*/
-                aviolp_cache_write(lp->cache_id, lp->pos, lp->wp, ssread);
-            }
-            lp->pos += ssread;
-            lp->wp += ssread;
-            lp->valid_data_size += ssread;
-            if (lp->wp >= lp->buffer_end) {
-                lp->wp = lp->buffer;
-            }
-
-            rlen = ssread;
-            if (lp->decrypt_read_len >= lp->decrypt_data_len) {
-                lp->decrypt_read_len = lp->decrypt_data_len = 0;
-            }
-            //lp_sprint(AV_LOG_INFO, "url_lpfillbuffer fill_len = %d\n", ssread);
-        }
-    } else if (rlen > 0) {
+    if (rlen > 0) {
         if (lp->cache_enable && cache_read_len <= 0) { /*not read from cache itself*/
             aviolp_cache_write(lp->cache_id, lp->pos, lp->wp, rlen);
         }
@@ -475,6 +299,7 @@ int url_lpfillbuffer(URLContext *s, int size)
         if (lp->wp >= lp->buffer_end) {
             lp->wp = lp->buffer;
         }
+
     }
 release:
     lp_unlock(&lp->mutex);
@@ -513,7 +338,7 @@ int url_lpread(URLContext *s, unsigned char * buf, int size)
                 rlen = url_lpfillbuffer(s, lp->block_read_size);
             }
             if (rlen <= 0) {
-                //lp_unlock(&lp->mutex);
+                lp_unlock(&lp->mutex);
                 return ((size - len) > 0) ? (size - len) : rlen;
             }
             lp_lock(&lp->mutex);
@@ -586,11 +411,6 @@ int64_t url_lpseek(URLContext *s, int64_t offset, int whence)
         lp->wp = lp->buffer;
         lp->valid_data_size = 0;
         lp->pos = offset1;
-        lp->decrypt_data_len = 0;
-        lp->decrypt_read_len = 0;
-        lp->ts_tail_len = 0;
-        lp->ts_tail_pos = 0;
-        lp->need_find_ts_start_pos = 1;
         lp_unlock(&lp->mutex);
         return offset1;
     }
@@ -681,11 +501,6 @@ int64_t url_lpseek(URLContext *s, int64_t offset, int whence)
         lp->wp = lp->buffer;
         lp->valid_data_size = 0;
         lp->pos = offset;
-        lp->decrypt_data_len = 0;
-        lp->decrypt_read_len = 0;
-        lp->ts_tail_len = 0;
-        lp->ts_tail_pos = 0;
-        lp->need_find_ts_start_pos = 1;
     }
     lp_sprint(AV_LOG_INFO, "url_lpseekend:offset=%lld whence=%d,buffer=%x,rp=%x,wp=%x,end=%x,pos=%lld\n",
               offset, whence, lp->buffer, lp->rp, lp->wp, lp->buffer_end, lp->pos);
@@ -770,11 +585,6 @@ int64_t url_lpexseek(URLContext *s, int64_t offset, int whence)
                 lp->wp = lp->buffer;
                 lp->valid_data_size = 0;
                 lp->pos = 0;
-                lp->decrypt_data_len = 0;
-                lp->decrypt_read_len = 0;
-                lp->ts_tail_len = 0;
-                lp->ts_tail_pos = 0;
-                lp->need_find_ts_start_pos = 1;
                 goto seek_end;
             }
         }
@@ -786,11 +596,6 @@ int64_t url_lpexseek(URLContext *s, int64_t offset, int whence)
                 lp->wp = lp->buffer;
                 lp->valid_data_size = 0;
                 lp->pos = 0;
-                lp->decrypt_data_len = 0;
-                lp->decrypt_read_len = 0;
-                lp->ts_tail_len = 0;
-                lp->ts_tail_pos = 0;
-                lp->need_find_ts_start_pos = 1;
                 goto seek_end;
             }
         }
@@ -828,10 +633,6 @@ int url_lpreset(URLContext *s)
         lp->wp = lp->buffer;
         lp->pos = 0;
         lp->valid_data_size = 0;
-        lp->decrypt_data_len = 0;
-        lp->decrypt_read_len = 0;
-        lp->ts_tail_len = 0;
-        lp->ts_tail_pos = 0;
     }
     return 0;
 }
@@ -970,22 +771,6 @@ int url_lpfree(URLContext *s)
         if (s->lpbuf->buffer) {
             av_free(s->lpbuf->buffer);
         }
-        if (s->lpbuf->decrypt_data) {
-            av_free(s->lpbuf->decrypt_data);
-        }
-        if (s->lpbuf->drm_handle != 0) {
-            udrm_decrypt_stop(s->lpbuf->drm_handle);
-            s->lpbuf->drm_handle = 0;
-        }
-        if (s->lpbuf->fp1) {
-            fclose(s->lpbuf->fp1);
-            s->lpbuf->fp1 = NULL;
-        }
-        if (s->lpbuf->fp2) {
-            fclose(s->lpbuf->fp2);
-            s->lpbuf->fp2 = NULL;
-        }
-
         av_free(s->lpbuf);
         s->lpbuf = NULL;
     }

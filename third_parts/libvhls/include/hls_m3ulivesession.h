@@ -219,6 +219,8 @@ int m3u_session_get_durationUs(void*session, int64_t* dur);
 
 int m3u_session_get_cached_data_time(void*session, int* time);
 
+int m3u_session_get_cached_data_bytes(void*hSession, int* bytes);
+
 int m3u_session_get_estimate_bandwidth(void*session, int* bps);
 
 int m3u_session_get_error_code(void*session, int* errcode);

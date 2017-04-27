@@ -21,7 +21,7 @@ static pthread_mutex_t priv_pid_mutex;
 static unsigned long priv_pid_pool = 0; /*player_id*/
 static void * priv_pid_data[MAX_PLAYER_THREADS];/*player_id*/
 static unsigned long priv_pid_used[MAX_PLAYER_THREADS];/*player_id*/
-static int priv_inner_exit[MAX_PLAYER_THREADS];/*player_id*/
+static unsigned long priv_inner_exit[MAX_PLAYER_THREADS];/*player_id*/
 #define PID_isVALID(pid) (pid>=0 && pid<32 && (priv_pid_pool &(1 <<pid)))
 
 #define PID_PRINT(fmt,args...)  log_print(fmt,##args)

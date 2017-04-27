@@ -34,8 +34,6 @@
 #include "isom.h"
 #include "libavcodec/get_bits.h"
 #include "seek.h"
-#include "udrm.h"
-#include "amconfigutils.h"
 
 #if CONFIG_ZLIB
 #include <zlib.h>
@@ -130,9 +128,9 @@ static int mov_read_mac_string(MOVContext *c, AVIOContext *pb, int len,
         } else {
             PUT_UTF8(mac_to_unicode[c - 0x80], t, if (p < end) *p++ = t;);
         }
-    }
-    *p = 0;
-    return p - dst;
+}
+*p = 0;
+return p - dst;
 }
 
 static int mov_extract_cover_pic(AVFormatContext *s, AVIOContext *pb, int type, int size, char *value)
@@ -2762,264 +2760,6 @@ static int mov_read_chan(MOVContext *c, AVIOContext *pb, MOVAtom atom)
     return 0;
 }
 
-static int mov_read_pssh(MOVContext *c, AVIOContext *pb, MOVAtom atom)
-{
-    AVStream *st;
-    size_t auxiliary_info_size;
-    int version = 0;
-    av_log(c->fc, AV_LOG_INFO, "find pssh box\n");
-
-    if (c->pssh_data) {
-        av_log(c->fc, AV_LOG_ERROR, "pssh already exist\n");
-        return 0;
-    }
-
-    version = avio_r8(pb); /* version */
-    avio_rb24(pb); /* flags */
-    avio_skip(pb, 16); /*systemID*/
-    if (version > 0) {
-        int kid_count = avio_rb32(pb);
-        if (kid_count > 0) {
-            avio_skip(pb, 16 * kid_count);
-        }
-    }
-
-    c->pssh_size = avio_rb32(pb);
-    av_log(c->fc, AV_LOG_INFO, "pssh ver=%d, size=%d\n",
-           version, c->pssh_size);
-
-    if (c->pssh_size <= 0) {
-        av_log(c->fc, AV_LOG_ERROR, "pssh data_size=%d, error!\n", c->pssh_size);
-        return AVERROR_INVALIDDATA;
-    }
-
-    c->pssh_data = av_malloc(c->pssh_size);
-    if (!c->pssh_data) {
-        av_log(c->fc, AV_LOG_ERROR, "pssh_data malloc failed!\n");
-        return AVERROR(ENOMEM);
-    }
-    if (avio_read(pb, c->pssh_data, c->pssh_size) != c->pssh_size) {
-        av_log(c->fc, AV_LOG_ERROR, "failed to read the pssh data\n");
-        return AVERROR_INVALIDDATA;
-    }
-
-    return 0;
-}
-
-static int mov_read_senc(MOVContext *c, AVIOContext *pb, MOVAtom atom)
-{
-    AVStream *st;
-    MOVStreamContext *sc;
-    size_t auxiliary_info_size;
-    size_t sample_count;
-    av_log(c->fc, AV_LOG_INFO, "find senc box\n");
-
-    if (c->fc->nb_streams < 1) {
-        return 0;
-    }
-
-    st = c->fc->streams[c->fc->nb_streams - 1];
-    sc = st->priv_data;
-
-    if (sc->cenc.auxiliary_info) {
-        av_log(c->fc, AV_LOG_ERROR, "duplicate senc atom\n");
-        return 0;
-    }
-
-    avio_r8(pb); /* version */
-    sc->cenc.use_subsamples = avio_rb24(pb) & 0x02; /* flags */
-
-    sample_count = avio_rb32(pb);        /* entries */
-
-    if (atom.size < 8) {
-        av_log(c->fc, AV_LOG_ERROR, "senc atom size %"PRId64" too small\n", atom.size);
-        return AVERROR_INVALIDDATA;
-    }
-
-    /* save the auxiliary info as is */
-    auxiliary_info_size = atom.size - 8;
-
-    sc->cenc.auxiliary_info = av_malloc(auxiliary_info_size);
-    if (!sc->cenc.auxiliary_info) {
-        av_log(c->fc, AV_LOG_ERROR, "malloc failed!\n");
-        return AVERROR(ENOMEM);
-    }
-
-    av_log(c->fc, AV_LOG_INFO, "sample_count=%d, use_subsamples=%d, info_size=%d\n",
-           sample_count, sc->cenc.use_subsamples, auxiliary_info_size);
-
-    sc->cenc.auxiliary_info_end = sc->cenc.auxiliary_info + auxiliary_info_size;
-    sc->cenc.auxiliary_info_pos = sc->cenc.auxiliary_info;
-
-    if (avio_read(pb, sc->cenc.auxiliary_info, auxiliary_info_size) != auxiliary_info_size) {
-        av_log(c->fc, AV_LOG_ERROR, "failed to read the auxiliary info\n");
-        return AVERROR_INVALIDDATA;
-    }
-
-    sc->cenc.current_sample = 0;
-    return 0;
-}
-
-static int mov_read_frma(MOVContext *c, AVIOContext *pb, MOVAtom atom)
-{
-    uint32_t format = avio_rl32(pb);
-    MOVStreamContext *sc;
-    enum CodecID id;
-    AVStream *st;
-    av_log(c->fc, AV_LOG_INFO, "find frma box\n");
-
-    if (c->fc->nb_streams < 1) {
-        return 0;
-    }
-
-    st = c->fc->streams[c->fc->nb_streams - 1];
-    switch (st->codec->codec_tag) {
-    case MKTAG('e', 'n', 'c', 'v'):     // encrypted video
-        id = ff_codec_get_id(codec_movvideo_tags, format);
-        av_log(c->fc, AV_LOG_INFO, "mov_read_frma  vcodec_id=%d\n", id);
-        st->codec->codec_id = id;
-        break;
-
-    case MKTAG('e', 'n', 'c', 'a'):     // encrypted audio
-        id = ff_codec_get_id(codec_movaudio_tags, format);
-        av_log(c->fc, AV_LOG_INFO, "mov_read_frma  acodec_id=%d\n", id);
-        st->codec->codec_id = id;
-        break;
-
-    default:
-        break;
-    }
-
-    return 0;
-}
-
-static int mov_read_tenc(MOVContext *c, AVIOContext *pb, MOVAtom atom)
-{
-    AVStream *st;
-    MOVStreamContext *sc;
-
-    avio_r8(pb); /* version */
-    avio_rb24(pb); /* flags */
-    avio_r8(pb);   /* reserved */
-    avio_r8(pb);   /* reserved */
-    c->is_protected = avio_r8(pb);
-    c->per_sample_iv_size = avio_r8(pb);
-    av_log(c->fc, AV_LOG_INFO, "find tenc box------is_protected=%d, iv_size=%d\n",
-           c->is_protected, c->per_sample_iv_size);
-    return 0;
-}
-
-static void cenc_find_auxiliary_info(MOVContext *c, MOVStreamContext *sc)
-{
-    uint16_t subsample_count;
-    int sample_num = sc->cenc.current_sample;
-    uint8_t* pos = sc->cenc.auxiliary_info_pos;
-    uint8_t* end = sc->cenc.auxiliary_info_end;
-
-    if (sample_num >= sc->current_sample) {
-        sample_num = 0;
-        pos = sc->cenc.auxiliary_info;
-    }
-
-    while ((c->per_sample_iv_size + 8) < end - pos
-           && sample_num + 1 < sc->current_sample) {
-        pos += c->per_sample_iv_size;
-        subsample_count = AV_RB16(pos);
-        pos += 2;
-        pos += (subsample_count * 6);
-        sample_num ++;
-    }
-
-    av_log(c->fc, AV_LOG_ERROR, "cenc_find_auxiliary_info 0x%x -> 0x%x\n",
-           sc->cenc.auxiliary_info_pos, pos);
-    sc->cenc.auxiliary_info_pos = pos;
-    sc->cenc.current_sample = sample_num;
-}
-
-static int cenc_filter(MOVContext *c, MOVStreamContext *sc, uint8_t *input, int size)
-{
-    uint32_t encrypted_bytes;
-    uint16_t subsample_count;
-    uint16_t clear_bytes;
-    uint8_t* input_end = input + size;
-    char iv_data[16] = {0};
-
-    if (sc->current_sample != sc->cenc.current_sample + 1) {
-        cenc_find_auxiliary_info(c, sc);
-    }
-
-    /* read the iv */
-    if (c->per_sample_iv_size > sc->cenc.auxiliary_info_end - sc->cenc.auxiliary_info_pos) {
-        av_log(c->fc, AV_LOG_ERROR, "failed to read iv from the auxiliary info\n");
-        return AVERROR_INVALIDDATA;
-    }
-
-    if (!sc->cenc.use_subsamples) {
-        /* decrypt the whole packet */
-        memcpy(iv_data, sc->cenc.auxiliary_info_pos, c->per_sample_iv_size);
-        udrm_mp4_decrypt(c->drm_handle,
-                         (char *)sc->cenc.auxiliary_info_pos,
-                         (char *)input, size, (char *)input);
-        sc->cenc.auxiliary_info_pos += c->per_sample_iv_size;
-        return 0;
-    }
-
-    /* read the subsample count */
-    if (sizeof(uint16_t) > sc->cenc.auxiliary_info_end - sc->cenc.auxiliary_info_pos) {
-        av_log(c->fc, AV_LOG_ERROR, "failed to read subsample count from the auxiliary info\n");
-        return AVERROR_INVALIDDATA;
-    }
-
-    memcpy(iv_data, sc->cenc.auxiliary_info_pos, c->per_sample_iv_size);
-    /*av_log(c->fc, AV_LOG_INFO, "iv_left=%d, %02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x \n",
-        sc->cenc.auxiliary_info_end - sc->cenc.auxiliary_info_pos,
-        iv_data[0], iv_data[1], iv_data[2], iv_data[3],
-        iv_data[4], iv_data[5], iv_data[6], iv_data[7],
-        iv_data[8], iv_data[9], iv_data[10], iv_data[11],
-        iv_data[12], iv_data[13], iv_data[14], iv_data[15]);*/
-
-    sc->cenc.auxiliary_info_pos += c->per_sample_iv_size;
-    subsample_count = AV_RB16(sc->cenc.auxiliary_info_pos);
-    sc->cenc.auxiliary_info_pos += sizeof(uint16_t);
-    for (; subsample_count > 0; subsample_count--) {
-        if (6 > sc->cenc.auxiliary_info_end - sc->cenc.auxiliary_info_pos) {
-            av_log(c->fc, AV_LOG_ERROR, "failed to read subsample from the auxiliary info\n");
-            return AVERROR_INVALIDDATA;
-        }
-
-        /* read the number of clear / encrypted bytes */
-        clear_bytes = AV_RB16(sc->cenc.auxiliary_info_pos);
-        sc->cenc.auxiliary_info_pos += sizeof(uint16_t);
-        encrypted_bytes = AV_RB32(sc->cenc.auxiliary_info_pos);
-        sc->cenc.auxiliary_info_pos += sizeof(uint32_t);
-
-        if ((uint64_t)clear_bytes + encrypted_bytes > input_end - input) {
-            av_log(c->fc, AV_LOG_ERROR, "subsample size exceeds the packet size left\n");
-            av_log(c->fc, AV_LOG_ERROR, "subsample clear_bytes=%d, encrypted_bytes=%d\n",
-                   clear_bytes, encrypted_bytes);
-            return AVERROR_INVALIDDATA;
-        }
-
-        /* skip the clear bytes */
-        input += clear_bytes;
-
-        if (encrypted_bytes > 0) {
-            /* decrypt the encrypted bytes */
-            udrm_mp4_decrypt(c->drm_handle, iv_data, input, encrypted_bytes, input);
-            input += encrypted_bytes;
-        }
-    }
-
-    if (input < input_end) {
-        av_log(c->fc, AV_LOG_ERROR, "leftover packet bytes after subsample processing\n");
-        return AVERROR_INVALIDDATA;
-    }
-    sc->cenc.current_sample = sc->current_sample;
-
-    return 0;
-}
-
-
 static const MOVParseTableEntry mov_default_parse_table[] = {
     { MKTAG('a', 'v', 's', 's'), mov_read_extradata },
     { MKTAG('c', 'h', 'p', 'l'), mov_read_chpl },
@@ -3081,12 +2821,6 @@ static const MOVParseTableEntry mov_default_parse_table[] = {
     { MKTAG('h', 'v', 'c', 'C'), mov_read_glbl }, /* HEVC/H.265 */
     { MKTAG('d', 'v', 'c', '1'), mov_read_dvc1 },
     { MKTAG('s', 'b', 'g', 'p'), mov_read_sbgp },
-    { MKTAG('p', 's', 's', 'h'), mov_read_pssh },
-    { MKTAG('s', 'e', 'n', 'c'), mov_read_senc },
-    { MKTAG('s', 'i', 'n', 'f'), mov_read_default },
-    { MKTAG('f', 'r', 'm', 'a'), mov_read_frma },
-    { MKTAG('s', 'c', 'h', 'i'), mov_read_default },
-    { MKTAG('t', 'e', 'n', 'c'), mov_read_tenc },
     { 0, NULL }
 };
 
@@ -3447,51 +3181,6 @@ retry:
     pkt->pos = sample->pos;
     av_dlog(s, "stream %d, pts %"PRId64", dts %"PRId64", pos 0x%"PRIx64", duration %d\n",
             pkt->stream_index, pkt->pts, pkt->dts, pkt->pos, pkt->duration);
-
-    if (mov->is_protected
-        && (mov->per_sample_iv_size == 8 || mov->per_sample_iv_size == 16)
-        && mov->pssh_data
-        && sc->cenc.auxiliary_info
-        && mov->drm_handle == 0) {
-        /* initialize the cipher */
-        mov->drm_handle = udrm_decrypt_start(0);
-        if (mov->drm_handle == -1) {
-            av_log(s, AV_LOG_ERROR, "udrm_decrypt_start error!\n");
-            return 0;
-        }
-
-        av_log(s, AV_LOG_INFO, "udrm_decrypt_start success\n");
-        udrm_mp4_set_pssh(mov->drm_handle, mov->pssh_data, mov->pssh_size);
-        if (am_getconfig_bool_def("libplayer.mp4.udrm.dumpfile", 0)) {
-            mov->fp1 = fopen("/data/mov_recv.sample", "w");
-            if (mov->fp1 == NULL) {
-                av_log(s, AV_LOG_ERROR, "mov_read_pkt open mov_recv.sample failed!\n");
-            }
-            mov->fp2 = fopen("/data/mov_descrypt.sample", "w");
-            if (mov->fp2 == NULL) {
-                av_log(s, AV_LOG_ERROR, "mov_read_pkt open mov_descrypt.sample failed!\n");
-            }
-        } else {
-            mov->fp1 = NULL;
-            mov->fp2 = NULL;
-        }
-    }
-
-    if (mov->drm_handle != 0 && mov->drm_handle != -1 && sc->cenc.auxiliary_info) {
-        //av_log(s, AV_LOG_INFO, "pkt=%d (pos=0x%llx), seq(%d, %d) %d\n",
-        //    pkt->size, pkt->pos, sc->cenc.current_sample, sc->current_sample, sc->ffindex);
-        if (mov->fp1) {
-            fwrite(pkt->data, pkt->size, 1, mov->fp1);
-        }
-
-        ret = cenc_filter(mov, sc, pkt->data, pkt->size);
-        if (ret) {
-            return ret;
-        }
-        if (mov->fp2) {
-            fwrite(pkt->data, pkt->size, 1, mov->fp2);
-        }
-    }
     return 0;
 }
 
@@ -3688,9 +3377,6 @@ static int mov_read_close(AVFormatContext *s)
         }
 
         av_freep(&st->codec->palctrl);
-        if (sc->cenc.auxiliary_info) {
-            av_freep(&sc->cenc.auxiliary_info);
-        }
     }
 
     if (mov->dv_demux) {
@@ -3702,23 +3388,8 @@ static int mov_read_close(AVFormatContext *s)
         av_freep(&mov->dv_demux);
     }
 
-    if (mov->pssh_data) {
-        av_freep(&mov->pssh_data);
-    }
-    if (mov->drm_handle != 0 && mov->drm_handle != -1) {
-        udrm_decrypt_stop(mov->drm_handle);
-        mov->drm_handle = 0;
-    }
-    if (mov->fp1) {
-        fclose(mov->fp1);
-        mov->fp1 = NULL;
-    }
-    if (mov->fp2) {
-        fclose(mov->fp2);
-        mov->fp2 = NULL;
-    }
-
     av_freep(&mov->trex_data);
+
     return 0;
 }
 

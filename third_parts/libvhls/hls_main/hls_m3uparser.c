@@ -18,6 +18,7 @@
 
 #ifdef HAVE_ANDROID_OS
 #include "hls_common.h"
+#include "amconfigutils.h"
 #else
 #include "hls_debug.h"
 #endif

@@ -32,7 +32,6 @@
 #include "libavformat/tcp_pool.h"
 
 #include "../../amcodec/audio_ctl/audio_ctrl.h"
-#include "udrm.h"
 #include "message.h"
 
 #ifndef FBIOPUT_OSD_SRCCOLORKEY
@@ -47,16 +46,6 @@ extern codec_para_t *get_subtitle_codec(play_para_t *player);
 extern void print_version_info();
 int auto_refresh_rate_enable = 0;
 
-static int udrm_callback(int error_num, void *cb_data)
-{
-    play_para_t *player_para = (play_para_t *)cb_data;
-    log_print("[libplayer_udrm callback] error_num=%d\n", error_num);
-    if (player_para != NULL) {
-        send_event(player_para, PLAYER_EVENTS_UDRM_MSG, (unsigned long)error_num, 0);
-    }
-
-    return 0;
-}
 /* --------------------------------------------------------------------------*/
 /**
  * @function    player_init
@@ -95,7 +84,6 @@ int player_init(void)
     rm_register_stream_decoder();
     audio_register_stream_decoder();
     video_register_stream_decoder();
-    udrm_init();
     return PLAYER_SUCCESS;
 }
 
@@ -121,7 +109,7 @@ int player_start(play_control_t *ctrl_p, unsigned long  priv)
     int pid = -1;
     play_para_t *p_para;
     char url[1024] = {0};
-#if 1
+#if 0
     ret = am_getconfig("libplayer.testurl", url, NULL);
     if (ret > 0) {
         strcpy(ctrl_p->file_name, url);
@@ -179,7 +167,6 @@ int player_start(play_control_t *ctrl_p, unsigned long  priv)
         return PLAYER_CAN_NOT_CREAT_THREADS;
     }
     log_print("[player_start:exit]pid = %d \n", pid);
-    udrm_set_msg_func(udrm_callback, (void *)p_para);
 
     return pid;
 }
@@ -377,7 +364,6 @@ int player_exit(int pid)
     }
     player_close_pid_data(pid);
     player_release_pid(pid);
-    udrm_set_msg_func(NULL, NULL);
     log_print("[player_exit:exit]pid=%d\n", pid);
 
     return ret;
@@ -1638,7 +1624,7 @@ int player_set_inner_exit(int pid)
 int player_is_inner_exit(int pid)
 {
     int ret = 0;
-    ret = player_is_inner_exit_pid(pid);
+    ret = (int)player_is_inner_exit_pid(pid);
     return ret;
 }
 

@@ -487,29 +487,6 @@ int ffmpeg_parse_file(play_para_t *am_p)
         return FFMPEG_PARSE_FAILED; // Couldn't find stream information
     }
 
-    if (pFCtx->pb == NULL || pFCtx->pb->opaque == NULL) {
-        return FFMPEG_SUCCESS;
-    }
-
-    url_cxt = (URLContext *)pFCtx->pb->opaque;
-    if (url_cxt != NULL
-        && url_cxt->lpbuf != NULL
-        && strcmp(pFCtx->iformat->name, "mpegts") == 0
-        && am_getconfig_bool_def("libplayer.ts.udrm.enable", 0)) {
-        int i = 0;
-        for (i = 0; i < pFCtx->nb_streams; i++) {
-            if (pFCtx->streams[i]->codec && pFCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
-                url_cxt->lpbuf->drm_ts_flags = pFCtx->streams[i]->encrypt;
-                log_print("[%s] drm_ts_flags=%d\n", __FUNCTION__, url_cxt->lpbuf->drm_ts_flags);
-                break;
-            }
-        }
-
-        if (url_cxt->lpbuf->drm_ts_flags == 1) {
-            ff_read_frame_flush(pFCtx);
-            avio_seek(pFCtx, 0, SEEK_SET);
-        }
-    }
     return FFMPEG_SUCCESS;
 }
 
