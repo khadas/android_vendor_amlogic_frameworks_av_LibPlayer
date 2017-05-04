@@ -1274,60 +1274,6 @@ static int check_and_modify_livemode(play_para_t *player)
 
     return 0;
 }
-static void check_top_botom_invert(play_para_t *player)
-{
-    const size_t SIZE = 256;
-    char buffer[SIZE];
-    char  result[256] = {0};
-    int match = 0;
-
-    if (!player->pFormatCtx->pb || !player->pFormatCtx->pb->local_playback) {
-        return;
-    }
-
-    snprintf(buffer, SIZE, "/proc/%d/fd/%d", gettid(), player->start_param->local_fd);
-    log_print("[%s:%d] buffer:%s\n", __FUNCTION__, __LINE__, buffer);
-    struct stat s;
-    if (lstat(buffer, &s) == 0) {
-        if ((s.st_mode & S_IFMT) == S_IFLNK) {
-            char linkto[256];
-            int len = readlink(buffer, linkto, sizeof(linkto));
-            if (len > 0) {
-                if (len > 255) {
-                    linkto[252] = '.';
-                    linkto[253] = '.';
-                    linkto[254] = '.';
-                    linkto[255] = 0;
-                } else {
-                    linkto[len] = 0;
-                }
-                if (strstr(linkto, "/storage/") == linkto ||
-                    strstr(linkto, "/system/sounds/") == linkto ||
-                    strstr(linkto, "/data/") == linkto ||
-                    strstr(linkto, "/system/media/") == linkto) {
-                    if (strstr(linkto, "pal_dvb_dei_dbm_hournews.ts")) {
-                        match = 1;
-                    }
-                }
-            }
-        }
-    }
-
-    if (match) {
-        log_print("[%s:%d] invert_top_bot 0->2\n", __FUNCTION__, __LINE__);
-        set_sysfs_int("/sys/module/di/parameters/invert_top_bot", 2);
-    }
-    return;
-}
-static void stop_top_botom_invert()
-{
-    int mode = -1;
-    mode = get_sysfs_int("/sys/module/di/parameters/invert_top_bot");
-    if (mode) {
-        set_sysfs_int("/sys/module/di/parameters/invert_top_bot", 0);
-    }
-    return;
-}
 
 static int pickup_hevc_csd_packet(unsigned char *buf, int buf_size, am_packet_t *pkt)
 {
@@ -1800,7 +1746,6 @@ void *player_thread(play_para_t *player)
 
     ffmpeg_seturl_buffered_level(player, 0);
     start_4khevc_scale(player);
-    check_top_botom_invert(player);
     if (player->astream_info.has_audio == 1 &&
         player->vstream_info.has_video == 0 &&
         (player->astream_info.audio_format == AFORMAT_COOK || player->astream_info.audio_format == AFORMAT_SIPR)
@@ -2619,7 +2564,6 @@ release0:
     update_player_states(player, 1);
     dump_file_close();
     stop_4khevc_scale();
-    stop_top_botom_invert();
     log_print("\npid[%d]::stop play, exit player thead!(sta:0x%x)\n", player->player_id, get_player_state(player));
     pthread_exit(NULL);
 
