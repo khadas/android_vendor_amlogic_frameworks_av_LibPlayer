@@ -2839,11 +2839,13 @@ int write_av_packet(play_para_t *para)
     }
 
     if (check_write_finish(para) == PLAYER_WR_FINISH) {
-        if (para->vstream_info.has_video && ((para->stream_type == STREAM_ES) || (para->stream_type == STREAM_VIDEO))
-            && (para->vstream_info.video_format == VFORMAT_H264)) {
-            h264_write_end_header(para);
+        if (para->vstream_info.has_video && ((para->stream_type == STREAM_ES) || (para->stream_type == STREAM_VIDEO))) {
+                if (para->vstream_info.video_format == VFORMAT_H264)
+                        h264_write_end_header(para);
+                ret = codec_set_eos(para->vcodec, 1);
+                if (ret < 0)
+                        log_print("wirte video eos fail! %x\n", ret);
         }
-
         if (fdw_raw >= 0) {
             close(fdw_raw);
         }
