@@ -109,10 +109,6 @@ static int set_vstream_info(play_para_t *p_para)
                 vinfo->id          = pStream->id;
                 vinfo->width       = pStream->codec->width;
                 vinfo->height      = pStream->codec->height;
-                if (!pStream->codec->width && !pStream->codec->height) {
-                    vinfo->width       = 1;
-                    vinfo->height      = 1;
-                }
                 vinfo->duartion    = (int)(pStream->duration * pStream->time_base.num / pStream->time_base.den);
                 vinfo->bit_rate    = pStream->codec->bit_rate;
                 vinfo->format      = p_para->vstream_info.video_format;
