@@ -180,10 +180,6 @@ int PlayerGetAFilterFormat(const char *prop)
             filter_fmt  |= FILTER_AFMT_DTS;
         }
     }
-    if (access("/system/lib/libdra.so", F_OK)) {
-        filter_fmt |= FILTER_AFMT_DRA;
-    }
-
 #else
     if (access("/system/lib/libstagefright_soft_dcvdec.so", F_OK)) {
 #ifndef DOLBY_DAP_EN
@@ -192,6 +188,9 @@ int PlayerGetAFilterFormat(const char *prop)
     }
     if (access("/system/lib/libstagefright_soft_dtshd.so", F_OK)) {
         filter_fmt  |= FILTER_AFMT_DTS;
+    }
+    if (access("/system/lib/libdra.so", F_OK)) {
+        filter_fmt |= FILTER_AFMT_DRA;
     }
 #endif
     if (GetSystemSettingString(prop, value, NULL) > 0) {
