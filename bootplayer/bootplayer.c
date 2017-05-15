@@ -410,78 +410,71 @@ int main(int argc, char *argv[])
                 osd_is_blank = 1;
             }
         }
-        if (checkExit() == 1) {
-            ALOGD("checkExit when OSD display!");
+        switch (tmpstep) {
+        case EMU_STEP_PAUSE:
+            ALOGD("@@@@@@@@@@@@@@@@@@@@@@@@@@   1    @@@@\n");
+            player_pause(pid);
+            tmpstep = EMU_STEP_MENU;
+            break;
+        case EMU_STEP_RESUME:
+            ALOGD("@@@@@@@@@@@@@@@@@@@@@@@@@@   2    @@@@\n");
+            player_resume(pid);
+            tmpstep = EMU_STEP_MENU;
+            break;
+        case EMU_STEP_SEEK:
+            ALOGD("will  seek position:100\n");
+            pos = 100;
+            player_timesearch(pid, pos);
+            tmpstep = EMU_STEP_MENU;
+            break;
+        case EMU_STEP_STOP:
+            ALOGD("@@@@@@@@@@@@@@@@@@@@@@@@@@   3    @@@@\n");
             player_stop(pid);
+            tmpstep = EMU_STEP_MENU;
+            break;
+        case EMU_STEP_FF:
+            ALOGD("please input fastforward speed:\n");
+            speed = 1;
+            player_forward(pid, speed);
+            tmpstep = EMU_STEP_MENU;
+            break;
+        case EMU_STEP_RR:
+            ALOGD("please input fastrewind speed:");
+            speed = 1;
+            player_backward(pid, speed);
+            tmpstep = EMU_STEP_MENU;
+            break;
+        case EMU_STEP_SETLOOP:
+            ALOGD("@@@@@@@@@@@@@@@@@@@@@@@@@@   4    @@@@\n");
+            player_loop(pid);
+            tmpstep = EMU_STEP_MENU;
+            break;
+        case EMU_STEP_EXIT:
+            ALOGD("@@@@@@@@@@@@@@@@@@@@@@@@@@   5    @@@@\n");
             player_exit(pid);
             tmpneedexit = 1;
-        } else {
-            switch (tmpstep) {
-            case EMU_STEP_PAUSE:
-                ALOGD("@@@@@@@@@@@@@@@@@@@@@@@@@@   1    @@@@\n");
-                player_pause(pid);
-                tmpstep = EMU_STEP_MENU;
-                break;
-            case EMU_STEP_RESUME:
-                ALOGD("@@@@@@@@@@@@@@@@@@@@@@@@@@   2    @@@@\n");
-                player_resume(pid);
-                tmpstep = EMU_STEP_MENU;
-                break;
-            case EMU_STEP_SEEK:
-                ALOGD("will  seek position:100\n");
-                pos = 100;
-                player_timesearch(pid, pos);
-                tmpstep = EMU_STEP_MENU;
-                break;
-            case EMU_STEP_STOP:
-                ALOGD("@@@@@@@@@@@@@@@@@@@@@@@@@@   3    @@@@\n");
-                player_stop(pid);
-                tmpstep = EMU_STEP_MENU;
-                break;
-            case EMU_STEP_FF:
-                ALOGD("please input fastforward speed:\n");
-                speed = 1;
-                player_forward(pid, speed);
-                tmpstep = EMU_STEP_MENU;
-                break;
-            case EMU_STEP_RR:
-                ALOGD("please input fastrewind speed:");
-                speed = 1;
-                player_backward(pid, speed);
-                tmpstep = EMU_STEP_MENU;
-                break;
-            case EMU_STEP_SETLOOP:
-                ALOGD("@@@@@@@@@@@@@@@@@@@@@@@@@@   4    @@@@\n");
-                player_loop(pid);
-                tmpstep = EMU_STEP_MENU;
-                break;
-            case EMU_STEP_EXIT:
-                ALOGD("@@@@@@@@@@@@@@@@@@@@@@@@@@   5    @@@@\n");
-                player_exit(pid);
-                tmpneedexit = 1;
-                break;
-            case EMU_STEP_START:
-                ALOGD("@@@@@@@@@@@@@@@@@@@@@@@@@@   6    @@@@\n");
-                player_start_play(pid);
-                //SYS_set_tsync_enable(0);///< f no sound,can set to be 0
-                tmpstep = EMU_STEP_MENU;
-                break;
-            case EMU_STEP_GETAVMEDIAINFO:
-                if (pid >= 0) {
-                    ALOGD("@@@@@@@@@@@@@@@@@@@@@@@@@@   7    @@@@\n");
-                    if (player_get_state(pid) > PLAYER_INITOK) {
-                        ret = player_get_media_info(pid, &minfo);
-                        if (ret == 0) {
-                            _media_info_dump(&minfo);
-                        }
+            break;
+        case EMU_STEP_START:
+            ALOGD("@@@@@@@@@@@@@@@@@@@@@@@@@@   6    @@@@\n");
+            player_start_play(pid);
+            //SYS_set_tsync_enable(0);///< f no sound,can set to be 0
+            tmpstep = EMU_STEP_MENU;
+            break;
+        case EMU_STEP_GETAVMEDIAINFO:
+            if (pid >= 0) {
+                ALOGD("@@@@@@@@@@@@@@@@@@@@@@@@@@   7    @@@@\n");
+                if (player_get_state(pid) > PLAYER_INITOK) {
+                    ret = player_get_media_info(pid, &minfo);
+                    if (ret == 0) {
+                        _media_info_dump(&minfo);
                     }
                 }
-                tmpstep = EMU_STEP_MENU;
-                break;
-            default:
-                ALOGD("@@@@@@@@@@@@@@@@@@@@@@@@@@   8    @@@@\n");
-                break;
             }
+            tmpstep = EMU_STEP_MENU;
+            break;
+        default:
+            ALOGD("@@@@@@@@@@@@@@@@@@@@@@@@@@   8    @@@@\n");
+            break;
         }
 
         usleep(100 * 1000);
