@@ -2399,24 +2399,6 @@ int player_decoder_init(play_para_t *p_para)
             }
         }
     }
-    if (p_para->pFormatCtx && p_para->pFormatCtx->iformat && p_para->pFormatCtx->iformat->name &&
-        (((p_para->pFormatCtx->flags & AVFMT_FLAG_DRMLEVEL1) && (memcmp(p_para->pFormatCtx->iformat->name, "DRMdemux", 8) == 0)) ||
-         (p_para->pFormatCtx->flags & AVFMT_FLAG_PR_TVP) ||
-         (p_para->pFormatCtx->pb && p_para->pFormatCtx->pb->isprtvp))) {
-        log_print("DRMdemux :: LOCAL_OEMCRYPTO_LEVEL -> L1 or PlayReady TVP\n");
-        if (p_para->vcodec) {
-            log_print("DRMdemux setdrmmodev vcodec\n");
-            codec_set_drmmode(p_para->vcodec, 1);
-        }
-        if (p_para->acodec) {
-            log_print("DRMdemux setdrmmodev acodec\n");
-            codec_set_drmmode(p_para->acodec, 1);
-        }
-        if (p_para->codec) {
-            log_print("DRMdemux setdrmmodev codec\n");
-            codec_set_drmmode(p_para->codec, 1);
-        }
-    }
 
     return PLAYER_SUCCESS;
 failed:

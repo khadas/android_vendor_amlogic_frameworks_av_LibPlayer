@@ -1912,23 +1912,6 @@ int time_search(play_para_t *am_p, int flags)
 
     ret = PLAYER_SUCCESS;
 
-    if (am_p->pFormatCtx && am_p->pFormatCtx->iformat && am_p->pFormatCtx->iformat->name &&
-        (((am_p->pFormatCtx->flags & AVFMT_FLAG_DRMLEVEL1) && (memcmp(am_p->pFormatCtx->iformat->name, "DRMdemux", 8) == 0)) ||
-         (am_p->pFormatCtx->flags & AVFMT_FLAG_PR_TVP) ||
-         (am_p->pFormatCtx->pb && am_p->pFormatCtx->pb->isprtvp))) {
-        if (am_p->vcodec) {
-            codec_set_drmmode(am_p->vcodec, 1);
-        }
-
-        if (am_p->acodec) {
-            codec_set_drmmode(am_p->acodec, 1);
-        }
-
-        if (am_p->codec) {
-            codec_set_drmmode(am_p->codec, 1);
-        }
-    }
-
     url_start_user_seek(s->pb);
 
     /* If swith audio, then use audio stream index */
