@@ -6,16 +6,28 @@
 
 #include "curl_wrapper.h"
 #include "curl_log.h"
-#include "amconfigutils.h"
-
 
 #define CURL_FIFO_BUFFER_SIZE 2*1024*1024
 
-#define CURL_LOCATION_LEN 1024
-#define CURL_WASHU_DOMAIN_NAME "http://gslbserv.itv.cmvideo.cn"
-static int s_LocationNum = 0;
-static char s_UrlKey[CURL_LOCATION_LEN] = {0};
-static char s_UrlValue[CURL_LOCATION_LEN] = {0};
+
+// output fail/info in curl
+static int debug_callback(CURL * handle, curl_infotype type, char * data, size_t size, void * userp)
+{
+    switch (type) {
+    case CURLINFO_TEXT:
+        CLOGE("[CURL] : %s", data);
+        return 0;
+    case CURLINFO_HEADER_OUT: {
+        char * tmp_buf = (char *)c_mallocz(size + 1);
+        c_strlcpy(tmp_buf, data, size);
+        CLOGE("[HEADER] : %s", tmp_buf);
+        c_free(tmp_buf);
+        return 0;
+    }
+    default:
+        return 0;
+    }
+}
 
 static int curl_wrapper_open_cnx(CURLWContext *con, CURLWHandle *h, Curl_Data *buf, curl_prot_type flags, int64_t off);
 
@@ -47,11 +59,13 @@ static void response_process(char * line, Curl_Data * buf)
                 ptr++;
             }
             buf->handle->chunk_size = atoll(ptr);
+            buf->ctx->chunk_size = buf->handle->chunk_size;
         }
         if (!strncasecmp(line, "Content-Range", 13)) {
             const char * slash = NULL;
             if ((slash = strchr(ptr, '/')) && strlen(slash) > 0) {
                 buf->handle->chunk_size = atoll(slash + 1);
+                buf->ctx->chunk_size = buf->handle->chunk_size;
             }
         }
         if (!strncasecmp(line, "Transfer-Encoding", 17) && strstr(line, "chunked")) {
@@ -68,7 +82,6 @@ static void response_process(char * line, Curl_Data * buf)
         || 303 == buf->handle->http_code
         || 307 == buf->handle->http_code) {
         if (!strncasecmp(line, "Location", 8)) {
-            char * tmp = NULL;
             while (*ptr != '\0' && *ptr != ':') {
                 ptr++;
             }
@@ -76,52 +89,12 @@ static void response_process(char * line, Curl_Data * buf)
             while (isspace(*ptr)) {
                 ptr++;
             }
-
-            tmp = strchr(ptr, '\?');
-            if (s_LocationNum == 2 && s_UrlKey[0] != '\0' && s_UrlValue[0] != '\0') {
-                CLOGI("------------------Location need redirect !!");
-                char temp_uri[CURL_LOCATION_LEN] = {0};
-                if (tmp) {
-                    memset(temp_uri, 0, sizeof(temp_uri));
-                    strcpy(temp_uri, s_UrlValue);
-                    strcpy(&temp_uri[strlen(s_UrlValue)], tmp);
-                } else {
-                    strcpy(temp_uri, ptr);
-                    CLOGI("------------------redirect error, cannot find ?---------");
-                }
-
-                buf->handle->relocation = (char *)c_mallocz(strlen(temp_uri) + 1);
-                if (!buf->handle->relocation) {
-                    return;
-                }
-                strcpy(buf->handle->relocation, temp_uri);
-                if (am_getconfig_int_def("libplayer.curl.error_redirect", 0)) {
-                    buf->handle->relocation[8] = '1';
-                    buf->handle->relocation[9] = '2';
-                }
-                buf->handle->redirect_quited = 1;
-            } else if (s_LocationNum == 1 && s_UrlKey[0] != '\0') {
-                CLOGI("------------------Location save");
-                if (tmp && (tmp - ptr) < CURL_LOCATION_LEN) {
-                    strncpy(s_UrlValue, ptr, (tmp - ptr));
-                    s_UrlValue[tmp - ptr] = '\0';
-                    CLOGI("------------------[value=%s]", s_UrlValue);
-                }
-
-                buf->handle->relocation = (char *)c_mallocz(strlen(ptr) + 1);
-                if (!buf->handle->relocation) {
-                    return;
-                }
-                strcpy(buf->handle->relocation, ptr);
-            } else {
-                buf->handle->relocation = (char *)c_mallocz(strlen(ptr) + 1);
-                if (!buf->handle->relocation) {
-                    return;
-                }
-                strcpy(buf->handle->relocation, ptr);
+            buf->handle->relocation = (char *)c_mallocz(strlen(ptr) + 1);
+            if (!buf->handle->relocation) {
+                return;
             }
-
-            tmp = buf->handle->relocation;
+            strcpy(buf->handle->relocation, ptr);
+            char * tmp = buf->handle->relocation;
             while (*tmp != '\0') {
                 if (*tmp == '\r' || *tmp == '\n') {
                     *tmp = '\0';
@@ -164,82 +137,6 @@ static size_t write_response(void *ptr, size_t size, size_t nmemb, void *data)
     return realsize;
 }
 
-static int cache_domain_name(CURLWContext *h, char *uri)
-{
-    //washu vod
-    char *temp1 = strstr(uri, "duration");
-    char *temp2 = NULL;
-    if (!am_getconfig_int_def("libplayer.curl.force_redirect", 0)) {
-        CLOGI("cache_domain_name no force_redirect\n");
-        return 0;
-    }
-
-    char duration_str[64] = {0};
-    if (!temp1) {
-        return 0;
-    }
-    temp2 = strchr(temp1, '\&');
-    if (!temp2 || (temp2 - temp1 - 9) >= sizeof(duration_str)) {
-        return 0;
-    }
-
-    memcpy(duration_str, temp1 + 9, (temp2 - temp1 - 9));
-    CLOGI("cache_domain_name  duration=%s\n", duration_str);
-    //domain + duration
-    if (0 == strncmp(uri, CURL_WASHU_DOMAIN_NAME, strlen(CURL_WASHU_DOMAIN_NAME))
-        && 0 != strcmp(duration_str, "0") && 0 != strcmp(duration_str, "-1")) {
-        if (s_UrlKey[0] != '\0'
-            && 0 == strncmp(uri, s_UrlKey, strlen(s_UrlKey))) {
-            if (h->clear_redirect_url) {
-                s_UrlValue[0] = '\0';
-                CLOGI("cache_domain_name  clear_redirect_url\n");
-                return 1;
-            }
-            return 2;
-        } else {
-            //new program
-            char *temp = strchr(uri, '\?');
-            if (temp && (temp - uri) < CURL_LOCATION_LEN) {
-                strncpy(s_UrlKey, uri, (temp - uri));
-                s_UrlKey[temp - uri] = '\0';
-                s_UrlValue[0] = '\0';
-                CLOGI("cache_domain_name  add new url.[key=%s]\n", s_UrlKey);
-                return 1;
-            }
-        }
-    }
-    return 0;
-}
-
-static int OnDebug(CURL *tmpcurl, curl_infotype itype, char * pData, size_t size, void *data)
-{
-    Curl_Data * mem = (Curl_Data *)data;
-    if (itype == CURLINFO_TEXT) {
-        CLOGI("[TEXT]%s\n", pData);
-    } else if (itype == CURLINFO_HEADER_IN) {
-        //CLOGI("[HEADER_IN]%s\n", pData);
-    } else if (itype == CURLINFO_HEADER_OUT) {
-        if (size > 0 && pData != NULL) {
-            char * tmp_ch = c_malloc(size + 2);
-            if (!tmp_ch) {
-                return -1;
-            }
-            c_strlcpy(tmp_ch, pData, size);
-            tmp_ch[size] = '\0';
-            CLOGI("[HEADER_OUT]%s\n", tmp_ch);
-            c_free(tmp_ch);
-            tmp_ch = NULL;
-        } else {
-            CLOGI("[HEADER_OUT] is NULL\n");
-        }
-
-    } else if (itype == CURLINFO_DATA_IN) {
-        //CLOGI("[DATA_IN]%s\n", pData);
-    } else if (itype == CURLINFO_DATA_OUT) {
-        //CLOGI("[DATA_OUT]%s\n", pData);
-    }
-    return 0;
-}
 static size_t curl_dl_chunkdata_callback(void *ptr, size_t size, size_t nmemb, void *data)
 {
     size_t realsize = size * nmemb;
@@ -248,7 +145,7 @@ static size_t curl_dl_chunkdata_callback(void *ptr, size_t size, size_t nmemb, v
     }
     Curl_Data * mem = (Curl_Data *)data;
     mem->handle->open_quited = 1;
-    if (mem->handle->quited || mem->ctx->quited) {
+    if (mem->handle->quited) {
         CLOGI("curl_dl_chunkdata_callback quited\n");
         return -1;
     }
@@ -279,9 +176,8 @@ static size_t curl_dl_chunkdata_callback(void *ptr, size_t size, size_t nmemb, v
         struct timeval now;
         struct timespec timeout;
         gettimeofday(&now, NULL);
-        timeout.tv_sec = now.tv_sec + (50 * 1000 + now.tv_usec) / 1000000;
-        //timeout.tv_nsec = now.tv_usec * 1000;
-        timeout.tv_nsec = (50 * 1000 + now.tv_usec) * 1000;
+        timeout.tv_sec = now.tv_sec + (100 * 1000 + now.tv_usec) / 1000000;
+        timeout.tv_nsec = (100 * 1000 + now.tv_usec) * 1000;
         pthread_cond_timedwait(&mem->handle->pthread_cond, &mem->handle->fifo_mutex, &timeout); // 100ms
         left = curl_fifo_space(mem->handle->cfifo);
     }
@@ -480,6 +376,13 @@ int curl_wrapper_set_para(CURLWHandle *h, void *buf, curl_para para, int iarg, c
         ret2 = curl_wrapper_setopt_error(h, curl_easy_setopt(h->curl, CURLOPT_WRITEHEADER, buf));
         ret = (ret1 || ret2) ? -1 : 0;
         break;
+    case C_RANGE:
+        if (iarg > 0) {
+            ret = curl_wrapper_setopt_error(h, curl_easy_setopt(h->curl, CURLOPT_RESUME_FROM_LARGE, (curl_off_t)iarg));
+        } else {
+            ret = curl_wrapper_setopt_error(h, curl_easy_setopt(h->curl, CURLOPT_RANGE, "0-"));
+        }
+        break;
     default:
         return ret;
     }
@@ -503,19 +406,9 @@ static int curl_wrapper_easy_setopt_http_basic(CURLWHandle *h, Curl_Data *buf)
     if ((ret = curl_wrapper_setopt_error(h, curl_easy_setopt(h->curl, CURLOPT_VERBOSE, 1L))) != 0) {
         goto CRET;
     }
-    if ((ret = curl_wrapper_setopt_error(h, curl_easy_setopt(h->curl, CURLOPT_DEBUGDATA, (void *)buf))) != 0) {
+    if ((ret = curl_wrapper_setopt_error(h, curl_easy_setopt(h->curl, CURLOPT_FOLLOWLOCATION, 1L))) != 0) {
         goto CRET;
     }
-    if ((ret = curl_wrapper_setopt_error(h, curl_easy_setopt(h->curl, CURLOPT_DEBUGFUNCTION, OnDebug))) != 0) {
-        goto CRET;
-    }
-    if ((ret = curl_wrapper_setopt_error(h, curl_easy_setopt(h->curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1))) != 0) {
-        goto CRET;
-    }
-    if ((ret = curl_wrapper_setopt_error(h, curl_easy_setopt(h->curl, CURLOPT_FOLLOWLOCATION, s_LocationNum == 2 ? 0L : 1L))) != 0) {
-        goto CRET;
-    }
-    CLOGI("curl_wrapper_easy_setopt_http_basic CURLOPT_FOLLOWLOCATION %ld, s_LocationNum=%d\n", s_LocationNum == 2 ? 0L : 1L, s_LocationNum);
     if ((ret = curl_wrapper_setopt_error(h, curl_easy_setopt(h->curl, CURLOPT_CONNECTTIMEOUT, h->c_max_connecttimeout))) != 0) {
         goto CRET;
     }
@@ -573,11 +466,6 @@ CURLWContext * curl_wrapper_init(int flags)
     handle->parent_thread_id = NULL;
     handle->curl_h_num = 0;
     handle->curl_handle = NULL;
-    handle->clear_redirect_url = flags;
-    s_LocationNum = 0;
-    handle->is_use_block_request = am_getconfig_int_def("media.libplayer.useblock", 0);
-    CLOGI("%s %d clear_redirect_url = %d\n", __FUNCTION__, __LINE__, flags);
-    CLOGI("%s %d handle->is_use_block_request:%d\n", __FUNCTION__, __LINE__, handle->is_use_block_request);
     return handle;
 }
 
@@ -623,8 +511,7 @@ CURLWHandle * curl_wrapper_open(CURLWContext *h, const char * uri, const char * 
     curl_h->chunk_size = -1;
     curl_h->c_max_timeout = 0;
     curl_h->c_max_connecttimeout = 15;
-    curl_h->c_buffersize = 8 * 1024;
-    s_LocationNum = cache_domain_name(h, uri);
+    curl_h->c_buffersize = 16 * 1024;
     if (curl_wrapper_open_cnx(h, curl_h, buf, flags, 0) == -1) {
         return NULL;
     }
@@ -655,28 +542,10 @@ static int curl_wrapper_open_cnx(CURLWContext *con, CURLWHandle *h, Curl_Data *b
         curl_wrapper_setopt_error(h, curl_easy_setopt(h->curl, CURLOPT_ACCEPT_ENCODING, "gzip"));
     }
     if (flags == C_PROT_HTTPS) {
-        //curl_wrapper_setopt_error(h, curl_easy_setopt(h->curl, CURLOPT_SSL_VERIFYPEER, 0L));
-        //curl_wrapper_setopt_error(h, curl_easy_setopt(h->curl, CURLOPT_SSL_VERIFYHOST, 0L));
         curl_wrapper_setopt_error(h, curl_easy_setopt(h->curl, CURLOPT_CAINFO, "/etc/curl/cacerts/ca-certificates.crt"));
     }
-    memset(buf->rangebuf, 0, sizeof(buf->rangebuf));
-    if (con->is_use_block_request) {
-        CLOGI("%s %d use block request\n", __FUNCTION__, __LINE__);
-        if (((off + buf->rangesize) > h->chunk_size) && (h->chunk_size > 0)) {
-            sprintf(buf->rangebuf, "%lld-%lld", off, h->chunk_size - 1);
-        } else {
-            sprintf(buf->rangebuf, "%lld-%lld", off, off + buf->rangesize);
-        }
-
-        curl_easy_setopt(h->curl, CURLOPT_RANGE, buf->rangebuf);
-    } else {
-        CLOGI("%s %d do not use block request\n", __FUNCTION__, __LINE__);
-        if (h->chunk_size > 0) {
-            // not support this when transfer in trunk mode.
-            ret = curl_easy_setopt(h->curl, CURLOPT_RESUME_FROM_LARGE, (curl_off_t)off);
-        }
-    }
-    //curl_wrapper_setopt_error(h, curl_easy_setopt(h->curl, CURLOPT_ACCEPT_ENCODING, "gzip"));
+    curl_wrapper_setopt_error(h, curl_easy_setopt(h->curl, CURLOPT_DEBUGFUNCTION, debug_callback));
+    con->chunk_size = 0;
     con->quited = 0;
     con->chunked = 0;
     con->connected = 0;
@@ -684,7 +553,6 @@ static int curl_wrapper_open_cnx(CURLWContext *con, CURLWHandle *h, Curl_Data *b
     con->ignore_interrupt = 0;
     h->quited = 0;
     h->open_quited = 0;
-    h->redirect_quited = 0;
     h->seekable = 0;
     h->perform_error_code = 0;
     h->dl_speed = 0.0f;
@@ -703,6 +571,7 @@ int curl_wrapper_http_keepalive_open(CURLWContext *con, CURLWHandle *h, const ch
         CLOGE("Invalid CURLWHandle\n");
         return ret;
     }
+    con->chunk_size = 0;
     con->quited = 0;
     con->chunked = 0;
     con->connected = 0;
@@ -710,7 +579,6 @@ int curl_wrapper_http_keepalive_open(CURLWContext *con, CURLWHandle *h, const ch
     con->ignore_interrupt = 0;
     h->quited = 0;
     h->open_quited = 0;
-    h->redirect_quited = 0;
     h->seekable = 0;
     h->perform_error_code = 0;
     h->dl_speed = 0.0f;
@@ -762,15 +630,10 @@ int curl_wrapper_perform(CURLWContext *con)
     curl_multi_timeout(con->multi_curl, &multi_timeout);
     curl_multi_perform(con->multi_curl, &running_handle_cnt);
 
-    int select_max_retry_time = am_getconfig_int_def("media.curl.max_retry_time", 50);
-
     while (running_handle_cnt) {
         struct timeval tv;
         tv.tv_sec = 0;
-        tv.tv_usec = 100 * 1000;
-        if (select_zero_cnt > 0 && con->connected) {
-            tv.tv_usec = 50 * 1000;
-        }
+        tv.tv_usec = 200 * 1000;
         int max_fd;
 
         fd_set fd_read;
@@ -815,14 +678,22 @@ int curl_wrapper_perform(CURLWContext *con)
             }
             break;
         }
-        // need to do read seek in upper layer if chunked.
-        if (con->connected/* && !con->chunked */ && select_zero_cnt == select_max_retry_time) {
+        if (con->connected) {
             if (con->no_body) {
                 CLOGI("Got headers, no body output!");
                 break;
             }
-            select_breakout_flag = 1;
-            break;
+            if (con->chunked && con->chunk_size > 0) { // retry less in chunked mode.
+                if (select_zero_cnt == 5) {
+                    select_breakout_flag = 1;
+                    break;
+                }
+            } else {
+                if (select_zero_cnt == SELECT_RETRY_TIMES) {
+                    select_breakout_flag = 1;
+                    break;
+                }
+            }
         }
         if (!con->connected && select_zero_cnt == SELECT_RETRY_WHEN_CONNECTING) {
             con->open_fail = 1;
@@ -915,8 +786,8 @@ int curl_wrapper_clean_after_perform(CURLWContext *con)
             CURLWHandle * tmp_h = NULL;
             for (tmp_h = con->curl_handle; tmp_h; tmp_h = tmp_h->next) {
                 curl_multi_remove_handle(con->multi_curl, tmp_h->curl);
-                //curl_easy_cleanup(tmp_h->curl);
-                //tmp_h->curl = NULL;
+                curl_easy_cleanup(tmp_h->curl);
+                tmp_h->curl = NULL;
             }
         }
     }
@@ -951,8 +822,8 @@ int curl_wrapper_set_to_quit(CURLWContext * con, CURLWHandle * h)
                     tmp_h->quited = 1;
                     if (tmp_h->curl) {
                         curl_multi_remove_handle(con->multi_curl, tmp_h->curl);
-                        //curl_easy_cleanup(tmp_h->curl);
-                        //tmp_h->curl = NULL;
+                        curl_easy_cleanup(tmp_h->curl);
+                        tmp_h->curl = NULL;
                     }
                     ret = curl_wrapper_del_curl_handle(con, h);
                     break;
@@ -979,17 +850,20 @@ int curl_wrapper_seek(CURLWContext * con, CURLWHandle * h, int64_t off, Curl_Dat
     }
     ret = curl_wrapper_open_cnx(con, h, buf, flags, off);
     if (!ret) {
-#if 0
-        char range[256];
-        snprintf(range, sizeof(range), "%lld-", off);
-        if (CURLE_OK != curl_easy_setopt(h->curl, CURLOPT_RANGE, range)) {
-            return -1;
+        if (h->chunk_size > 0 && off > 0) {  // not support this when transfer in chunked mode.
+            ret = curl_easy_setopt(h->curl, CURLOPT_RESUME_FROM_LARGE, (curl_off_t)off);
+        } else if (h->chunk_size < 0) {
+            if (!off) {
+                return ret;
+            } else if (off < 0) {
+                if (CURLE_OK != curl_easy_setopt(h->curl, CURLOPT_RANGE, "0-")) {
+                    return -1;
+                } else {
+                    return 0;
+                }
+            }
+            ret = curl_easy_setopt(h->curl, CURLOPT_RESUME_FROM_LARGE, (curl_off_t)off);
         }
-#else
-        //if (h->chunk_size > 0) {  // not support this when transfer in trunk mode.
-        //    ret = curl_easy_setopt(h->curl, CURLOPT_RESUME_FROM_LARGE, (curl_off_t)off);
-        //}
-#endif
     }
     return ret;
 }
@@ -1011,7 +885,6 @@ int curl_wrapper_close(CURLWContext * h)
     c_free(h);
     h = NULL;
     ret = 0;
-    s_LocationNum = 0;
     return ret;
 }
 

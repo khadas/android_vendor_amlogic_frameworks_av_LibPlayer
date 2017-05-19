@@ -6,9 +6,6 @@
 
 #include "curl_log.h"
 #include "curl_fetch.h"
-#include "amconfigutils.h"
-#include <libavformat/avio.h>
-
 
 #define IPAD_IDENT  "AppleCoreMedia/1.0.0.9A405 (iPad; U; CPU OS 5_0_1 like Mac OS X; zh_cn)"
 
@@ -35,7 +32,7 @@ static int curl_fetch_url_process(CFContext * h)
         int len1 = fptr - h->uri + 2;
         memcpy(t_uri, h->uri, len1);
         memcpy(ip, h->uri + len1, (bptr - h->uri - len1) > 256 ? 256 : (bptr - h->uri - len1));
-        char * ip_ptr = (char *)c_stristr(ip, ":");
+        char * ip_ptr = c_stristr(ip, ":");
         if (ip_ptr) {
             int len2 = ip_ptr - ip;
             memcpy(t_uri + len1, ip, len2);
@@ -94,8 +91,6 @@ CFContext * curl_fetch_init(const char * uri, const char * headers, int flags)
         CLOGE("Failed to allocate memory for curl_data\n");
         return NULL;
     }
-    handle->cwd->rangesize = 1024 * 1024;
-    memset(handle->cwd->rangebuf, 0, sizeof(handle->cwd->rangebuf));
     handle->cwh_h = curl_wrapper_open(handle->cwc_h, handle->uri, headers, handle->cwd, handle->prot_type);
     if (!handle->cwh_h) {
         CLOGE("curl_wrapper_open failed\n");
@@ -128,18 +123,18 @@ int curl_fetch_open(CFContext * h)
         CLOGE("CFContext invalid\n");
         return -1;
     }
-#if 1
     if (h->prot_type == C_PROT_HTTP || h->prot_type == C_PROT_HTTPS) {
         curl_wrapper_set_para(h->cwh_h, NULL, C_MAX_REDIRECTS, 10, NULL);
-        //curl_wrapper_set_para(h->cwh_h, NULL, C_USER_AGENT, 0, IPAD_IDENT);
         curl_wrapper_set_para(h->cwh_h, (void *)h->cwd, C_HEADERS, 0, NULL);
-    }
-#endif
-    if (h->headers) {
-        curl_fetch_http_set_headers(h, h->headers);
+        if (h->headers) {
+            curl_fetch_http_set_headers(h, h->headers);
+        }
+        if (!h->headers || !strstr(h->headers, "User-Agent:")) {
+            curl_wrapper_set_para(h->cwh_h, NULL, C_USER_AGENT, 0, IPAD_IDENT);
+        }
+        curl_wrapper_set_para(h->cwh_h, NULL, C_RANGE, 0, NULL); // open with range
     }
 
-    //h->thread_first_run = 1;
     curl_fetch_start_local_run(h);
 
     int timeout = 0;
@@ -159,9 +154,6 @@ int curl_fetch_open(CFContext * h)
         if (h->cwc_h->open_fail) {
             return -1;
         }
-        if (h->cwh_h->redirect_quited) {
-            break;
-        }
         usleep(SLEEP_TIME_UNIT);
         timeout += SLEEP_TIME_UNIT;
     }
@@ -169,18 +161,13 @@ int curl_fetch_open(CFContext * h)
         return -1;
     }
     if (h->cwh_h->open_quited) {
-        if (h->cwh_h->chunk_size >= 0) {
+        if (h->cwh_h->chunk_size > 0) {
             h->filesize = h->cwh_h->chunk_size;
         }
         if (h->cwh_h->relocation) {
             h->relocation = h->cwh_h->relocation;
         }
         h->http_code = h->cwh_h->http_code;
-    } else if (h->cwh_h->redirect_quited) {
-        if (h->cwh_h->relocation) {
-            h->relocation = h->cwh_h->relocation;
-        }
-        return 1;
     } else {
         h->http_code = ETIMEDOUT;
         return -1;
@@ -190,7 +177,7 @@ int curl_fetch_open(CFContext * h)
         return -1;
     }
 
-    if (h->filesize > 0 || h->cwh_h->seekable) {
+    if ((h->filesize > 0 && h->filesize != 2147483647) || h->cwh_h->seekable) {
         h->seekable = 1;
     }
 
@@ -311,23 +298,6 @@ static void * curl_fetch_thread_run(void *_handle)
 {
     CLOGI("curl_fetch_thread_run enter\n");
     CFContext * h = (CFContext *)_handle;
-
-    int64_t bitrate = 0;
-    bitrate = am_getconfig_int_def("media.libplayer.bitrate", 0);
-    if (bitrate > 0) {
-        CLOGE("curl get bitrate : %d\n", bitrate);
-        h->cwd->rangesize = bitrate * 10;
-    }
-#if 0
-    if (h->thread_first_run) {  // care of instant seeking after open
-        h->thread_first_run = 0;
-        usleep(20 * 1000);
-        if (h->is_seeking) {
-            h->thread_quited = 1;
-            return NULL;
-        }
-    }
-#endif
     h->perform_retval = curl_wrapper_perform(h->cwc_h);
     pthread_mutex_lock(&h->quit_mutex);
     h->thread_quited = 1;
@@ -348,7 +318,6 @@ static int curl_fetch_waitthreadquit(CFContext * h, int microseconds)
     int retcode = 0;
     gettimeofday(&now, NULL);
     timeout.tv_sec = now.tv_sec + (microseconds + now.tv_usec) / 1000000;
-    //timeout.tv_nsec = now.tv_usec * 1000;i
     timeout.tv_nsec = (microseconds % 1000000) * 1000 + now.tv_usec * 1000;
     pthread_mutex_lock(&h->quit_mutex);
     while (!h->thread_quited && retcode != ETIMEDOUT) {
@@ -425,7 +394,6 @@ int64_t curl_fetch_seek(CFContext * h, int64_t off, int whence)
         CLOGE("curl_fetch_seek exceed chunk_size\n");
         return -2;
     }
-
     int ret = -1;
     h->cwc_h->ignore_interrupt = 0;
     curl_wrapper_set_to_quit(h->cwc_h, NULL);
@@ -443,36 +411,18 @@ int64_t curl_fetch_seek(CFContext * h, int64_t off, int whence)
         CLOGE("curl_wrapper_seek failed\n");
         return -1;
     }
-    if (h->headers) {
-        curl_fetch_http_set_headers(h, h->headers);
-    }
-#if 1
     if (h->prot_type == C_PROT_HTTP || h->prot_type == C_PROT_HTTPS) {
         curl_wrapper_set_para(h->cwh_h, NULL, C_MAX_REDIRECTS, 10, NULL);
-        //curl_wrapper_set_para(h->cwh_h, NULL, C_USER_AGENT, 0, IPAD_IDENT);
         curl_wrapper_set_para(h->cwh_h, (void *)h->cwd, C_HEADERS, 0, NULL);
+        if (h->headers) {
+            curl_fetch_http_set_headers(h, h->headers);
+        }
+        if (!h->headers || !strstr(h->headers, "User-Agent:")) {
+            curl_wrapper_set_para(h->cwh_h, NULL, C_USER_AGENT, 0, IPAD_IDENT);
+        }
     }
-#endif
     h->cwc_h->ignore_interrupt = 1;
     ret = curl_fetch_start_local_run(h);
-    int timeout = 0;
-    while (!h->cwh_h->open_quited && !h->thread_quited && timeout < CONNECT_TIMEOUT_THRESHOLD) {
-#if 0
-        if (url_interrupt_cb()) {
-            CLOGE("***** CURL INTERRUPTED *****");
-            return -1;  // consider for seek interrupt
-        }
-#endif
-        if (h->cwc_h->open_fail) {
-            return -1;
-        }
-        usleep(SLEEP_TIME_UNIT);
-        timeout += SLEEP_TIME_UNIT;
-    }
-    if (h->cwh_h->http_code == 503) {
-        CLOGE("seek failed!");
-        return -1;
-    }
     if (ret) {
         CLOGE("curl_fetch_start_local_run failed\n");
         return -1;
