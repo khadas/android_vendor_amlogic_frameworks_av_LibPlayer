@@ -82,6 +82,8 @@ static void vcodec_info_init(play_para_t *p_para, codec_para_t *v_codec)
         }
     } else if ((vinfo->video_format == VFORMAT_VC1) && (p_para->file_type == AVI_FILE)) {
         v_codec->am_sysinfo.param = (void *)EXTERNAL_PTS;
+    } else if ((vinfo->video_format == VFORMAT_VP9) && (p_para->file_type == MKV_FILE)){
+        v_codec->am_sysinfo.param = (void *)(UNSTABLE_PTS | (unsigned long)v_codec->am_sysinfo.param);
     } else {
         v_codec->am_sysinfo.param     = (void *)0;
     }
