@@ -1,7 +1,7 @@
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
-include $(TOP)/hardware/amlogic/media/media_base_config.mk  
+include $(LOCAL_PATH)/../../../config.mk
 
 LOCAL_ARM_MODE := arm
 LOCAL_MODULE_TAGS := optional

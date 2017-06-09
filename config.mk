@@ -1,0 +1,1 @@
+include $(BOARD_AML_MEDIA_HAL_CONFIG)

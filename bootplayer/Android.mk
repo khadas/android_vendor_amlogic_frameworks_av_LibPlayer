@@ -1,7 +1,7 @@
 LOCAL_PATH := $(call my-dir)
 
 ifeq ($(BUILD_WITH_BOOT_PLAYER),true)
-include $(TOP)/hardware/amlogic/media/media_base_config.mk 
+include $(LOCAL_PATH)/../config.mk
 
 include $(CLEAR_VARS)
 LOCAL_MODULE    := bootplayer

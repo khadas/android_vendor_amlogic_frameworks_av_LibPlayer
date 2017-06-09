@@ -1,5 +1,5 @@
 LOCAL_PATH := $(call my-dir)
-
+include $(LOCAL_PATH)/../../config.mk
 #
 # Compile libmms
 #
@@ -17,7 +17,7 @@ LOCAL_SRC_FILES := src/mms.c \
 LOCAL_CFLAGS	:= -DHAVE_CONFIG_H $(cflags_loglevels) 
 LOCAL_CFLAGS	+= -DDEBUG
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/include/\
-	  $(TOP)/vendor/amlogic/external/libiconv/include
+	   $(BOARD_AML_VENDOR_PATH)/external/libiconv/include
 
 LOCAL_SHARED_LIBRARIES := libiconv libutils liblog
 include $(BUILD_SHARED_LIBRARY)
@@ -40,7 +40,7 @@ LOCAL_SRC_FILES := src/mms.c \
 LOCAL_CFLAGS	:= -DHAVE_CONFIG_H $(cflags_loglevels) 
 LOCAL_CFLAGS	+= -DDEBUG
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/include/\
-	  $(TOP)/vendor/amlogic/external/libiconv/include
+	  $(BOARD_AML_VENDOR_PATH)/external/libiconv/include
 
 LOCAL_SHARED_LIBRARIES := libutils liblog
 LOCAL_STATIC_LIBRARIES := libiconv 

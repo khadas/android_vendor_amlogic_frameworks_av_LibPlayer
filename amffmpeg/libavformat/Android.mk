@@ -1,5 +1,5 @@
 LOCAL_PATH := $(call my-dir)
-include $(TOP)/hardware/amlogic/media/media_base_config.mk
+include $(LOCAL_PATH)/../../config.mk
 include $(CLEAR_VARS)
 include $(LOCAL_PATH)/../common.mk
 LOCAL_SRC_FILES := $(FFFILES)

@@ -1,7 +1,7 @@
 LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
-include $(TOP)/hardware/amlogic/media/media_base_config.mk 
+include $(LOCAL_PATH)/../config.mk
 LOCAL_MODULE    := testlibplayer
 LOCAL_MODULE_TAGS := tests
 LOCAL_SRC_FILES := testlibplayer.c

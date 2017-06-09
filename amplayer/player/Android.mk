@@ -2,8 +2,7 @@
 LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
-
-include $(TOP)/hardware/amlogic/media/media_base_config.mk
+include $(LOCAL_PATH)/../../config.mk
 
 ifneq ($(BOARD_VOUT_USES_FREESCALE),false)
 LOCAL_CFLAGS += -DENABLE_FREE_SCALE
@@ -47,7 +46,7 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/include \
 	$(AMCODEC_NEED_INCLUDE)\
 	$(LOCAL_PATH)/../common\
 	$(LOCAL_PATH)/../../amffmpeg\
-	$(TOP)/vendor/amlogic/external/libiconv/include
+	$(BOARD_AML_VENDOR_PATH)/external/libiconv/include
 
 LOCAL_MODULE := libamplayer
 
@@ -82,7 +81,7 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/include \
 	$(LOCAL_PATH)/../common \
 	$(AMCODEC_NEED_INCLUDE) \
 	$(LOCAL_PATH)/../../amffmpeg \
-	$(TOP)/vendor/amlogic/external/libiconv/include
+	$(BOARD_AML_VENDOR_PATH)/external/libiconv/include
 
 LOCAL_CFLAGS+=-DHAVE_VERSION_INFO
 LOCAL_CFLAGS+=-DLIBPLAYER_GIT_VERSION=\"${LIBPLAYER_GIT_VERSION}${LIBPLAYER_GIT_DIRTY}\"
