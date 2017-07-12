@@ -11,6 +11,11 @@ sed -i -e 's;unchanged\* ;;g' /tmp/astyle.log;
 DIR=$PWD
 #Get the directory of the source code(s) to generate the patch
 line=`sed -n 1p /tmp/astyle.log`
+unchanged=`echo $line | grep Unchanged`
+if [ "0$unchanged" != "0"  ]; then
+	exit 0;
+fi
+echo "dirname $line"
 DIR=`dirname $line`
 
 #We needn't /tmp/astyle.log any more, delete it.
