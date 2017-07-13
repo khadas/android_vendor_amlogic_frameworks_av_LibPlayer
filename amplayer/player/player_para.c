@@ -26,7 +26,7 @@
 #include "player_ffmpeg_ctrl.h"
 #include "system/systemsetting.h"
 #include <cutils/properties.h>
-#include <iconv.h>
+
 
 #include "amconfigutils.h"
 #include "Amsysfsutils.h"
@@ -602,25 +602,13 @@ static void get_ts_program(play_para_t *p_para, int program_num)
         if (pStream->id == 0) { //drop 0 pid
             continue;
         }
-
         if (pStream->codec->codec_type == CODEC_TYPE_VIDEO) {
             ts_programe_detail->video_pid = pStream->id;
             tag = av_dict_get(pPrograms->metadata, "service_name", NULL, 0);
-
             if (tag != NULL && tag->value != NULL) {
-                char* strGB = tag->value;
-                int lenSrc = strlen(tag->value);
-                int lenSrc_o = lenSrc;
-                int lenDst = lenSrc * 5;
-                char* output_p  = (char*) malloc(lenDst);
-                char* pFreeOut = output_p;
-
-                iconv_t cd = iconv_open("UTF-8", "GBK");
-                iconv(cd, &strGB, &lenSrc,  &output_p, &lenDst);
-                iconv_close(cd);
-
-                memcpy(&(ts_programe_detail->programe_name), pFreeOut, lenSrc_o * 5 - lenDst);
-                free(pFreeOut);
+                int space = sizeof(ts_programe_detail->programe_name);
+                strncpy(ts_programe_detail->programe_name, tag->value, space - 1);
+                ts_programe_detail->programe_name[space] = '\0';
             }
         } else if (pStream->codec->codec_type == CODEC_TYPE_AUDIO) {
             for (j = 0; j < MAX_AUDIO_STREAMS; j++) {

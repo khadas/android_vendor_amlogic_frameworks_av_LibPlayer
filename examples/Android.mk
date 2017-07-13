@@ -14,7 +14,7 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/../amplayer/player/include \
     $(LOCAL_PATH)/../streamsource \
     $(JNI_H_INCLUDE) \
 
-LOCAL_STATIC_LIBRARIES := libamplayer libamplayer libamcodec libavformat librtmp libavcodec libavutil libamadec libamavutils  libiconv
+LOCAL_STATIC_LIBRARIES := libamplayer libamplayer libamcodec libavformat librtmp libavcodec libavutil libamadec libamavutils
 LOCAL_SHARED_LIBRARIES += libutils libmedia libbinder libz libdl libcutils libssl libcrypto
 
 LOCAL_SHARED_LIBRARIES += libbinder 
@@ -39,7 +39,7 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/../amplayer/player/include \
     $(LOCAL_PATH)/../amffmpeg \
     $(JNI_H_INCLUDE) 
 
-LOCAL_STATIC_LIBRARIES := libamplayer libamplayer libamcodec libavformat librtmp libavcodec libavutil libamadec libamavutils libiconv
+LOCAL_STATIC_LIBRARIES := libamplayer libamplayer libamcodec libavformat librtmp libavcodec libavutil libamadec libamavutils
 LOCAL_SHARED_LIBRARIES += libutils libmedia libbinder libz libdl libcutils libssl libcrypto
 
 ifneq (0, $(shell expr $(PLATFORM_VERSION) \>= 5.0))

@@ -15,10 +15,10 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/../amplayer/player/include \
     $(JNI_H_INCLUDE) \
 
 ifneq (0, $(shell expr $(PLATFORM_VERSION) \>= 5.0))
-LOCAL_STATIC_LIBRARIES := libamplayer libamplayer libamcodec libavformat librtmp libavcodec libavutil libamadec_alsa  libiconv
+LOCAL_STATIC_LIBRARIES := libamplayer libamplayer libamcodec libavformat librtmp libavcodec libavutil libamadec_alsa
 LOCAL_SHARED_LIBRARIES += libutils libmedia libbinder libz libdl libcutils libssl libcrypto libasound libamavutils
 else
-LOCAL_STATIC_LIBRARIES := libamplayer libamplayer libamcodec libavformat librtmp libavcodec libavutil libamadec_alsa libamavutils_alsa  libiconv
+LOCAL_STATIC_LIBRARIES := libamplayer libamplayer libamcodec libavformat librtmp libavcodec libavutil libamadec_alsa libamavutils_alsa
 LOCAL_SHARED_LIBRARIES += libutils libmedia libbinder libz libdl libcutils libssl libcrypto libasound
 endif
 

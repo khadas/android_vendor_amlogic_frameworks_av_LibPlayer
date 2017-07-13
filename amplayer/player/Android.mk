@@ -45,8 +45,7 @@ endif
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/include \
 	$(AMCODEC_NEED_INCLUDE)\
 	$(LOCAL_PATH)/../common\
-	$(LOCAL_PATH)/../../amffmpeg\
-	$(BOARD_AML_VENDOR_PATH)/external/libiconv/include
+	$(LOCAL_PATH)/../../amffmpeg
 
 LOCAL_MODULE := libamplayer
 
@@ -81,7 +80,6 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/include \
 	$(LOCAL_PATH)/../common \
 	$(AMCODEC_NEED_INCLUDE) \
 	$(LOCAL_PATH)/../../amffmpeg \
-	$(BOARD_AML_VENDOR_PATH)/external/libiconv/include
 
 LOCAL_CFLAGS+=-DHAVE_VERSION_INFO
 LOCAL_CFLAGS+=-DLIBPLAYER_GIT_VERSION=\"${LIBPLAYER_GIT_VERSION}${LIBPLAYER_GIT_DIRTY}\"
@@ -97,7 +95,7 @@ ifeq ($(TARGET_ARCH),arm)
 LOCAL_LDFLAGS := -Wl,--no-warn-shared-textrel
 endif
 LOCAL_STATIC_LIBRARIES := libavformat librtmp libswscale libavcodec libavutil
-LOCAL_SHARED_LIBRARIES := libamcodec  libamadec libiconv
+LOCAL_SHARED_LIBRARIES := libamcodec  libamadec
 LOCAL_SHARED_LIBRARIES += libutils libmedia libz libbinder libdl libcutils libc libamavutils libssl libcrypto
 
 LOCAL_MODULE := libamplayer

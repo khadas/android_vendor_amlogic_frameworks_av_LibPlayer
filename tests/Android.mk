@@ -12,6 +12,6 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/../amplayer/player/include \
     $(JNI_H_INCLUDE) 
 
 LOCAL_SHARED_LIBRARIES += libutils libmedia libbinder libz libdl libcutils
-LOCAL_SHARED_LIBRARIES += libamcodec libamavutils libiconv libamplayer
+LOCAL_SHARED_LIBRARIES += libamcodec libamavutils libamplayer
 include $(BUILD_EXECUTABLE)
 
