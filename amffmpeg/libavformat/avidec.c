@@ -1738,7 +1738,8 @@ static int avi_read_seek(AVFormatContext *s, int stream_index, int64_t timestamp
         if (index < 0) {
             index = 0;
         }
-        while (!avi->non_interleaved && index > 0 && st2->index_entries[index - 1].pos >= pos_min && pos_min >= st2->index_entries[0].pos) {
+        //while (!avi->non_interleaved && index > 0 && st2->index_entries[index - 1].pos >= pos_min && pos_min >= st2->index_entries[0].pos) {
+        while ((!avi->non_interleaved || st2->codec->codec_type == AVMEDIA_TYPE_SUBTITLE) && index>0 && st2->index_entries[index-1].pos >= pos_min && pos_min >= st2->index_entries[0].pos) {
             index--;
         }
         ast2->frame_offset = st2->index_entries[index].timestamp;
