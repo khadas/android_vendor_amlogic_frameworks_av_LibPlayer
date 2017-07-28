@@ -1,7 +1,7 @@
 LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
-include $(BOARD_AML_MEDIA_HAL_CONFIG)
+include $(LOCAL_PATH)/../../config.mk
 LOCAL_ARM_MODE := arm
 LOCAL_PRELINK_MODULE := false
 
@@ -21,6 +21,6 @@ LOCAL_CFLAGS += -DLOG_ENABLE=0
 LOCAL_SHARED_LIBRARIES :=libamplayer libcutils libbluray libdl
 
 LOCAL_MODULE := libbluray_mod
-LOCAL_MODULE_RELATIVE_PATH:=$(TARGET_OUT)/lib/amplayer
+LOCAL_MODULE_RELATIVE_PATH := amplayer
 include $(BUILD_SHARED_LIBRARY)
 

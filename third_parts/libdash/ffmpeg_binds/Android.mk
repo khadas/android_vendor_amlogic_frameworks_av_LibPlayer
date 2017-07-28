@@ -1,6 +1,6 @@
 LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
-include $(BOARD_AML_MEDIA_HAL_CONFIG)
+include $(LOCAL_PATH)/../../../config.mk
 LOCAL_ARM_MODE := arm
 LOCAL_PRELINK_MODULE := false
 LOCAL_MODULE_TAGS := optional
