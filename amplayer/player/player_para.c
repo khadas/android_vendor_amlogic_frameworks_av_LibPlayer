@@ -291,9 +291,14 @@ static void get_av_codec_type(play_para_t *p_para)
                 p_para->vstream_info.video_codec_rate = (int64_t)UNIT_FREQ * pCodecCtx->time_base.num / pCodecCtx->time_base.den;
             }
 
-            if (0 != pStream->r_frame_rate.num) {
+            if (0 != pStream->avg_frame_rate.num) {
+                p_para->vstream_info.video_rate = (int64_t)UNIT_FREQ * pStream->avg_frame_rate.den / pStream->avg_frame_rate.num;
+            } else if (0 != pStream->r_frame_rate.num) {
                 p_para->vstream_info.video_rate = (int64_t)UNIT_FREQ * pStream->r_frame_rate.den / pStream->r_frame_rate.num;
+            } else {
+                p_para->vstream_info.video_rate = 0;
             }
+
             log_print("[%s:%d]video_codec_rate=%d,video_rate=%d\n", __FUNCTION__, __LINE__, p_para->vstream_info.video_codec_rate, p_para->vstream_info.video_rate);
             if ((p_para->pFormatCtx->pb != NULL && p_para->pFormatCtx->pb->is_slowmedia) && (p_para->vstream_info.video_format == VFORMAT_MPEG4) && (p_para->vstream_info.video_rate < 10)) {
                 // in network playback. fast switch might causes stream video_rate info  not correct . then set it to 0.
@@ -326,7 +331,7 @@ static void get_av_codec_type(play_para_t *p_para)
                         log_print("[%s:%d]video_codec_rate=%d,video_rate=%d\n", __FUNCTION__, __LINE__, p_para->vstream_info.video_codec_rate, p_para->vstream_info.video_rate);
                     }
                 }
-            } else if (p_para->file_type == FLV_FILE) {
+            } else if (p_para->file_type == FLV_FILE && !p_para->vstream_info.video_rate) {
                 if (pStream->special_fps > 0 && pStream->special_fps < (float)100) {
                     p_para->vstream_info.video_rate = UNIT_FREQ / pStream->special_fps;
                 }
