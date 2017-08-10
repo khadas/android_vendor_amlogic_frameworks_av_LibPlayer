@@ -78,8 +78,9 @@ int player_thread_wait_exit(play_para_t *player)
     int ret;
     player_thread_mgt_t *mgt = &player->thread_mgt;
     log_print("[player_thread_wait_exit:%d]pid=[%d] thead_id=%lu\n", __LINE__, player->player_id, mgt->pthread_id);
-    if (mgt) {
+    if (mgt && mgt->pthread_id != 0) {
         ret = amthreadpool_pthread_join(mgt->pthread_id, NULL);
+        mgt->pthread_id = 0;
     } else {
         ret = 0;
     }
